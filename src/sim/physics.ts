@@ -61,3 +61,27 @@ export const specificOrbitalEnergy = (
   }, 0);
   return kinetic + potential;
 };
+
+export const totalEnergy = (bodies: BodyState[], params: SimParams): number => {
+  const kinetic = bodies.reduce(
+    (sum, body) => sum + 0.5 * body.mass * magnitudeSquared(body.velocity),
+    0,
+  );
+
+  let potential = 0;
+  for (let i = 0; i < bodies.length; i += 1) {
+    for (let j = i + 1; j < bodies.length; j += 1) {
+      const d = magnitude(sub(bodies[j].position, bodies[i].position));
+      const softened = Math.sqrt(d * d + params.softening * params.softening);
+      potential -= (params.G * bodies[i].mass * bodies[j].mass) / softened;
+    }
+  }
+  return kinetic + potential;
+};
+
+export const totalMomentum = (bodies: BodyState[]): Vec2 => {
+  return bodies.reduce(
+    (sum, body) => add(sum, scale(body.velocity, body.mass)),
+    { x: 0, y: 0 },
+  );
+};

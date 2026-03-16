@@ -23,6 +23,19 @@ export type SimParams = {
   ejectionFramesThreshold: number;
 };
 
+export type DiagnosticsSnapshot = {
+  energy: number;
+  momentum: Vec2;
+};
+
+export type PresetProfile = {
+  id: string;
+  name: string;
+  description: string;
+  bodies: BodyState[];
+  params?: Partial<SimParams>;
+};
+
 export type WorldState = {
   bodies: BodyState[];
   elapsedTime: number;
