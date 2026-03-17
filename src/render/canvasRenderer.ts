@@ -20,7 +20,8 @@ const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 const MIN_BODY_RADIUS_PX = 3;
-const MAX_BODY_RADIUS_PX = 20;
+const MAX_BODY_RADIUS_PX = 15;
+const DEFAULT_BODY_RADIUS_PX = (MIN_BODY_RADIUS_PX + MAX_BODY_RADIUS_PX) / 2;
 
 const divisibilityLevel = (n: number, radix: number): number => {
   const abs = Math.abs(n);
@@ -76,7 +77,7 @@ const bodyRadiusFromMasses = (mass: number, masses: number[]): number => {
   const minMass = Math.min(...masses);
   const maxMass = Math.max(...masses);
   if (Math.abs(maxMass - minMass) < 1e-9) {
-    return (MIN_BODY_RADIUS_PX + MAX_BODY_RADIUS_PX) * 0.5;
+    return DEFAULT_BODY_RADIUS_PX;
   }
   const t = (mass - minMass) / (maxMass - minMass);
   const radius = MIN_BODY_RADIUS_PX + (MAX_BODY_RADIUS_PX - MIN_BODY_RADIUS_PX) * t;
@@ -203,7 +204,7 @@ export const drawFrame = (
 
   for (const body of bodiesByDrawOrder) {
     const p = worldToScreen(body.position, camera, viewport);
-    const radius = radiusById[body.id] ?? ((MIN_BODY_RADIUS_PX + MAX_BODY_RADIUS_PX) * 0.5);
+    const radius = radiusById[body.id] ?? DEFAULT_BODY_RADIUS_PX;
     const gradient = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, radius * 3);
     gradient.addColorStop(0, "rgba(255,255,255,0.95)");
     gradient.addColorStop(0.35, body.color);

@@ -21,6 +21,12 @@ The app renders three gravitating bodies on a canvas with trails, diagnostics, p
 - React 18
 - TypeScript 5
 - Vite 5
+- Vercel Web Analytics (`@vercel/analytics/react`)
+
+## Analytics
+
+The app includes Vercel Web Analytics to track high-level usage and performance trends in deployed environments.
+This helps monitor real-user behavior and identify regressions after releases.
 
 ## Getting Started
 
