@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "./styles.css";
 import { drawFrame, fadeAndPruneTrails, type TrailMap } from "./render/canvasRenderer";
 import { updateCamera, worldToScreen, type Camera } from "./sim/camera";
