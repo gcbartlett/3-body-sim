@@ -1,14 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import "./styles.css";
 import { drawFrame, fadeAndPruneTrails, type TrailMap } from "./render/canvasRenderer";
-import { updateCamera, type Camera } from "./sim/camera";
+import { updateCamera, worldToScreen, type Camera } from "./sim/camera";
 import { defaultBodies, defaultParams, initialWorld } from "./sim/defaults";
-import { evaluateEjection } from "./sim/ejection";
+import {
+  coreEscapeMetricsForBody,
+  EJECTION_TIME_THRESHOLD_SECONDS,
+  evaluateEjection,
+} from "./sim/ejection";
 import { velocityVerletStep } from "./sim/integrators";
-import { centerOfMass, computeAccelerations, totalEnergy, totalMomentum } from "./sim/physics";
+import {
+  centerOfMass,
+  computeAccelerations,
+  totalEnergy,
+  totalMomentum,
+} from "./sim/physics";
 import { PRESETS, cloneBodies } from "./sim/presets";
-import type { BodyState, DiagnosticsSnapshot, SimParams, WorldState } from "./sim/types";
+import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./sim/types";
+import { CanvasDiagnostics } from "./ui/CanvasDiagnostics";
 import { ControlPanel } from "./ui/ControlPanel";
+import { magnitude } from "./sim/vector";
 
 type LockMode = "none" | "origin" | "com";
 
@@ -44,11 +55,190 @@ const diagnosticsSnapshot = (bodies: BodyState[], params: SimParams): Diagnostic
 
 const MAX_TRAIL_POINTS_PER_BODY = 2400;
 const VIEWPORT_TARGET_FRACTION = 0.66;
-const ZOOM_DAMPING = 0.18;
+const ZOOM_DAMPING_OUT = 0.2;
+const ZOOM_DAMPING_IN = 0.0025;
+const ZOOM_IN_HYSTERESIS = 0.08;
 const MIN_WORLD_UNITS_PER_PIXEL = 0.0005;
 const MAX_WORLD_UNITS_PER_PIXEL = 5;
 const BODY_COLORS = ["#f7b731", "#60a5fa", "#8bd450"];
 const BASE_MAX_STEPS = 12;
+const FAST_REFRAME_FRAMES = 60;
+const PARAMS_STORAGE_KEY = "three-body-sim.params.v1";
+const USER_PRESETS_STORAGE_KEY = "three-body-sim.user-presets.v1";
+const PANEL_EXPANDED_STORAGE_KEY = "three-body-sim.ui.panel-expanded.v1";
+const DISSOLUTION_TIME_THRESHOLD_SECONDS = 10;
+const DISPLAY_PAIR_ENERGY_EPS = 0.05;
+const PRESET_ID_MAX_LENGTH = 64;
+const PRESET_NAME_MAX_LENGTH = 80;
+const PRESET_DESCRIPTION_MAX_LENGTH = 280;
+
+const formatDiag = (value: number): string => {
+  const normalized = Math.abs(value) < 0.0005 ? 0 : value;
+  const abs = Math.abs(normalized);
+  const dp = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
+  return `${normalized >= 0 ? "+" : ""}${normalized.toFixed(dp)}`;
+};
+
+const sanitizeParams = (candidate: Partial<SimParams> | null | undefined): SimParams => {
+  const base = defaultParams();
+  if (!candidate) {
+    return base;
+  }
+  const safe = (value: unknown, fallback: number) =>
+    typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
+  return {
+    G: Math.max(0, safe(candidate.G, base.G)),
+    dt: Math.max(0.0001, safe(candidate.dt, base.dt)),
+    speed: Math.max(0.01, safe(candidate.speed, base.speed)),
+    softening: Math.max(0, safe(candidate.softening, base.softening)),
+    trailFade: Math.max(0.0001, safe(candidate.trailFade, base.trailFade)),
+  };
+};
+
+const stripControlChars = (value: string, allowNewlines = false): string => {
+  const pattern = allowNewlines
+    ? /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g
+    : /[\u0000-\u001F\u007F]/g;
+  return value.replace(pattern, "");
+};
+
+const sanitizePresetId = (value: string): string => {
+  const normalized = stripControlChars(value)
+    .normalize("NFKC")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^A-Za-z0-9._-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-._]+|[-._]+$/g, "");
+  return normalized.slice(0, PRESET_ID_MAX_LENGTH);
+};
+
+const sanitizePresetName = (value: string): string =>
+  stripControlChars(value)
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .replace(/[<>]/g, "")
+    .trim()
+    .slice(0, PRESET_NAME_MAX_LENGTH);
+
+const sanitizePresetDescription = (value: string): string =>
+  stripControlChars(value, true)
+    .normalize("NFKC")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/[<>]/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, PRESET_DESCRIPTION_MAX_LENGTH);
+
+const loadPersistedParams = (): SimParams => {
+  try {
+    const raw = localStorage.getItem(PARAMS_STORAGE_KEY);
+    if (!raw) {
+      return defaultParams();
+    }
+    return sanitizeParams(JSON.parse(raw) as Partial<SimParams>);
+  } catch {
+    return defaultParams();
+  }
+};
+
+const loadPersistedPanelExpanded = (): boolean => {
+  try {
+    const raw = localStorage.getItem(PANEL_EXPANDED_STORAGE_KEY);
+    if (raw === null) {
+      return true;
+    }
+    return raw === "1";
+  } catch {
+    return true;
+  }
+};
+
+const sanitizeBodyArray = (candidate: unknown): BodyState[] | null => {
+  if (!Array.isArray(candidate) || candidate.length !== 3) {
+    return null;
+  }
+  const defaultSet = defaultBodies();
+  const safeNumber = (value: unknown, fallback: number) =>
+    typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
+  return candidate.map((body, index) => {
+    const fallback = defaultSet[index];
+    const source = body as Partial<BodyState> | null;
+    const sourcePosition = source?.position as Partial<{ x: number; y: number }> | undefined;
+    const sourceVelocity = source?.velocity as Partial<{ x: number; y: number }> | undefined;
+
+    return {
+      id: fallback.id,
+      color: fallback.color,
+      mass: Math.max(0.001, safeNumber(source?.mass, fallback.mass)),
+      position: {
+        x: safeNumber(sourcePosition?.x, fallback.position.x),
+        y: safeNumber(sourcePosition?.y, fallback.position.y),
+      },
+      velocity: {
+        x: safeNumber(sourceVelocity?.x, fallback.velocity.x),
+        y: safeNumber(sourceVelocity?.y, fallback.velocity.y),
+      },
+    };
+  });
+};
+
+const loadPersistedUserPresets = (): PresetProfile[] => {
+  try {
+    const raw = localStorage.getItem(USER_PRESETS_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    const seenIds = new Set<string>();
+    const safePresets: PresetProfile[] = [];
+    for (const item of parsed) {
+      const source = item as Partial<PresetProfile> | null;
+      const id = typeof source?.id === "string" ? sanitizePresetId(source.id) : "";
+      const name = typeof source?.name === "string" ? sanitizePresetName(source.name) : "";
+      const description =
+        typeof source?.description === "string"
+          ? sanitizePresetDescription(source.description)
+          : "";
+      const bodies = sanitizeBodyArray(source?.bodies);
+      if (!id || !name || !description || !bodies || seenIds.has(id)) {
+        continue;
+      }
+      seenIds.add(id);
+      safePresets.push({
+        id,
+        name,
+        description,
+        bodies,
+        params: sanitizeParams(source?.params),
+      });
+    }
+    return safePresets;
+  } catch {
+    return [];
+  }
+};
+
+const nextUserPresetNumber = (presetIds: string[]): number => {
+  const used = new Set<number>();
+  for (const id of presetIds) {
+    const match = /^user-(\d+)$/.exec(id);
+    if (match) {
+      used.add(Number(match[1]));
+    }
+  }
+  let next = 1;
+  while (used.has(next)) {
+    next += 1;
+  }
+  return next;
+};
 
 const appendTrailPoints = (trails: TrailMap, bodies: BodyState[]): TrailMap => {
   const updated: TrailMap = { ...trails };
@@ -61,6 +251,59 @@ const appendTrailPoints = (trails: TrailMap, bodies: BodyState[]): TrailMap => {
         : next;
   }
   return updated;
+};
+
+const pairSpecificEnergyForBodies = (
+  bodies: BodyState[],
+  params: SimParams,
+  i: number,
+  j: number,
+): number => {
+  const bi = bodies[i];
+  const bj = bodies[j];
+  if (!bi || !bj) {
+    return 0;
+  }
+  const dvx = bi.velocity.x - bj.velocity.x;
+  const dvy = bi.velocity.y - bj.velocity.y;
+  const vrel2 = dvx * dvx + dvy * dvy;
+  const dx = bi.position.x - bj.position.x;
+  const dy = bi.position.y - bj.position.y;
+  const r = Math.sqrt(dx * dx + dy * dy + params.softening * params.softening);
+  return 0.5 * vrel2 - (params.G * (bi.mass + bj.mass)) / Math.max(1e-9, r);
+};
+
+const boundPairStateForBodies = (
+  bodies: BodyState[],
+  params: SimParams,
+): { eps12: number; eps13: number; eps23: number; boundPairCount: number; state: string } => {
+  const eps12 = pairSpecificEnergyForBodies(bodies, params, 0, 1);
+  const eps13 = pairSpecificEnergyForBodies(bodies, params, 0, 2);
+  const eps23 = pairSpecificEnergyForBodies(bodies, params, 1, 2);
+  const boundPairCount = [eps12, eps13, eps23].filter((e) => e < 0).length;
+  const state =
+    boundPairCount === 0
+      ? "dissolving"
+      : boundPairCount === 1
+      ? "binary+single"
+      : "resonant";
+  return { eps12, eps13, eps23, boundPairCount, state };
+};
+
+const displayPairStateFromEnergies = (
+  eps12: number,
+  eps13: number,
+  eps23: number,
+  anyEjected: boolean,
+): { nbound: number; state: "dissolving" | "binary+single" | "resonant" } => {
+  const nbound = [eps12, eps13, eps23].filter((e) => e < -DISPLAY_PAIR_ENERGY_EPS).length;
+  if (anyEjected && nbound > 0) {
+    return { nbound, state: "binary+single" };
+  }
+  return {
+    nbound,
+    state: nbound === 0 ? "dissolving" : nbound === 1 ? "binary+single" : "resonant",
+  };
 };
 
 const randomIn = (min: number, max: number): number =>
@@ -120,7 +363,8 @@ const generateRandomChaoticBodies = (): BodyState[] => {
 };
 
 function App() {
-  const [params, setParams] = useState<SimParams>(defaultParams);
+  const [params, setParams] = useState<SimParams>(loadPersistedParams);
+  const [userPresets, setUserPresets] = useState<PresetProfile[]>(loadPersistedUserPresets);
   const [draftBodies, setDraftBodies] = useState<BodyState[]>(defaultBodies);
   const [world, setWorld] = useState<WorldState>(initialWorld);
   const [selectedPresetId, setSelectedPresetId] = useState<string>(PRESETS[0].id);
@@ -129,6 +373,19 @@ function App() {
   const [showOriginMarker, setShowOriginMarker] = useState<boolean>(true);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [showCenterOfMass, setShowCenterOfMass] = useState<boolean>(true);
+  const [panelExpanded, setPanelExpanded] = useState<boolean>(loadPersistedPanelExpanded);
+  const [diagnosticsInsetPx, setDiagnosticsInsetPx] = useState<number>(0);
+  const [hoverBody, setHoverBody] = useState<{
+    x: number;
+    y: number;
+    color: string;
+    lines: string[];
+  } | null>(null);
+  const [saveProfileDraft, setSaveProfileDraft] = useState<{
+    id: string;
+    name: string;
+    description: string;
+  } | null>(null);
   const [baselineDiagnostics, setBaselineDiagnostics] = useState<DiagnosticsSnapshot>(() =>
     diagnosticsSnapshot(initialWorld().bodies, defaultParams()),
   );
@@ -143,6 +400,9 @@ function App() {
   const paramsRef = useRef(params);
   const cameraRef = useRef(initialCamera);
   const trailsRef = useRef<TrailMap>({});
+  const hoverBodyIdRef = useRef<string | null>(null);
+  const hoverLastUpdateTimeRef = useRef(0);
+  const forceFastZoomInFramesRef = useRef(FAST_REFRAME_FRAMES);
   const simStepCounterRef = useRef(0);
   const manualPanZoomRef = useRef(manualPanZoom);
   const dragRef = useRef<{ active: boolean; pointerId: number | null; x: number; y: number }>({
@@ -195,6 +455,118 @@ function App() {
     };
   };
 
+  const scheduleFastReframe = () => {
+    cameraRef.current = { ...initialCamera };
+    forceFastZoomInFramesRef.current = FAST_REFRAME_FRAMES;
+  };
+
+  const updateBodyHoverTooltip = (screenX: number, screenY: number) => {
+    const bodies = worldRef.current.bodies;
+    if (bodies.length === 0) {
+      setHoverBody(null);
+      return;
+    }
+
+    const cam = cameraRef.current;
+    const thresholdPx = 16;
+    let nearestIndex = -1;
+    let nearestDistSq = Number.POSITIVE_INFINITY;
+    let nearestScreen = { x: 0, y: 0 };
+
+    for (let i = 0; i < bodies.length; i += 1) {
+      const p = worldToScreen(bodies[i].position, cam, viewport);
+      const dx = p.x - screenX;
+      const dy = p.y - screenY;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < nearestDistSq) {
+        nearestDistSq = d2;
+        nearestIndex = i;
+        nearestScreen = p;
+      }
+    }
+
+    if (nearestIndex < 0 || nearestDistSq > thresholdPx * thresholdPx) {
+      hoverBodyIdRef.current = null;
+      hoverLastUpdateTimeRef.current = 0;
+      setHoverBody(null);
+      return;
+    }
+
+    const accelerations = computeAccelerations(bodies, paramsRef.current);
+    const body = bodies[nearestIndex];
+    const a = accelerations[nearestIndex];
+    const speed = magnitude(body.velocity);
+    const aParallel =
+      speed > 1e-9
+        ? (a.x * body.velocity.x + a.y * body.velocity.y) / speed
+        : 0;
+    const ejectMetrics = coreEscapeMetricsForBody(nearestIndex, worldRef.current, paramsRef.current);
+    const ejectionTimeSec = worldRef.current.ejectionCounterById[body.id] ?? 0;
+    const ejectionCntText =
+      worldRef.current.ejectedBodyIds.includes(body.id) ||
+      ejectionTimeSec >= EJECTION_TIME_THRESHOLD_SECONDS
+        ? "ejected"
+        : `${ejectionTimeSec.toFixed(1)}s/${EJECTION_TIME_THRESHOLD_SECONDS.toFixed(0)}s`;
+
+    hoverBodyIdRef.current = body.id;
+    hoverLastUpdateTimeRef.current = performance.now();
+    setHoverBody({
+      x: nearestScreen.x,
+      y: nearestScreen.y,
+      color: body.color,
+      lines: [
+        `Body ${nearestIndex + 1}`,
+        `r: (${formatDiag(body.position.x)}, ${formatDiag(body.position.y)})`,
+        `v: (${formatDiag(body.velocity.x)}, ${formatDiag(body.velocity.y)}) |v|: ${formatDiag(speed)}`,
+        `a: (${formatDiag(a.x)}, ${formatDiag(a.y)}) a||: ${formatDiag(aParallel)}`,
+        `Erel: ${formatDiag(ejectMetrics?.energy ?? 0)}`,
+        `v/vesc: ${formatDiag(ejectMetrics?.speedRatioToEscape ?? 0)}`,
+        `out: ${(ejectMetrics?.outward ?? false) ? "Y" : "N"} ` +
+          `cnt: ${ejectionCntText}`,
+      ],
+    });
+  };
+
+  const refreshHoverTooltipForBodyId = (bodyId: string) => {
+    const bodies = worldRef.current.bodies;
+    const index = bodies.findIndex((b) => b.id === bodyId);
+    if (index < 0) {
+      hoverBodyIdRef.current = null;
+      setHoverBody(null);
+      return;
+    }
+    const body = bodies[index];
+    const a = computeAccelerations(bodies, paramsRef.current)[index];
+    const speed = magnitude(body.velocity);
+    const aParallel =
+      speed > 1e-9
+        ? (a.x * body.velocity.x + a.y * body.velocity.y) / speed
+        : 0;
+    const ejectMetrics = coreEscapeMetricsForBody(index, worldRef.current, paramsRef.current);
+    const ejectionTimeSec = worldRef.current.ejectionCounterById[body.id] ?? 0;
+    const ejectionCntText =
+      worldRef.current.ejectedBodyIds.includes(body.id) ||
+      ejectionTimeSec >= EJECTION_TIME_THRESHOLD_SECONDS
+        ? "ejected"
+        : `${ejectionTimeSec.toFixed(1)}s/${EJECTION_TIME_THRESHOLD_SECONDS.toFixed(0)}s`;
+    const screen = worldToScreen(body.position, cameraRef.current, viewport);
+    setHoverBody({
+      x: screen.x,
+      y: screen.y,
+      color: body.color,
+      lines: [
+        `Body ${index + 1}`,
+        `r: (${formatDiag(body.position.x)}, ${formatDiag(body.position.y)})`,
+        `v: (${formatDiag(body.velocity.x)}, ${formatDiag(body.velocity.y)}) |v|: ${formatDiag(speed)}`,
+        `a: (${formatDiag(a.x)}, ${formatDiag(a.y)}) a||: ${formatDiag(aParallel)}`,
+        `Erel: ${formatDiag(ejectMetrics?.energy ?? 0)}`,
+        `v/vesc: ${formatDiag(ejectMetrics?.speedRatioToEscape ?? 0)}`,
+        `out: ${(ejectMetrics?.outward ?? false) ? "Y" : "N"} ` +
+          `cnt: ${ejectionCntText}`,
+      ],
+    });
+  };
+
   useEffect(() => {
     worldRef.current = world;
   }, [world]);
@@ -202,6 +574,30 @@ function App() {
   useEffect(() => {
     paramsRef.current = params;
   }, [params]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PARAMS_STORAGE_KEY, JSON.stringify(params));
+    } catch {
+      // Ignore storage failures (quota/private mode).
+    }
+  }, [params]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PANEL_EXPANDED_STORAGE_KEY, panelExpanded ? "1" : "0");
+    } catch {
+      // Ignore storage failures (quota/private mode).
+    }
+  }, [panelExpanded]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(USER_PRESETS_STORAGE_KEY, JSON.stringify(userPresets));
+    } catch {
+      // Ignore storage failures (quota/private mode).
+    }
+  }, [userPresets]);
 
   useEffect(() => {
     manualPanZoomRef.current = manualPanZoom;
@@ -212,31 +608,97 @@ function App() {
     setManualPanZoom(enabled);
   };
 
+  const allPresets = [...PRESETS, ...userPresets];
+
+  const onLockModeChange = (mode: LockMode) => {
+    setManualMode(false);
+    setLockMode(mode);
+  };
+
+  const applyDissolutionProgress = (
+    baseWorld: WorldState,
+    stepParams: SimParams,
+    stepDt: number,
+  ): WorldState => {
+    const pairState = boundPairStateForBodies(baseWorld.bodies, stepParams).state;
+    const nextCounterSec =
+      pairState === "dissolving" ? baseWorld.dissolutionCounterSec + Math.max(0, stepDt) : 0;
+    const crossedThreshold =
+      !baseWorld.dissolutionDetected &&
+      nextCounterSec >= DISSOLUTION_TIME_THRESHOLD_SECONDS;
+    return {
+      ...baseWorld,
+      dissolutionCounterSec: nextCounterSec,
+      dissolutionDetected: baseWorld.dissolutionDetected || crossedThreshold,
+      dissolutionJustDetected: crossedThreshold ? true : baseWorld.dissolutionJustDetected,
+      isRunning: crossedThreshold ? false : baseWorld.isRunning,
+    };
+  };
+
+  const adjustRateByFactor = (factor: number) => {
+    const current = paramsRef.current.speed;
+    const nextSpeed = Math.max(0.01, Math.min(30, Number((current * factor).toFixed(3))));
+    if (nextSpeed === current) {
+      return;
+    }
+    const next = { ...paramsRef.current, speed: nextSpeed };
+    paramsRef.current = next;
+    setParams(next);
+  };
+
   useEffect(() => {
     const element = containerRef.current;
     if (!element) {
       return;
     }
-    const observer = new ResizeObserver((entries) => {
-      const next = entries[0].contentRect;
+    const updateViewportFromRect = (rect: DOMRectReadOnly) => {
+      const usableHeight = Math.max(120, Math.floor(rect.height - diagnosticsInsetPx));
       setViewport({
-        width: Math.max(320, Math.floor(next.width)),
-        height: Math.max(320, Math.floor(next.height)),
+        width: Math.max(320, Math.floor(rect.width)),
+        height: usableHeight,
       });
+    };
+    updateViewportFromRect(element.getBoundingClientRect());
+    const observer = new ResizeObserver((entries) => {
+      updateViewportFromRect(entries[0].contentRect);
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [diagnosticsInsetPx]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isEditable =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        Boolean(target?.isContentEditable);
+      if (isEditable) {
+        return;
+      }
       if (e.key === "Escape") {
         setManualMode(false);
+        return;
+      }
+      if (e.key === "+" || e.key === "=" || e.code === "NumpadAdd") {
+        e.preventDefault();
+        adjustRateByFactor(1.1);
+        return;
+      }
+      if (e.key === "-" || e.key === "_" || e.code === "NumpadSubtract") {
+        e.preventDefault();
+        adjustRateByFactor(1 / 1.1);
+        return;
+      }
+      if (e.key === "l" || e.key === "L") {
+        e.preventDefault();
+        onLockModeChange(lockMode === "none" ? "com" : lockMode === "com" ? "origin" : "none");
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [lockMode]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -302,8 +764,10 @@ function App() {
             ...nextWorld,
             ejectionCounterById: ejection.ejectionCounterById,
             ejectedBodyId: ejection.ejectedBodyId,
+            ejectedBodyIds: ejection.ejectedBodyIds,
             isRunning: ejection.isRunning,
           };
+          nextWorld = applyDissolutionProgress(nextWorld, stepParams, effectiveDt);
           accumulatorRef.current -= effectiveDt;
           stepCount += 1;
           if (!nextWorld.isRunning) {
@@ -360,12 +824,26 @@ function App() {
               maxOffsetX / Math.max(1, viewport.width * 0.5 * VIEWPORT_TARGET_FRACTION),
               maxOffsetY / Math.max(1, viewport.height * 0.5 * VIEWPORT_TARGET_FRACTION),
             );
+            const currentScale = cameraRef.current.worldUnitsPerPixel;
+            const needZoomOut = requiredWorldUnitsPerPixel > currentScale;
+            const allowZoomIn =
+              requiredWorldUnitsPerPixel < currentScale * (1 - ZOOM_IN_HYSTERESIS);
+            const targetScale = needZoomOut || allowZoomIn
+              ? requiredWorldUnitsPerPixel
+              : currentScale;
+            const fastZoomInActive = forceFastZoomInFramesRef.current > 0;
+            const damping =
+              needZoomOut || fastZoomInActive
+                ? ZOOM_DAMPING_OUT
+                : ZOOM_DAMPING_IN;
+            if (forceFastZoomInFramesRef.current > 0) {
+              forceFastZoomInFramesRef.current -= 1;
+            }
             return {
               ...trackedCamera,
               center: targetCenter,
               worldUnitsPerPixel:
-                cameraRef.current.worldUnitsPerPixel +
-                (requiredWorldUnitsPerPixel - cameraRef.current.worldUnitsPerPixel) * ZOOM_DAMPING,
+                currentScale + (targetScale - currentScale) * damping,
             };
           })();
       cameraRef.current = cam;
@@ -377,6 +855,10 @@ function App() {
         showCenterOfMass,
         centerOfMass: com,
       });
+      if (hoverBodyIdRef.current && time - hoverLastUpdateTimeRef.current >= 1000) {
+        refreshHoverTooltipForBodyId(hoverBodyIdRef.current);
+        hoverLastUpdateTimeRef.current = time;
+      }
       rafRef.current = requestAnimationFrame(tick);
     };
 
@@ -400,7 +882,11 @@ function App() {
           ...worldRef.current,
           bodies: next,
           ejectedBodyId: null,
+          ejectedBodyIds: [],
           ejectionCounterById: {},
+          dissolutionCounterSec: 0,
+          dissolutionDetected: false,
+          dissolutionJustDetected: false,
         };
         worldRef.current = synced;
         setWorld(synced);
@@ -438,7 +924,10 @@ function App() {
         setBaselineDiagnostics(diagnosticsSnapshot(prev.bodies, paramsRef.current));
       }
       if (!prev.isRunning && prev.ejectedBodyId) {
-        next = { ...next, ejectedBodyId: null, ejectionCounterById: {} };
+        next = { ...next, ejectedBodyId: null };
+      }
+      if (!prev.isRunning && prev.dissolutionJustDetected) {
+        next = { ...next, dissolutionJustDetected: false };
       }
       worldRef.current = next;
       return next;
@@ -449,19 +938,23 @@ function App() {
     accumulatorRef.current = 0;
     lastTimeRef.current = null;
     setManualMode(false);
+    scheduleFastReframe();
     const next: WorldState = {
       bodies: cloneBodies(draftBodies),
       elapsedTime: 0,
       isRunning: false,
       ejectedBodyId: null,
+      ejectedBodyIds: [],
       ejectionCounterById: {},
+      dissolutionCounterSec: 0,
+      dissolutionDetected: false,
+      dissolutionJustDetected: false,
     };
     worldRef.current = next;
     setWorld(next);
     setBaselineDiagnostics(diagnosticsSnapshot(next.bodies, paramsRef.current));
     trailsRef.current = {};
     simStepCounterRef.current = 0;
-    cameraRef.current = { ...initialCamera };
   };
 
   const onStep = () => {
@@ -477,15 +970,17 @@ function App() {
       ...nextWorld,
       ejectionCounterById: ejection.ejectionCounterById,
       ejectedBodyId: ejection.ejectedBodyId,
+      ejectedBodyIds: ejection.ejectedBodyIds,
       isRunning: false,
     };
+    nextWorld = applyDissolutionProgress(nextWorld, paramsRef.current, paramsRef.current.dt);
     worldRef.current = nextWorld;
     setWorld(nextWorld);
     trailsRef.current = appendTrailPoints(trailsRef.current, nextWorld.bodies);
   };
 
   const onApplyPreset = () => {
-    const preset = PRESETS.find((candidate) => candidate.id === selectedPresetId);
+    const preset = allPresets.find((candidate) => candidate.id === selectedPresetId);
     if (!preset) {
       return;
     }
@@ -501,13 +996,76 @@ function App() {
       elapsedTime: 0,
       isRunning: false,
       ejectedBodyId: null,
+      ejectedBodyIds: [],
       ejectionCounterById: {},
+      dissolutionCounterSec: 0,
+      dissolutionDetected: false,
+      dissolutionJustDetected: false,
     };
     worldRef.current = nextWorld;
     setWorld(nextWorld);
     setBaselineDiagnostics(diagnosticsSnapshot(nextWorld.bodies, nextParams));
     trailsRef.current = {};
     simStepCounterRef.current = 0;
+    scheduleFastReframe();
+  };
+
+  const onSaveProfile = () => {
+    const existingIds = allPresets.map((preset) => preset.id);
+    const suggestedNumber = nextUserPresetNumber(existingIds);
+    const defaultId = `user-${suggestedNumber}`;
+    const defaultName = `User Profile #${suggestedNumber}`;
+    const defaultDescription = "Saved from current initial conditions and simulation parameters.";
+    setSaveProfileDraft({
+      id: defaultId,
+      name: defaultName,
+      description: defaultDescription,
+    });
+  };
+
+  const onSaveProfileFieldChange = (field: "id" | "name" | "description", value: string) => {
+    setSaveProfileDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const onCancelSaveProfile = () => {
+    setSaveProfileDraft(null);
+  };
+
+  const onConfirmSaveProfile = () => {
+    if (!saveProfileDraft) {
+      return;
+    }
+    const id = sanitizePresetId(saveProfileDraft.id);
+    const name = sanitizePresetName(saveProfileDraft.name);
+    const description = sanitizePresetDescription(saveProfileDraft.description);
+    const existingIds = allPresets.map((preset) => preset.id);
+    if (!id) {
+      window.alert("Profile id must include letters, numbers, dots, underscores, or hyphens.");
+      return;
+    }
+    if (existingIds.includes(id)) {
+      window.alert(`Profile id '${id}' already exists. Please use a unique id.`);
+      return;
+    }
+    if (!name) {
+      window.alert("Profile name cannot be empty.");
+      return;
+    }
+    if (!description) {
+      window.alert("Profile description cannot be empty.");
+      return;
+    }
+
+    const savedPreset: PresetProfile = {
+      id,
+      name,
+      description,
+      bodies: cloneBodies(draftBodies),
+      params: { ...paramsRef.current },
+    };
+    setUserPresets((prev) => [...prev, savedPreset]);
+    setSelectedPresetId(id);
+    setSaveProfileDraft(null);
   };
 
   const applyBodiesAsNewInitialState = (nextBodies: BodyState[]) => {
@@ -517,13 +1075,18 @@ function App() {
       elapsedTime: 0,
       isRunning: false,
       ejectedBodyId: null,
+      ejectedBodyIds: [],
       ejectionCounterById: {},
+      dissolutionCounterSec: 0,
+      dissolutionDetected: false,
+      dissolutionJustDetected: false,
     };
     worldRef.current = nextWorld;
     setWorld(nextWorld);
     setBaselineDiagnostics(diagnosticsSnapshot(nextWorld.bodies, paramsRef.current));
     trailsRef.current = {};
     simStepCounterRef.current = 0;
+    scheduleFastReframe();
   };
 
   const onGenerateRandomStable = () => {
@@ -570,12 +1133,19 @@ function App() {
   };
 
   const onCanvasPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!manualPanZoomRef.current) {
-      return;
-    }
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+
+    if (e.pointerType !== "touch") {
+      updateBodyHoverTooltip(x, y);
+    } else {
+      setHoverBody(null);
+    }
+
+    if (!manualPanZoomRef.current) {
+      return;
+    }
 
     if (e.pointerType === "touch") {
       if (!touchRef.current.points.has(e.pointerId)) {
@@ -635,6 +1205,12 @@ function App() {
     }
   };
 
+  const onCanvasPointerLeave = () => {
+    hoverBodyIdRef.current = null;
+    hoverLastUpdateTimeRef.current = 0;
+    setHoverBody(null);
+  };
+
   const onCanvasWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     if (!manualPanZoomRef.current) {
       setManualMode(true);
@@ -651,8 +1227,30 @@ function App() {
     setManualMode(false);
   };
 
+  const onTogglePanelExpanded = () => {
+    scheduleFastReframe();
+    setPanelExpanded((prev) => !prev);
+  };
+
   const diagnostics = diagnosticsSnapshot(world.bodies, params);
   const accelerations = computeAccelerations(world.bodies, params);
+  const boundPairSummary = boundPairStateForBodies(world.bodies, params);
+  const eps12 = boundPairSummary.eps12;
+  const eps13 = boundPairSummary.eps13;
+  const eps23 = boundPairSummary.eps23;
+  const displayPairState = displayPairStateFromEnergies(
+    eps12,
+    eps13,
+    eps23,
+    world.ejectedBodyIds.length > 0,
+  );
+  const boundPairState = world.dissolutionDetected
+    ? "Dissolved"
+    : displayPairState.state === "dissolving"
+      ? "Dissolving"
+      : displayPairState.state === "binary+single"
+      ? "Binary+Single"
+      : "Resonant";
   const bodyVectors = world.bodies.map((body, index) => ({
     id: body.id,
     color: body.color,
@@ -660,18 +1258,56 @@ function App() {
     velocity: body.velocity,
     acceleration: accelerations[index],
   }));
-
+  const bodyEjectionStatuses = world.bodies.map((body, index) => {
+    const metrics = coreEscapeMetricsForBody(index, world, params);
+    return {
+      id: body.id,
+      energy: metrics?.energy ?? 0,
+      speedRatioToEscape: metrics?.speedRatioToEscape ?? 0,
+      farCoreRatio: metrics?.farCoreRatio ?? 0,
+      outward: metrics?.outward ?? false,
+      counter: world.ejectionCounterById[body.id] ?? 0,
+      threshold: EJECTION_TIME_THRESHOLD_SECONDS,
+      isEjected: world.ejectedBodyIds.includes(body.id),
+    };
+  });
+  const runButtonLabel = world.isRunning ? "Pause" : world.elapsedTime > 0 ? "Resume" : "Start";
+  const runButtonTooltip = world.isRunning
+    ? "Pause simulation time progression."
+    : world.elapsedTime > 0
+    ? "Resume running the simulation."
+    : "Start running the simulation.";
+  const lockModeLabel = lockMode === "none" ? "No Lock" : lockMode === "origin" ? "Origin Lock" : "COM Lock";
+  const ejectedBodiesForStatus = world.ejectedBodyIds.map((id) => {
+    const idx = world.bodies.findIndex((body) => body.id === id);
+    return {
+      id,
+      label: idx >= 0 ? `B${idx + 1}` : id,
+      color: idx >= 0 ? BODY_COLORS[idx] ?? "#d1d5db" : "#d1d5db",
+    };
+  });
+  const latestEjectedLabel = world.ejectedBodyId
+    ? (() => {
+        const idx = world.bodies.findIndex((body) => body.id === world.ejectedBodyId);
+        return idx >= 0 ? `B${idx + 1}` : world.ejectedBodyId;
+      })()
+    : null;
+  const statusModeSegment = manualPanZoom ? "Manual" : lockModeLabel;
+  const statusLabel = world.dissolutionDetected && !world.isRunning
+    ? "Dissolved"
+    : world.isRunning
+    ? `Running • ${statusModeSegment} • ${boundPairState}`
+    : world.elapsedTime > 0
+    ? `Paused • ${statusModeSegment} • ${boundPairState}`
+    : `Ready • ${statusModeSegment} • ${boundPairState}`;
   return (
-    <div className="layout">
+    <div className={`layout${panelExpanded ? "" : " panel-collapsed"}`}>
       <ControlPanel
         bodies={draftBodies}
         params={params}
         isRunning={world.isRunning}
-        presets={PRESETS}
+        presets={allPresets}
         selectedPresetId={selectedPresetId}
-        diagnostics={diagnostics}
-        baselineDiagnostics={baselineDiagnostics}
-        bodyVectors={bodyVectors}
         lockMode={lockMode}
         manualPanZoom={manualPanZoom}
         showOriginMarker={showOriginMarker}
@@ -679,7 +1315,7 @@ function App() {
         showCenterOfMass={showCenterOfMass}
         onBodyChange={onBodyChange}
         onParamChange={onParamChange}
-        onLockModeChange={setLockMode}
+        onLockModeChange={onLockModeChange}
         onToggleManualPanZoom={setManualMode}
         onToggleShowOriginMarker={setShowOriginMarker}
         onToggleShowGrid={setShowGrid}
@@ -687,30 +1323,171 @@ function App() {
         onResetParams={onResetParams}
         onPresetSelect={setSelectedPresetId}
         onApplyPreset={onApplyPreset}
+        onSaveProfile={onSaveProfile}
         onGenerateRandomStable={onGenerateRandomStable}
         onGenerateRandomChaotic={onGenerateRandomChaotic}
       />
       <main className="stage-wrap" ref={containerRef}>
+        <div className="canvas-status" title="Simulation status and active camera mode.">
+          <span>{statusLabel}</span>
+          {ejectedBodiesForStatus.length > 0 ? (
+            <span>
+              {" • Ejected: "}
+              {ejectedBodiesForStatus.map((body, index) => (
+                <span key={body.id}>
+                  <span className="status-eject-body" style={{ color: body.color }}>
+                    {body.label}
+                  </span>
+                  {index < ejectedBodiesForStatus.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </span>
+          ) : null}
+        </div>
+        <div className="top-right-tools">
+          <div className="hud" title="Elapsed simulation time and current simulation rate. Hotkeys: '+' faster, '-' slower.">
+            <div>t = {world.elapsedTime.toFixed(3)}</div>
+            <div>rate = {params.speed.toFixed(2)}x</div>
+          </div>
+          <button
+            className="panel-toggle-icon"
+            title={panelExpanded ? "Hide panel (maximize canvas)" : "Show panel (restore layout)"}
+            onClick={onTogglePanelExpanded}
+            aria-label={panelExpanded ? "Maximize canvas" : "Restore panel"}
+          >
+            {panelExpanded ? (
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <path
+                  d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <rect x="5" y="5" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" />
+              </svg>
+            )}
+          </button>
+        </div>
         <div className="stage-controls">
           <div className="button-row">
-            <button onClick={onStartPause}>{world.isRunning ? "Pause" : "Start"}</button>
-            <button onClick={onReset}>Reset</button>
-            <button onClick={onStep}>Step</button>
+            <button
+              onClick={onStartPause}
+              title={runButtonTooltip}
+            >
+              {runButtonLabel}
+            </button>
+            <button onClick={onReset} title="Reset to current initial conditions and clear trails.">
+              Reset
+            </button>
+            <button onClick={onStep} title="Advance simulation by one integration step.">
+              Step
+            </button>
           </div>
-          {world.ejectedBodyId && <p className="warning">Paused: {world.ejectedBodyId} ejected from system.</p>}
+          {world.ejectedBodyId && (
+            <p className="warning">
+              Paused: {latestEjectedLabel ?? world.ejectedBodyId} newly ejected from system.
+            </p>
+          )}
+          {world.dissolutionJustDetected && (
+            <p className="warning">
+              Paused: system dissolved.
+            </p>
+          )}
         </div>
+        <CanvasDiagnostics
+          pairEnergies={{ e12: eps12, e13: eps13, e23: eps23 }}
+          displayPairState={{
+            nbound: displayPairState.nbound,
+            state: displayPairState.state,
+            eps: DISPLAY_PAIR_ENERGY_EPS,
+          }}
+          dissolutionCounterSec={world.dissolutionCounterSec}
+          dissolutionThresholdSec={DISSOLUTION_TIME_THRESHOLD_SECONDS}
+          dissolutionDetected={world.dissolutionDetected}
+          diagnostics={diagnostics}
+          baselineDiagnostics={baselineDiagnostics}
+          bodyVectors={bodyVectors}
+          bodyEjectionStatuses={bodyEjectionStatuses}
+          onVisibleHeightChange={setDiagnosticsInsetPx}
+        />
         <canvas
           ref={canvasRef}
           className={`stage${manualPanZoom ? " stage-manual" : ""}`}
+          style={{ height: `calc(100% - ${Math.max(0, diagnosticsInsetPx)}px)` }}
           onPointerDown={onCanvasPointerDown}
           onPointerMove={onCanvasPointerMove}
           onPointerUp={onCanvasPointerUpOrCancel}
           onPointerCancel={onCanvasPointerUpOrCancel}
+          onPointerLeave={onCanvasPointerLeave}
           onWheel={onCanvasWheel}
           onDoubleClick={onCanvasDoubleClick}
         />
-        <div className="hud">t = {world.elapsedTime.toFixed(2)}</div>
+        {hoverBody && (
+          <div
+            className="body-hover-tooltip"
+            style={{
+              left: Math.min(viewport.width - 420, hoverBody.x + 12),
+              top: Math.min(viewport.height - 90, hoverBody.y + 12),
+              borderColor: hoverBody.color,
+              color: hoverBody.color,
+            }}
+          >
+            {hoverBody.lines.map((line, index) => (
+              <div key={index} className={index === 0 ? "body-hover-title" : "body-hover-line"}>
+                {line}
+              </div>
+            ))}
+          </div>
+        )}
       </main>
+      {saveProfileDraft && (
+        <div className="modal-backdrop" onClick={onCancelSaveProfile}>
+          <div
+            className="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Save Profile"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>Save Profile</h3>
+            <label title="Unique profile identifier used internally and in preset selection.">
+              Id
+              <input
+                type="text"
+                value={saveProfileDraft.id}
+                maxLength={PRESET_ID_MAX_LENGTH}
+                onChange={(e) => onSaveProfileFieldChange("id", e.target.value)}
+              />
+            </label>
+            <label title="Display name shown in the profile dropdown.">
+              Name
+              <input
+                type="text"
+                value={saveProfileDraft.name}
+                maxLength={PRESET_NAME_MAX_LENGTH}
+                onChange={(e) => onSaveProfileFieldChange("name", e.target.value)}
+              />
+            </label>
+            <label title="Short description shown under the profile selector.">
+              Description
+              <textarea
+                value={saveProfileDraft.description}
+                maxLength={PRESET_DESCRIPTION_MAX_LENGTH}
+                onChange={(e) => onSaveProfileFieldChange("description", e.target.value)}
+              />
+            </label>
+            <div className="button-row">
+              <button onClick={onConfirmSaveProfile}>Save</button>
+              <button onClick={onCancelSaveProfile}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

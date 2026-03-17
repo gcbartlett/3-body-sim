@@ -30,8 +30,6 @@ export const defaultParams = (): SimParams => ({
   speed: 1,
   softening: 0.02,
   trailFade: 0.05,
-  ejectionDistanceMultiplier: 8,
-  ejectionFramesThreshold: 120,
 });
 
 export const initialWorld = (): WorldState => ({
@@ -40,4 +38,8 @@ export const initialWorld = (): WorldState => ({
   isRunning: false,
   ejectionCounterById: {},
   ejectedBodyId: null,
+  ejectedBodyIds: [],
+  dissolutionCounterSec: 0,
+  dissolutionDetected: false,
+  dissolutionJustDetected: false,
 });

@@ -1,16 +1,7 @@
 import { useEffect, useState } from "react";
-import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams } from "../sim/types";
-import { magnitude } from "../sim/vector";
+import type { BodyState, PresetProfile, SimParams } from "../sim/types";
 
 type LockMode = "none" | "origin" | "com";
-type Vec2 = { x: number; y: number };
-type BodyVectors = {
-  id: string;
-  color: string;
-  position: Vec2;
-  velocity: Vec2;
-  acceleration: Vec2;
-};
 
 type Props = {
   bodies: BodyState[];
@@ -18,9 +9,6 @@ type Props = {
   isRunning: boolean;
   presets: PresetProfile[];
   selectedPresetId: string;
-  diagnostics: DiagnosticsSnapshot;
-  baselineDiagnostics: DiagnosticsSnapshot;
-  bodyVectors: BodyVectors[];
   lockMode: LockMode;
   manualPanZoom: boolean;
   showOriginMarker: boolean;
@@ -36,11 +24,41 @@ type Props = {
   onResetParams: () => void;
   onPresetSelect: (id: string) => void;
   onApplyPreset: () => void;
+  onSaveProfile: () => void;
   onGenerateRandomStable: () => void;
   onGenerateRandomChaotic: () => void;
 };
 
 const number = (value: number) => Number.isFinite(value) ? value : 0;
+const UI_SECTIONS_STORAGE_KEY = "three-body-sim.ui.sections.v1";
+type SectionOpenState = {
+  presetsOpen: boolean;
+  simParamsOpen: boolean;
+  bodyConfigOpen: boolean;
+};
+
+const loadSectionOpenState = (): SectionOpenState => {
+  const fallback: SectionOpenState = {
+    presetsOpen: true,
+    simParamsOpen: false,
+    bodyConfigOpen: false,
+  };
+  try {
+    const raw = localStorage.getItem(UI_SECTIONS_STORAGE_KEY);
+    if (!raw) {
+      return fallback;
+    }
+    const parsed = JSON.parse(raw) as Partial<SectionOpenState>;
+    return {
+      presetsOpen: parsed.presetsOpen === undefined ? true : Boolean(parsed.presetsOpen),
+      simParamsOpen: Boolean(parsed.simParamsOpen),
+      bodyConfigOpen: Boolean(parsed.bodyConfigOpen),
+    };
+  } catch {
+    return fallback;
+  }
+};
+
 const bodyConfigRows = [
   { label: "Mass", field: "mass" as const, step: "0.1", min: "0.1", tooltip: "Mass of the body used in gravitational force calculations." },
   { label: "Position X", field: "position.x" as const, step: "0.05", tooltip: "Initial x-coordinate in world units." },
@@ -55,9 +73,6 @@ export const ControlPanel = ({
   isRunning,
   presets,
   selectedPresetId,
-  diagnostics,
-  baselineDiagnostics,
-  bodyVectors,
   lockMode,
   manualPanZoom,
   showOriginMarker,
@@ -73,31 +88,24 @@ export const ControlPanel = ({
   onResetParams,
   onPresetSelect,
   onApplyPreset,
+  onSaveProfile,
   onGenerateRandomStable,
   onGenerateRandomChaotic,
 }: Props) => {
-  const fmt = (value: number) => {
-    const normalized = Math.abs(value) < 0.0005 ? 0 : value;
-    const abs = Math.abs(normalized);
-    const dp = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
-    return `${normalized >= 0 ? "+" : ""}${normalized.toFixed(dp)}`;
-  };
-  const deltaEnergy = diagnostics.energy - baselineDiagnostics.energy;
-  const energyDriftPct = (Math.abs(deltaEnergy) / Math.max(1e-9, Math.abs(baselineDiagnostics.energy))) * 100;
-  const deltaMomentum = {
-    x: diagnostics.momentum.x - baselineDiagnostics.momentum.x,
-    y: diagnostics.momentum.y - baselineDiagnostics.momentum.y,
-  };
-  const deltaMomentumMag = magnitude(deltaMomentum);
-  const baselineMomentumMag = magnitude(baselineDiagnostics.momentum);
-  const momentumDriftPct = (deltaMomentumMag / Math.max(1e-9, baselineMomentumMag)) * 100;
-  const [isBodyConfigOpen, setIsBodyConfigOpen] = useState<boolean>(false);
+  const formatBodyInputValue = (value: number) => Number(value.toFixed(3));
+
+  const [sectionState, setSectionState] = useState<SectionOpenState>(loadSectionOpenState);
+  const isPresetsOpen = sectionState.presetsOpen;
+  const isSimParamsOpen = sectionState.simParamsOpen;
+  const isBodyConfigOpen = sectionState.bodyConfigOpen;
 
   useEffect(() => {
-    if (isRunning) {
-      setIsBodyConfigOpen(false);
+    try {
+      localStorage.setItem(UI_SECTIONS_STORAGE_KEY, JSON.stringify(sectionState));
+    } catch {
+      // Ignore storage failures (quota/private mode).
     }
-  }, [isRunning]);
+  }, [sectionState]);
 
   return (
     <aside className="panel">
@@ -105,33 +113,13 @@ export const ControlPanel = ({
       <p className="muted">Set initial conditions, then start the simulation.</p>
 
       <section>
-        <h2>Presets</h2>
-        <label>
-          Profile
-          <select value={selectedPresetId} onChange={(e) => onPresetSelect(e.target.value)}>
-            {presets.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <p className="muted">
-          {presets.find((preset) => preset.id === selectedPresetId)?.description}
-        </p>
-        <div className="button-row">
-          <button onClick={onApplyPreset}>Apply Preset</button>
-          <button onClick={onGenerateRandomStable} title="Generate a random near-bound initial configuration.">
-            Random Stable
-          </button>
-          <button onClick={onGenerateRandomChaotic} title="Generate a random high-chaos initial configuration.">
-            Random Chaotic
-          </button>
-        </div>
-      </section>
-
-      <section>
-        <details>
+        <details
+          open={isSimParamsOpen}
+          onToggle={(e) => {
+            const open = e.currentTarget.open;
+            setSectionState((prev) => ({ ...prev, simParamsOpen: open }));
+          }}
+        >
           <summary className="collapsible-summary">Simulation Parameters</summary>
           <label title="Gravitational constant controlling force strength between bodies.">
             Gravity G
@@ -146,9 +134,9 @@ export const ControlPanel = ({
             Rate {params.speed.toFixed(2)}x
             <input
               type="range"
-              min="0.1"
+              min="0.01"
               max="30"
-              step="0.1"
+              step="0.01"
               value={params.speed}
               onChange={(e) => onParamChange("speed", Number(e.target.value))}
             />
@@ -178,7 +166,7 @@ export const ControlPanel = ({
             />
           </label>
           <div className="control-matrix">
-            <span className="control-matrix-label" title="Select which reference point is kept at the viewport center.">Lock center of viewport to:</span>
+            <span className="control-matrix-label" title="Select which reference point is kept at the viewport center.">Lock:</span>
             <div className="control-options-grid">
               <label className="lock-option" title="No lock. Camera tracks body bounds naturally.">
                 None
@@ -256,7 +244,10 @@ export const ControlPanel = ({
       <section>
         <details
           open={isBodyConfigOpen}
-          onToggle={(e) => setIsBodyConfigOpen(e.currentTarget.open)}
+          onToggle={(e) => {
+            const open = e.currentTarget.open;
+            setSectionState((prev) => ({ ...prev, bodyConfigOpen: open }));
+          }}
         >
           <summary className="collapsible-summary">Initial Body Configuration</summary>
           <div className="body-config-matrix">
@@ -295,7 +286,7 @@ export const ControlPanel = ({
                         type="number"
                         step={row.step}
                         min={row.min}
-                        value={value}
+                        value={formatBodyInputValue(value)}
                         onChange={(e) => onBodyChange(index, row.field, number(e.target.valueAsNumber))}
                       />
                     </div>
@@ -308,38 +299,42 @@ export const ControlPanel = ({
       </section>
 
       <section>
-        <details>
-          <summary className="collapsible-summary">Diagnostics</summary>
-          <div className="diagnostics-grid">
-            <div className="diag-column">
-              <p className="metric" title="Total mechanical energy (kinetic + potential) of the system at this instant.">Energy: {fmt(diagnostics.energy)}</p>
-              <p className="metric" title="Energy drift from baseline at run/reset start. Smaller drift indicates better numerical stability.">ΔE: {fmt(deltaEnergy)} ({fmt(energyDriftPct)}%)</p>
-              <p className="metric" title="Magnitude of total linear momentum of all bodies.">
-                |P|: {fmt(magnitude(diagnostics.momentum))}
-              </p>
-              <p className="metric" title="Momentum drift from baseline at run/reset start.">Δ|P|: {fmt(deltaMomentumMag)} ({fmt(momentumDriftPct)}%)</p>
-            </div>
-            {bodyVectors.map((body, index) => (
-              <div key={body.id} className="diag-column body-vector-column" style={{ color: body.color }}>
-                <p className="metric diag-body-heading" title="Diagnostics for this body.">Body {index + 1}</p>
-                <p className="metric" title="Current position vector of this body in world units.">r = ({fmt(body.position.x)}, {fmt(body.position.y)})</p>
-                <p className="metric" title="Current velocity vector of this body in world-units per second.">
-                  v = ({fmt(body.velocity.x)}, {fmt(body.velocity.y)}) |v|={fmt(magnitude(body.velocity))}
-                </p>
-                <p className="metric" title="Current acceleration vector of this body from gravitational interactions.">
-                  a = ({fmt(body.acceleration.x)}, {fmt(body.acceleration.y)}) a∥=
-                  {fmt(
-                    magnitude(body.velocity) > 1e-9
-                      ? (body.acceleration.x * body.velocity.x + body.acceleration.y * body.velocity.y) /
-                          magnitude(body.velocity)
-                      : 0,
-                  )}
-                </p>
-              </div>
-            ))}
+        <details
+          open={isPresetsOpen}
+          onToggle={(e) => {
+            const open = e.currentTarget.open;
+            setSectionState((prev) => ({ ...prev, presetsOpen: open }));
+          }}
+        >
+          <summary className="collapsible-summary">Presets</summary>
+          <label>
+            Profile
+            <select value={selectedPresetId} onChange={(e) => onPresetSelect(e.target.value)}>
+              {presets.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="muted">
+            {presets.find((preset) => preset.id === selectedPresetId)?.description}
+          </p>
+          <div className="button-row">
+            <button onClick={onApplyPreset}>Load Profile</button>
+            <button onClick={onSaveProfile} title="Save the current initial conditions and simulation parameters as a new user profile.">
+              Save Profile
+            </button>
+            <button onClick={onGenerateRandomStable} title="Generate a random near-bound initial configuration.">
+              Random Stable
+            </button>
+            <button onClick={onGenerateRandomChaotic} title="Generate a random high-chaos initial configuration.">
+              Random Chaotic
+            </button>
           </div>
         </details>
       </section>
+
     </aside>
   );
 };

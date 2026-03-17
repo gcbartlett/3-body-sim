@@ -19,6 +19,8 @@ export type TrailMap = Record<string, TrailPoint[]>;
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+const MIN_BODY_RADIUS_PX = 3;
+const MAX_BODY_RADIUS_PX = 20;
 
 const divisibilityLevel = (n: number, radix: number): number => {
   const abs = Math.abs(n);
@@ -73,14 +75,31 @@ const gridLineStyle = (
 const bodyRadiusFromMasses = (mass: number, masses: number[]): number => {
   const minMass = Math.min(...masses);
   const maxMass = Math.max(...masses);
-  const minRadius = 4.5;
-  const maxRadius = 9.5;
   if (Math.abs(maxMass - minMass) < 1e-9) {
-    return (minRadius + maxRadius) * 0.5;
+    return (MIN_BODY_RADIUS_PX + MAX_BODY_RADIUS_PX) * 0.5;
   }
   const t = (mass - minMass) / (maxMass - minMass);
-  const radius = minRadius + (maxRadius - minRadius) * t;
-  return Math.max(minRadius, Math.min(maxRadius, radius));
+  const radius = MIN_BODY_RADIUS_PX + (MAX_BODY_RADIUS_PX - MIN_BODY_RADIUS_PX) * t;
+  return Math.max(MIN_BODY_RADIUS_PX, Math.min(MAX_BODY_RADIUS_PX, radius));
+};
+
+let cachedMassSignature = "";
+let cachedRadiusById: Record<string, number> = {};
+
+const radiusMapForBodies = (bodies: BodyState[]): Record<string, number> => {
+  const signature = bodies.map((body) => `${body.id}:${body.mass}`).join("|");
+  if (signature === cachedMassSignature) {
+    return cachedRadiusById;
+  }
+
+  const masses = bodies.map((body) => body.mass);
+  const next: Record<string, number> = {};
+  for (const body of bodies) {
+    next[body.id] = bodyRadiusFromMasses(body.mass, masses);
+  }
+  cachedMassSignature = signature;
+  cachedRadiusById = next;
+  return next;
 };
 
 const drawGrid = (
@@ -160,7 +179,7 @@ export const drawFrame = (
   if (options.showGrid) {
     drawGrid(ctx, camera, viewport);
   }
-  const masses = bodies.map((body) => body.mass);
+  const radiusById = radiusMapForBodies(bodies);
 
   for (const body of bodies) {
     const bodyTrails = trails[body.id] ?? [];
@@ -178,9 +197,13 @@ export const drawFrame = (
     }
   }
 
-  for (const body of bodies) {
+  const bodiesByDrawOrder = [...bodies].sort(
+    (a, b) => (radiusById[b.id] ?? 0) - (radiusById[a.id] ?? 0),
+  );
+
+  for (const body of bodiesByDrawOrder) {
     const p = worldToScreen(body.position, camera, viewport);
-    const radius = bodyRadiusFromMasses(body.mass, masses);
+    const radius = radiusById[body.id] ?? ((MIN_BODY_RADIUS_PX + MAX_BODY_RADIUS_PX) * 0.5);
     const gradient = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, radius * 3);
     gradient.addColorStop(0, "rgba(255,255,255,0.95)");
     gradient.addColorStop(0.35, body.color);

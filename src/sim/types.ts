@@ -19,8 +19,6 @@ export type SimParams = {
   speed: number;
   softening: number;
   trailFade: number;
-  ejectionDistanceMultiplier: number;
-  ejectionFramesThreshold: number;
 };
 
 export type DiagnosticsSnapshot = {
@@ -42,4 +40,8 @@ export type WorldState = {
   isRunning: boolean;
   ejectionCounterById: Record<string, number>;
   ejectedBodyId: string | null;
+  ejectedBodyIds: string[];
+  dissolutionCounterSec: number;
+  dissolutionDetected: boolean;
+  dissolutionJustDetected: boolean;
 };

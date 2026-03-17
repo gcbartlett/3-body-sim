@@ -145,6 +145,33 @@ export const PRESETS: PresetProfile[] = [
       speed: 1,
     },
   },
+  {
+    id: "custom-1",
+    name: "Custom Triple (1.139/0.868/0.517)",
+    description: "Initial condition set with asymmetric masses and mixed outbound/inbound components.",
+    bodies: withColors([
+      {
+        mass: 1.139,
+        position: { x: 1.126, y: 0.999 },
+        velocity: { x: -0.514, y: 0.893 },
+      },
+      {
+        mass: 0.868,
+        position: { x: -1.131, y: -0.732 },
+        velocity: { x: 0.728, y: 0.738 },
+      },
+      {
+        mass: 0.517,
+        position: { x: -0.354, y: -1.14 },
+        velocity: { x: -0.178, y: -0.109 },
+      },
+    ]),
+    params: {
+      G: 1,
+      dt: 0.005,
+      speed: 1,
+    },
+  },
 ];
 
 export const cloneBodies = (bodies: BodyState[]): BodyState[] =>
