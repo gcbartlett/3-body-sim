@@ -70,7 +70,6 @@ const bodyConfigRows = [
 export const ControlPanel = ({
   bodies,
   params,
-  isRunning,
   presets,
   selectedPresetId,
   lockMode,

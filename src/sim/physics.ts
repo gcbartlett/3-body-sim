@@ -37,31 +37,6 @@ export const centerOfMass = (bodies: BodyState[]): Vec2 => {
   return scale(weighted, 1 / totalMass);
 };
 
-export const systemScale = (bodies: BodyState[], com: Vec2): number => {
-  return Math.max(
-    0.2,
-    ...bodies.map((body) => magnitude(sub(body.position, com))),
-  );
-};
-
-export const specificOrbitalEnergy = (
-  bodyIndex: number,
-  bodies: BodyState[],
-  params: SimParams,
-): number => {
-  const target = bodies[bodyIndex];
-  const kinetic = 0.5 * magnitudeSquared(target.velocity);
-  const potential = bodies.reduce((sum, other, index) => {
-    if (index === bodyIndex) {
-      return sum;
-    }
-    const d = magnitude(sub(other.position, target.position));
-    const softened = Math.sqrt(d * d + params.softening * params.softening);
-    return sum - params.G * other.mass / softened;
-  }, 0);
-  return kinetic + potential;
-};
-
 export const totalEnergy = (bodies: BodyState[], params: SimParams): number => {
   const kinetic = bodies.reduce(
     (sum, body) => sum + 0.5 * body.mass * magnitudeSquared(body.velocity),
