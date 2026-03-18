@@ -66,6 +66,10 @@ const FAST_REFRAME_FRAMES = 60;
 const PARAMS_STORAGE_KEY = "three-body-sim.params.v1";
 const USER_PRESETS_STORAGE_KEY = "three-body-sim.user-presets.v1";
 const PANEL_EXPANDED_STORAGE_KEY = "three-body-sim.ui.panel-expanded.v1";
+const LOCK_MODE_STORAGE_KEY = "three-body-sim.ui.lock-mode.v1";
+const SHOW_ORIGIN_MARKER_STORAGE_KEY = "three-body-sim.ui.show-origin-marker.v1";
+const SHOW_GRID_STORAGE_KEY = "three-body-sim.ui.show-grid.v1";
+const SHOW_CENTER_OF_MASS_STORAGE_KEY = "three-body-sim.ui.show-center-of-mass.v1";
 const DISSOLUTION_TIME_THRESHOLD_SECONDS = 10;
 const DISPLAY_PAIR_ENERGY_EPS = 0.05;
 const PRESET_ID_MAX_LENGTH = 64;
@@ -153,6 +157,30 @@ const loadPersistedPanelExpanded = (): boolean => {
     return raw === "1";
   } catch {
     return true;
+  }
+};
+
+const loadPersistedLockMode = (): LockMode => {
+  try {
+    const raw = localStorage.getItem(LOCK_MODE_STORAGE_KEY);
+    if (raw === "none" || raw === "origin" || raw === "com") {
+      return raw;
+    }
+    return "com";
+  } catch {
+    return "com";
+  }
+};
+
+const loadPersistedBoolean = (storageKey: string, fallback: boolean): boolean => {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw === null) {
+      return fallback;
+    }
+    return raw === "1";
+  } catch {
+    return fallback;
   }
 };
 
@@ -368,11 +396,17 @@ function App() {
   const [draftBodies, setDraftBodies] = useState<BodyState[]>(defaultBodies);
   const [world, setWorld] = useState<WorldState>(initialWorld);
   const [selectedPresetId, setSelectedPresetId] = useState<string>(PRESETS[0].id);
-  const [lockMode, setLockMode] = useState<LockMode>("com");
+  const [lockMode, setLockMode] = useState<LockMode>(loadPersistedLockMode);
   const [manualPanZoom, setManualPanZoom] = useState<boolean>(false);
-  const [showOriginMarker, setShowOriginMarker] = useState<boolean>(true);
-  const [showGrid, setShowGrid] = useState<boolean>(true);
-  const [showCenterOfMass, setShowCenterOfMass] = useState<boolean>(true);
+  const [showOriginMarker, setShowOriginMarker] = useState<boolean>(() =>
+    loadPersistedBoolean(SHOW_ORIGIN_MARKER_STORAGE_KEY, true),
+  );
+  const [showGrid, setShowGrid] = useState<boolean>(() =>
+    loadPersistedBoolean(SHOW_GRID_STORAGE_KEY, true),
+  );
+  const [showCenterOfMass, setShowCenterOfMass] = useState<boolean>(() =>
+    loadPersistedBoolean(SHOW_CENTER_OF_MASS_STORAGE_KEY, true),
+  );
   const [panelExpanded, setPanelExpanded] = useState<boolean>(loadPersistedPanelExpanded);
   const [diagnosticsInsetPx, setDiagnosticsInsetPx] = useState<number>(0);
   const [hoverBody, setHoverBody] = useState<{
@@ -586,10 +620,14 @@ function App() {
   useEffect(() => {
     try {
       localStorage.setItem(PANEL_EXPANDED_STORAGE_KEY, panelExpanded ? "1" : "0");
+      localStorage.setItem(LOCK_MODE_STORAGE_KEY, lockMode);
+      localStorage.setItem(SHOW_ORIGIN_MARKER_STORAGE_KEY, showOriginMarker ? "1" : "0");
+      localStorage.setItem(SHOW_GRID_STORAGE_KEY, showGrid ? "1" : "0");
+      localStorage.setItem(SHOW_CENTER_OF_MASS_STORAGE_KEY, showCenterOfMass ? "1" : "0");
     } catch {
       // Ignore storage failures (quota/private mode).
     }
-  }, [panelExpanded]);
+  }, [lockMode, panelExpanded, showCenterOfMass, showGrid, showOriginMarker]);
 
   useEffect(() => {
     try {
