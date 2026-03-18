@@ -18,9 +18,9 @@ The app renders three gravitating bodies on a canvas with trails, diagnostics, p
 
 ## Tech Stack
 
-- React 18
-- TypeScript 5
-- Vite 5
+- React 19
+- TypeScript 5.9
+- Vite 8
 - Vercel Web Analytics (`@vercel/analytics/react`)
 
 ## Analytics
@@ -32,7 +32,7 @@ This helps monitor real-user behavior and identify regressions after releases.
 
 ### Prerequisites
 
-- Node.js 18+ (Node 20 recommended)
+- Node.js `20.19+` or `22.12+`
 
 ### Install
 
