@@ -40,6 +40,7 @@ import { StageControls } from "./ui/stage/StageControls";
 import { StageHud } from "./ui/stage/StageHud";
 import { useCanvasCameraControls } from "./ui/useCanvasCameraControls";
 import { useSaveProfileDraft } from "./ui/useSaveProfileDraft";
+import { useStageViewport } from "./ui/useStageViewport";
 import { useSimulationLoop } from "./sim/useSimulationLoop";
 import {
   bodyEjectionStatusesForDisplay,
@@ -90,8 +91,6 @@ const MAX_TRAIL_POINTS_PER_BODY = 2400;
 const BODY_COLORS = ["#f7b731", "#60a5fa", "#8bd450"];
 const FAST_REFRAME_FRAMES = 60;
 const DISSOLUTION_TIME_THRESHOLD_SECONDS = 10;
-const MIN_VIEWPORT_WIDTH_PX = 320;
-const MIN_VIEWPORT_HEIGHT_PX = 120;
 
 const appendTrailPoints = (trails: TrailMap, bodies: BodyState[]): TrailMap => {
   const updated: TrailMap = { ...trails };
@@ -129,7 +128,6 @@ function App() {
   const [baselineDiagnostics, setBaselineDiagnostics] = useState<DiagnosticsSnapshot>(() =>
     diagnosticsSnapshot(initialWorld().bodies, defaultParams()),
   );
-  const [viewport, setViewport] = useState({ width: 900, height: 700 });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -145,6 +143,7 @@ function App() {
   const forceFastZoomInFramesRef = useRef(FAST_REFRAME_FRAMES);
   const simStepCounterRef = useRef(0);
   const manualPanZoomRef = useRef(manualPanZoom);
+  const viewport = useStageViewport({ containerRef, canvasRef, diagnosticsInsetPx });
 
   const scheduleFastReframe = () => {
     cameraRef.current = { ...initialCamera };
@@ -328,29 +327,6 @@ function App() {
   };
 
   useEffect(() => {
-    const element = containerRef.current;
-    if (!element) {
-      return;
-    }
-    const updateViewportFromRect = (rect: DOMRectReadOnly) => {
-      const usableHeight = Math.max(
-        MIN_VIEWPORT_HEIGHT_PX,
-        Math.floor(rect.height - diagnosticsInsetPx),
-      );
-      setViewport({
-        width: Math.max(MIN_VIEWPORT_WIDTH_PX, Math.floor(rect.width)),
-        height: usableHeight,
-      });
-    };
-    updateViewportFromRect(element.getBoundingClientRect());
-    const observer = new ResizeObserver((entries) => {
-      updateViewportFromRect(entries[0].contentRect);
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [diagnosticsInsetPx]);
-
-  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const isEditable =
@@ -383,16 +359,6 @@ function App() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [lockMode]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-
-  }, [viewport]);
 
   useSimulationLoop({
     canvasRef,
