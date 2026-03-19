@@ -38,11 +38,9 @@ import {
   boundPairStateLabel,
   DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
   displayPairStateFromEnergies,
-  ejectedBodiesForStatus,
-  latestEjectedLabelForStatus,
   pairBindingStateForBodies,
   pairEnergiesForBodies,
-  statusLabelForWorld,
+  stageViewModelForWorld,
 } from "./sim/simulationSelectors";
 
 type LockMode = PersistedLockMode;
@@ -355,17 +353,13 @@ function App() {
     params,
     EJECTION_TIME_THRESHOLD_SECONDS,
   );
-  const runButtonLabel = world.isRunning ? "Pause" : world.elapsedTime > 0 ? "Resume" : "Start";
-  const runButtonTooltip = world.isRunning
-    ? "Pause simulation time progression."
-    : world.elapsedTime > 0
-    ? "Resume running the simulation."
-    : "Start running the simulation.";
-  const lockModeLabel = lockMode === "none" ? "No Lock" : lockMode === "origin" ? "Origin Lock" : "COM Lock";
-  const ejectedStatusRows = ejectedBodiesForStatus(world, BODY_COLORS);
-  const latestEjectedLabel = latestEjectedLabelForStatus(world);
-  const statusModeSegment = manualPanZoom ? "Manual" : lockModeLabel;
-  const statusLabel = statusLabelForWorld(world, statusModeSegment, boundPairState);
+  const stageViewModel = stageViewModelForWorld({
+    world,
+    lockMode,
+    manualPanZoom,
+    bodyColors: BODY_COLORS,
+    pairStateLabel: boundPairState,
+  });
   return (
     <div className={`layout${panelExpanded ? "" : " panel-collapsed"}`}>
       <ControlPanel
@@ -395,21 +389,21 @@ function App() {
       />
       <main className="stage-wrap" ref={containerRef}>
         <StageHud
-          statusLabel={statusLabel}
-          ejectedStatusRows={ejectedStatusRows}
+          statusLabel={stageViewModel.statusLabel}
+          ejectedStatusRows={stageViewModel.ejectedStatusRows}
           elapsedTime={world.elapsedTime}
           speed={params.speed}
           panelExpanded={panelExpanded}
           onTogglePanelExpanded={onTogglePanelExpanded}
         />
         <StageControls
-          runButtonLabel={runButtonLabel}
-          runButtonTooltip={runButtonTooltip}
+          runButtonLabel={stageViewModel.runButtonLabel}
+          runButtonTooltip={stageViewModel.runButtonTooltip}
           onStartPause={onStartPause}
           onReset={onReset}
           onStep={onStep}
           ejectedBodyId={world.ejectedBodyId}
-          latestEjectedLabel={latestEjectedLabel}
+          latestEjectedLabel={stageViewModel.latestEjectedLabel}
           dissolutionJustDetected={world.dissolutionJustDetected}
         />
         <CanvasDiagnostics

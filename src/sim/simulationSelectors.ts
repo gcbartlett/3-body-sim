@@ -36,6 +36,26 @@ export type EjectedBodyStatusBadge = {
   color: string;
 };
 
+type StageLockMode = "none" | "origin" | "com";
+
+type StagePairStateLabel = "Dissolved" | "Dissolving" | "Binary+Single" | "Resonant";
+
+type StageViewModelInput = {
+  world: WorldState;
+  lockMode: StageLockMode;
+  manualPanZoom: boolean;
+  bodyColors: string[];
+  pairStateLabel: StagePairStateLabel;
+};
+
+export type StageViewModel = {
+  runButtonLabel: string;
+  runButtonTooltip: string;
+  statusLabel: string;
+  ejectedStatusRows: EjectedBodyStatusBadge[];
+  latestEjectedLabel: string | null;
+};
+
 const pairSpecificEnergyForBodies = (
   bodies: BodyState[],
   params: SimParams,
@@ -170,4 +190,45 @@ export const statusLabelForWorld = (
     return `Paused • ${statusModeSegment} • ${pairStateLabel}`;
   }
   return `Ready • ${statusModeSegment} • ${pairStateLabel}`;
+};
+
+const runButtonCopyForWorld = (
+  world: Pick<WorldState, "isRunning" | "elapsedTime">,
+): Pick<StageViewModel, "runButtonLabel" | "runButtonTooltip"> => {
+  if (world.isRunning) {
+    return {
+      runButtonLabel: "Pause",
+      runButtonTooltip: "Pause simulation time progression.",
+    };
+  }
+  if (world.elapsedTime > 0) {
+    return {
+      runButtonLabel: "Resume",
+      runButtonTooltip: "Resume running the simulation.",
+    };
+  }
+  return {
+    runButtonLabel: "Start",
+    runButtonTooltip: "Start running the simulation.",
+  };
+};
+
+const lockModeLabelForStage = (lockMode: StageLockMode): string =>
+  lockMode === "none" ? "No Lock" : lockMode === "origin" ? "Origin Lock" : "COM Lock";
+
+export const stageViewModelForWorld = ({
+  world,
+  lockMode,
+  manualPanZoom,
+  bodyColors,
+  pairStateLabel,
+}: StageViewModelInput): StageViewModel => {
+  const runButtonCopy = runButtonCopyForWorld(world);
+  const statusModeSegment = manualPanZoom ? "Manual" : lockModeLabelForStage(lockMode);
+  return {
+    ...runButtonCopy,
+    statusLabel: statusLabelForWorld(world, statusModeSegment, pairStateLabel),
+    ejectedStatusRows: ejectedBodiesForStatus(world, bodyColors),
+    latestEjectedLabel: latestEjectedLabelForStatus(world),
+  };
 };
