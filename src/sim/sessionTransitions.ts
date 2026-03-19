@@ -1,0 +1,72 @@
+import { evaluateEjection } from "./ejection";
+import { velocityVerletStep } from "./integrators";
+import type { BodyState, DiagnosticsSnapshot, SimParams, WorldState } from "./types";
+import { createStoppedWorld } from "./worldState";
+
+type DiagnosticsComputer = (bodies: BodyState[], params: SimParams) => DiagnosticsSnapshot;
+
+export type NewInitialStateTransition = {
+  nextWorld: WorldState;
+  baselineDiagnostics: DiagnosticsSnapshot;
+};
+
+export const buildNewInitialStateTransition = (
+  nextBodies: BodyState[],
+  nextParams: SimParams,
+  computeDiagnostics: DiagnosticsComputer,
+): NewInitialStateTransition => {
+  const nextWorld = createStoppedWorld(nextBodies);
+  return {
+    nextWorld,
+    baselineDiagnostics: computeDiagnostics(nextWorld.bodies, nextParams),
+  };
+};
+
+export type StartPauseTransition = {
+  nextWorld: WorldState;
+  baselineDiagnostics: DiagnosticsSnapshot | null;
+};
+
+export const buildStartPauseTransition = (
+  currentWorld: WorldState,
+  params: SimParams,
+  computeDiagnostics: DiagnosticsComputer,
+): StartPauseTransition => {
+  let nextWorld: WorldState = { ...currentWorld, isRunning: !currentWorld.isRunning };
+  const baselineDiagnostics =
+    !currentWorld.isRunning && currentWorld.elapsedTime === 0
+      ? computeDiagnostics(currentWorld.bodies, params)
+      : null;
+
+  if (!currentWorld.isRunning && currentWorld.ejectedBodyId) {
+    nextWorld = { ...nextWorld, ejectedBodyId: null };
+  }
+  if (!currentWorld.isRunning && currentWorld.dissolutionJustDetected) {
+    nextWorld = { ...nextWorld, dissolutionJustDetected: false };
+  }
+
+  return { nextWorld, baselineDiagnostics };
+};
+
+export const buildSingleStepTransition = (
+  currentWorld: WorldState,
+  params: SimParams,
+  applyDissolutionProgress: (world: WorldState, stepParams: SimParams, dt: number) => WorldState,
+): WorldState => {
+  const steppedBodies = velocityVerletStep(currentWorld.bodies, params);
+  let nextWorld: WorldState = {
+    ...currentWorld,
+    bodies: steppedBodies,
+    elapsedTime: currentWorld.elapsedTime + params.dt,
+    isRunning: false,
+  };
+  const ejection = evaluateEjection(nextWorld, params);
+  nextWorld = {
+    ...nextWorld,
+    ejectionCounterById: ejection.ejectionCounterById,
+    ejectedBodyId: ejection.ejectedBodyId,
+    ejectedBodyIds: ejection.ejectedBodyIds,
+    isRunning: false,
+  };
+  return applyDissolutionProgress(nextWorld, params, params.dt);
+};

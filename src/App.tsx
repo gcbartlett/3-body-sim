@@ -6,9 +6,7 @@ import { defaultBodies, defaultParams, initialWorld } from "./sim/defaults";
 import {
   coreEscapeMetricsForBody,
   EJECTION_TIME_THRESHOLD_SECONDS,
-  evaluateEjection,
 } from "./sim/ejection";
-import { velocityVerletStep } from "./sim/integrators";
 import {
   loadPersistedParams,
   loadPersistedUiPrefs,
@@ -31,6 +29,11 @@ import { PRESETS, cloneBodies } from "./sim/presets";
 import { generateRandomChaoticBodies, generateRandomStableBodies } from "./sim/randomProfiles";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./sim/types";
 import { createStoppedWorld } from "./sim/worldState";
+import {
+  buildNewInitialStateTransition,
+  buildSingleStepTransition,
+  buildStartPauseTransition,
+} from "./sim/sessionTransitions";
 import { CanvasDiagnostics } from "./ui/CanvasDiagnostics";
 import { ControlPanel } from "./ui/ControlPanel";
 import { SaveProfileDialog } from "./ui/SaveProfileDialog";
@@ -471,19 +474,22 @@ function App() {
 
   const onStartPause = () => {
     setWorld((prev) => {
-      let next = { ...prev, isRunning: !prev.isRunning };
-      if (!prev.isRunning && prev.elapsedTime === 0) {
-        setBaselineDiagnostics(diagnosticsSnapshot(prev.bodies, paramsRef.current));
+      const transition = buildStartPauseTransition(prev, paramsRef.current, diagnosticsSnapshot);
+      if (transition.baselineDiagnostics) {
+        setBaselineDiagnostics(transition.baselineDiagnostics);
       }
-      if (!prev.isRunning && prev.ejectedBodyId) {
-        next = { ...next, ejectedBodyId: null };
-      }
-      if (!prev.isRunning && prev.dissolutionJustDetected) {
-        next = { ...next, dissolutionJustDetected: false };
-      }
-      worldRef.current = next;
-      return next;
+      worldRef.current = transition.nextWorld;
+      return transition.nextWorld;
     });
+  };
+
+  const applyNewInitialStateTransition = (nextBodies: BodyState[], nextParams: SimParams) => {
+    const transition = buildNewInitialStateTransition(nextBodies, nextParams, diagnosticsSnapshot);
+    worldRef.current = transition.nextWorld;
+    setWorld(transition.nextWorld);
+    setBaselineDiagnostics(transition.baselineDiagnostics);
+    trailsRef.current = {};
+    simStepCounterRef.current = 0;
   };
 
   const onReset = () => {
@@ -491,31 +497,15 @@ function App() {
     lastTimeRef.current = null;
     setManualMode(false);
     scheduleFastReframe();
-    const next = createStoppedWorld(draftBodies);
-    worldRef.current = next;
-    setWorld(next);
-    setBaselineDiagnostics(diagnosticsSnapshot(next.bodies, paramsRef.current));
-    trailsRef.current = {};
-    simStepCounterRef.current = 0;
+    applyNewInitialStateTransition(draftBodies, paramsRef.current);
   };
 
   const onStep = () => {
-    const steppedBodies = velocityVerletStep(worldRef.current.bodies, paramsRef.current);
-    let nextWorld: WorldState = {
-      ...worldRef.current,
-      bodies: steppedBodies,
-      elapsedTime: worldRef.current.elapsedTime + paramsRef.current.dt,
-      isRunning: false,
-    };
-    const ejection = evaluateEjection(nextWorld, paramsRef.current);
-    nextWorld = {
-      ...nextWorld,
-      ejectionCounterById: ejection.ejectionCounterById,
-      ejectedBodyId: ejection.ejectedBodyId,
-      ejectedBodyIds: ejection.ejectedBodyIds,
-      isRunning: false,
-    };
-    nextWorld = applyDissolutionProgress(nextWorld, paramsRef.current, paramsRef.current.dt);
+    const nextWorld = buildSingleStepTransition(
+      worldRef.current,
+      paramsRef.current,
+      applyDissolutionProgress,
+    );
     worldRef.current = nextWorld;
     setWorld(nextWorld);
     trailsRef.current = appendTrailPoints(trailsRef.current, nextWorld.bodies);
@@ -532,13 +522,7 @@ function App() {
     setDraftBodies(nextBodies);
     setParams(nextParams);
     paramsRef.current = nextParams;
-
-    const nextWorld = createStoppedWorld(nextBodies);
-    worldRef.current = nextWorld;
-    setWorld(nextWorld);
-    setBaselineDiagnostics(diagnosticsSnapshot(nextWorld.bodies, nextParams));
-    trailsRef.current = {};
-    simStepCounterRef.current = 0;
+    applyNewInitialStateTransition(nextBodies, nextParams);
     scheduleFastReframe();
   };
 
@@ -585,12 +569,7 @@ function App() {
 
   const applyBodiesAsNewInitialState = (nextBodies: BodyState[]) => {
     setDraftBodies(nextBodies);
-    const nextWorld = createStoppedWorld(nextBodies);
-    worldRef.current = nextWorld;
-    setWorld(nextWorld);
-    setBaselineDiagnostics(diagnosticsSnapshot(nextWorld.bodies, paramsRef.current));
-    trailsRef.current = {};
-    simStepCounterRef.current = 0;
+    applyNewInitialStateTransition(nextBodies, paramsRef.current);
     scheduleFastReframe();
   };
 
