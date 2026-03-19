@@ -19,11 +19,6 @@ import {
   type PersistedLockMode,
 } from "./sim/presetStorage";
 import { totalEnergy, totalMomentum } from "./sim/physics";
-import {
-  buildHoverTooltipSnapshotForBodyIndex,
-  findBodyIndexById,
-  findNearestBodyIndexAtScreenPoint,
-} from "./sim/hoverDiagnostics";
 import { PRESETS, cloneBodies } from "./sim/presets";
 import { generateRandomChaoticBodies, generateRandomStableBodies } from "./sim/randomProfiles";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./sim/types";
@@ -43,6 +38,7 @@ import { useSaveProfileDraft } from "./ui/useSaveProfileDraft";
 import { useStageViewport } from "./ui/useStageViewport";
 import { useSimulationHotkeys } from "./ui/useSimulationHotkeys";
 import { useSimulationLoop } from "./sim/useSimulationLoop";
+import { useHoverTooltipState } from "./ui/useHoverTooltipState";
 import {
   bodyEjectionStatusesForDisplay,
   bodyVectorsForDisplay,
@@ -120,12 +116,6 @@ function App() {
   const [showCenterOfMass, setShowCenterOfMass] = useState<boolean>(initialUiPrefs.showCenterOfMass);
   const [panelExpanded, setPanelExpanded] = useState<boolean>(initialUiPrefs.panelExpanded);
   const [diagnosticsInsetPx, setDiagnosticsInsetPx] = useState<number>(0);
-  const [hoverBody, setHoverBody] = useState<{
-    x: number;
-    y: number;
-    color: string;
-    lines: string[];
-  } | null>(null);
   const [baselineDiagnostics, setBaselineDiagnostics] = useState<DiagnosticsSnapshot>(() =>
     diagnosticsSnapshot(initialWorld().bodies, defaultParams()),
   );
@@ -139,91 +129,27 @@ function App() {
   const paramsRef = useRef(params);
   const cameraRef = useRef(initialCamera);
   const trailsRef = useRef<TrailMap>({});
-  const hoverBodyIdRef = useRef<string | null>(null);
-  const hoverLastUpdateTimeRef = useRef(0);
   const forceFastZoomInFramesRef = useRef(FAST_REFRAME_FRAMES);
   const simStepCounterRef = useRef(0);
   const manualPanZoomRef = useRef(manualPanZoom);
   const viewport = useStageViewport({ containerRef, canvasRef, diagnosticsInsetPx });
+  const {
+    hoverBody,
+    hoverBodyIdRef,
+    hoverLastUpdateTimeRef,
+    clearHoverBody,
+    updateBodyHoverTooltip,
+    refreshHoverTooltipForBodyId,
+  } = useHoverTooltipState({
+    worldRef,
+    paramsRef,
+    cameraRef,
+    viewport,
+  });
 
   const scheduleFastReframe = () => {
     cameraRef.current = { ...initialCamera };
     forceFastZoomInFramesRef.current = FAST_REFRAME_FRAMES;
-  };
-
-  const updateBodyHoverTooltip = (screenX: number, screenY: number) => {
-    const bodies = worldRef.current.bodies;
-    if (bodies.length === 0) {
-      setHoverBody(null);
-      return;
-    }
-
-    const thresholdPx = 16;
-    const nearest = findNearestBodyIndexAtScreenPoint(
-      bodies,
-      cameraRef.current,
-      viewport,
-      screenX,
-      screenY,
-      thresholdPx,
-    );
-    if (!nearest) {
-      hoverBodyIdRef.current = null;
-      hoverLastUpdateTimeRef.current = 0;
-      setHoverBody(null);
-      return;
-    }
-
-    const snapshot = buildHoverTooltipSnapshotForBodyIndex({
-      world: worldRef.current,
-      params: paramsRef.current,
-      camera: cameraRef.current,
-      viewport,
-      bodyIndex: nearest.bodyIndex,
-      screen: nearest.screen,
-    });
-    if (!snapshot) {
-      hoverBodyIdRef.current = null;
-      hoverLastUpdateTimeRef.current = 0;
-      setHoverBody(null);
-      return;
-    }
-
-    hoverBodyIdRef.current = snapshot.bodyId;
-    hoverLastUpdateTimeRef.current = performance.now();
-    setHoverBody({
-      x: snapshot.x,
-      y: snapshot.y,
-      color: snapshot.color,
-      lines: snapshot.lines,
-    });
-  };
-
-  const refreshHoverTooltipForBodyId = (bodyId: string) => {
-    const index = findBodyIndexById(worldRef.current.bodies, bodyId);
-    if (index < 0) {
-      hoverBodyIdRef.current = null;
-      setHoverBody(null);
-      return;
-    }
-    const snapshot = buildHoverTooltipSnapshotForBodyIndex({
-      world: worldRef.current,
-      params: paramsRef.current,
-      camera: cameraRef.current,
-      viewport,
-      bodyIndex: index,
-    });
-    if (!snapshot) {
-      hoverBodyIdRef.current = null;
-      setHoverBody(null);
-      return;
-    }
-    setHoverBody({
-      x: snapshot.x,
-      y: snapshot.y,
-      color: snapshot.color,
-      lines: snapshot.lines,
-    });
   };
 
   useEffect(() => {
@@ -259,12 +185,6 @@ function App() {
   const setManualMode = (enabled: boolean) => {
     manualPanZoomRef.current = enabled;
     setManualPanZoom(enabled);
-  };
-
-  const clearHoverBody = () => {
-    hoverBodyIdRef.current = null;
-    hoverLastUpdateTimeRef.current = 0;
-    setHoverBody(null);
   };
 
   const {
