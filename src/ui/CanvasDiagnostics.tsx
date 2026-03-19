@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { FAR_FIELD_RATIO_GATE } from "../sim/ejection";
 import type { DiagnosticsSnapshot } from "../sim/types";
 import { magnitude } from "../sim/vector";
+import { loadCanvasDiagnosticsOpenState, saveCanvasDiagnosticsOpenState } from "./uiPrefsStorage";
 
 type Vec2 = { x: number; y: number };
 type BodyVectors = {
@@ -43,20 +44,6 @@ type Props = {
   onVisibleHeightChange?: (height: number) => void;
 };
 
-const STORAGE_KEY = "three-body-sim.ui.canvas-diagnostics.v1";
-
-const loadOpenState = (): boolean => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === null) {
-      return false;
-    }
-    return raw === "1";
-  } catch {
-    return false;
-  }
-};
-
 export const CanvasDiagnostics = ({
   pairEnergies,
   displayPairState,
@@ -69,15 +56,11 @@ export const CanvasDiagnostics = ({
   bodyEjectionStatuses,
   onVisibleHeightChange,
 }: Props) => {
-  const [isOpen, setIsOpen] = useState<boolean>(loadOpenState);
+  const [isOpen, setIsOpen] = useState<boolean>(loadCanvasDiagnosticsOpenState);
   const rootRef = useRef<HTMLDetailsElement | null>(null);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, isOpen ? "1" : "0");
-    } catch {
-      // Ignore storage failures (quota/private mode).
-    }
+    saveCanvasDiagnosticsOpenState(isOpen);
   }, [isOpen]);
 
   useEffect(() => {

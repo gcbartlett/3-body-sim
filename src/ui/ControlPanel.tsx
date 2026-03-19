@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { BodyState, PresetProfile, SimParams } from "../sim/types";
+import { loadSectionOpenState, saveSectionOpenState, type SectionOpenState } from "./uiPrefsStorage";
 
 type LockMode = "none" | "origin" | "com";
 
@@ -30,34 +31,6 @@ type Props = {
 };
 
 const number = (value: number) => Number.isFinite(value) ? value : 0;
-const UI_SECTIONS_STORAGE_KEY = "three-body-sim.ui.sections.v1";
-type SectionOpenState = {
-  presetsOpen: boolean;
-  simParamsOpen: boolean;
-  bodyConfigOpen: boolean;
-};
-
-const loadSectionOpenState = (): SectionOpenState => {
-  const fallback: SectionOpenState = {
-    presetsOpen: true,
-    simParamsOpen: false,
-    bodyConfigOpen: false,
-  };
-  try {
-    const raw = localStorage.getItem(UI_SECTIONS_STORAGE_KEY);
-    if (!raw) {
-      return fallback;
-    }
-    const parsed = JSON.parse(raw) as Partial<SectionOpenState>;
-    return {
-      presetsOpen: parsed.presetsOpen === undefined ? true : Boolean(parsed.presetsOpen),
-      simParamsOpen: Boolean(parsed.simParamsOpen),
-      bodyConfigOpen: Boolean(parsed.bodyConfigOpen),
-    };
-  } catch {
-    return fallback;
-  }
-};
 
 const bodyConfigRows = [
   { label: "Mass", field: "mass" as const, step: "0.1", min: "0.1", tooltip: "Mass of the body used in gravitational force calculations." },
@@ -99,11 +72,7 @@ export const ControlPanel = ({
   const isBodyConfigOpen = sectionState.bodyConfigOpen;
 
   useEffect(() => {
-    try {
-      localStorage.setItem(UI_SECTIONS_STORAGE_KEY, JSON.stringify(sectionState));
-    } catch {
-      // Ignore storage failures (quota/private mode).
-    }
+    saveSectionOpenState(sectionState);
   }, [sectionState]);
 
   return (
