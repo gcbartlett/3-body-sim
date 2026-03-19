@@ -38,6 +38,18 @@ import { ControlPanel } from "./ui/ControlPanel";
 import { useCanvasCameraControls } from "./ui/useCanvasCameraControls";
 import { magnitude } from "./sim/vector";
 import { useSimulationLoop } from "./sim/useSimulationLoop";
+import {
+  bodyEjectionStatusesForDisplay,
+  bodyVectorsForDisplay,
+  boundPairStateLabel,
+  DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
+  displayPairStateFromEnergies,
+  ejectedBodiesForStatus,
+  latestEjectedLabelForStatus,
+  pairBindingStateForBodies,
+  pairEnergiesForBodies,
+  statusLabelForWorld,
+} from "./sim/simulationSelectors";
 
 type LockMode = PersistedLockMode;
 
@@ -75,7 +87,6 @@ const MAX_TRAIL_POINTS_PER_BODY = 2400;
 const BODY_COLORS = ["#f7b731", "#60a5fa", "#8bd450"];
 const FAST_REFRAME_FRAMES = 60;
 const DISSOLUTION_TIME_THRESHOLD_SECONDS = 10;
-const DISPLAY_PAIR_ENERGY_EPS = 0.05;
 const MIN_VIEWPORT_WIDTH_PX = 320;
 const MIN_VIEWPORT_HEIGHT_PX = 120;
 
@@ -112,59 +123,6 @@ const appendTrailPoints = (trails: TrailMap, bodies: BodyState[]): TrailMap => {
         : next;
   }
   return updated;
-};
-
-const pairSpecificEnergyForBodies = (
-  bodies: BodyState[],
-  params: SimParams,
-  i: number,
-  j: number,
-): number => {
-  const bi = bodies[i];
-  const bj = bodies[j];
-  if (!bi || !bj) {
-    return 0;
-  }
-  const dvx = bi.velocity.x - bj.velocity.x;
-  const dvy = bi.velocity.y - bj.velocity.y;
-  const vrel2 = dvx * dvx + dvy * dvy;
-  const dx = bi.position.x - bj.position.x;
-  const dy = bi.position.y - bj.position.y;
-  const r = Math.sqrt(dx * dx + dy * dy + params.softening * params.softening);
-  return 0.5 * vrel2 - (params.G * (bi.mass + bj.mass)) / Math.max(1e-9, r);
-};
-
-const boundPairStateForBodies = (
-  bodies: BodyState[],
-  params: SimParams,
-): { eps12: number; eps13: number; eps23: number; boundPairCount: number; state: string } => {
-  const eps12 = pairSpecificEnergyForBodies(bodies, params, 0, 1);
-  const eps13 = pairSpecificEnergyForBodies(bodies, params, 0, 2);
-  const eps23 = pairSpecificEnergyForBodies(bodies, params, 1, 2);
-  const boundPairCount = [eps12, eps13, eps23].filter((e) => e < 0).length;
-  const state =
-    boundPairCount === 0
-      ? "dissolving"
-      : boundPairCount === 1
-      ? "binary+single"
-      : "resonant";
-  return { eps12, eps13, eps23, boundPairCount, state };
-};
-
-const displayPairStateFromEnergies = (
-  eps12: number,
-  eps13: number,
-  eps23: number,
-  anyEjected: boolean,
-): { nbound: number; state: "dissolving" | "binary+single" | "resonant" } => {
-  const nbound = [eps12, eps13, eps23].filter((e) => e < -DISPLAY_PAIR_ENERGY_EPS).length;
-  if (anyEjected && nbound > 0) {
-    return { nbound, state: "binary+single" };
-  }
-  return {
-    nbound,
-    state: nbound === 0 ? "dissolving" : nbound === 1 ? "binary+single" : "resonant",
-  };
 };
 
 function App() {
@@ -393,7 +351,7 @@ function App() {
     stepParams: SimParams,
     stepDt: number,
   ): WorldState => {
-    const pairState = boundPairStateForBodies(baseWorld.bodies, stepParams).state;
+    const pairState = pairBindingStateForBodies(baseWorld.bodies, stepParams);
     const nextCounterSec =
       pairState === "dissolving" ? baseWorld.dissolutionCounterSec + Math.max(0, stepDt) : 0;
     const crossedThreshold =
@@ -713,44 +671,21 @@ function App() {
   };
 
   const diagnostics = diagnosticsSnapshot(world.bodies, params);
-  const accelerations = computeAccelerations(world.bodies, params);
-  const boundPairSummary = boundPairStateForBodies(world.bodies, params);
-  const eps12 = boundPairSummary.eps12;
-  const eps13 = boundPairSummary.eps13;
-  const eps23 = boundPairSummary.eps23;
+  const { eps12, eps13, eps23 } = pairEnergiesForBodies(world.bodies, params);
   const displayPairState = displayPairStateFromEnergies(
     eps12,
     eps13,
     eps23,
     world.ejectedBodyIds.length > 0,
+    DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
   );
-  const boundPairState = world.dissolutionDetected
-    ? "Dissolved"
-    : displayPairState.state === "dissolving"
-      ? "Dissolving"
-      : displayPairState.state === "binary+single"
-      ? "Binary+Single"
-      : "Resonant";
-  const bodyVectors = world.bodies.map((body, index) => ({
-    id: body.id,
-    color: body.color,
-    position: body.position,
-    velocity: body.velocity,
-    acceleration: accelerations[index],
-  }));
-  const bodyEjectionStatuses = world.bodies.map((body, index) => {
-    const metrics = coreEscapeMetricsForBody(index, world, params);
-    return {
-      id: body.id,
-      energy: metrics?.energy ?? 0,
-      speedRatioToEscape: metrics?.speedRatioToEscape ?? 0,
-      farCoreRatio: metrics?.farCoreRatio ?? 0,
-      outward: metrics?.outward ?? false,
-      counter: world.ejectionCounterById[body.id] ?? 0,
-      threshold: EJECTION_TIME_THRESHOLD_SECONDS,
-      isEjected: world.ejectedBodyIds.includes(body.id),
-    };
-  });
+  const boundPairState = boundPairStateLabel(displayPairState, world.dissolutionDetected);
+  const bodyVectors = bodyVectorsForDisplay(world.bodies, params);
+  const bodyEjectionStatuses = bodyEjectionStatusesForDisplay(
+    world,
+    params,
+    EJECTION_TIME_THRESHOLD_SECONDS,
+  );
   const runButtonLabel = world.isRunning ? "Pause" : world.elapsedTime > 0 ? "Resume" : "Start";
   const runButtonTooltip = world.isRunning
     ? "Pause simulation time progression."
@@ -758,28 +693,10 @@ function App() {
     ? "Resume running the simulation."
     : "Start running the simulation.";
   const lockModeLabel = lockMode === "none" ? "No Lock" : lockMode === "origin" ? "Origin Lock" : "COM Lock";
-  const ejectedBodiesForStatus = world.ejectedBodyIds.map((id) => {
-    const idx = world.bodies.findIndex((body) => body.id === id);
-    return {
-      id,
-      label: idx >= 0 ? `B${idx + 1}` : id,
-      color: idx >= 0 ? BODY_COLORS[idx] ?? "#d1d5db" : "#d1d5db",
-    };
-  });
-  const latestEjectedLabel = world.ejectedBodyId
-    ? (() => {
-        const idx = world.bodies.findIndex((body) => body.id === world.ejectedBodyId);
-        return idx >= 0 ? `B${idx + 1}` : world.ejectedBodyId;
-      })()
-    : null;
+  const ejectedStatusRows = ejectedBodiesForStatus(world, BODY_COLORS);
+  const latestEjectedLabel = latestEjectedLabelForStatus(world);
   const statusModeSegment = manualPanZoom ? "Manual" : lockModeLabel;
-  const statusLabel = world.dissolutionDetected && !world.isRunning
-    ? "Dissolved"
-    : world.isRunning
-    ? `Running • ${statusModeSegment} • ${boundPairState}`
-    : world.elapsedTime > 0
-    ? `Paused • ${statusModeSegment} • ${boundPairState}`
-    : `Ready • ${statusModeSegment} • ${boundPairState}`;
+  const statusLabel = statusLabelForWorld(world, statusModeSegment, boundPairState);
   return (
     <div className={`layout${panelExpanded ? "" : " panel-collapsed"}`}>
       <ControlPanel
@@ -810,15 +727,15 @@ function App() {
       <main className="stage-wrap" ref={containerRef}>
         <div className="canvas-status" title="Simulation status and active camera mode.">
           <span>{statusLabel}</span>
-          {ejectedBodiesForStatus.length > 0 ? (
+          {ejectedStatusRows.length > 0 ? (
             <span>
               {" • Ejected: "}
-              {ejectedBodiesForStatus.map((body, index) => (
+              {ejectedStatusRows.map((body, index) => (
                 <span key={body.id}>
                   <span className="status-eject-body" style={{ color: body.color }}>
                     {body.label}
                   </span>
-                  {index < ejectedBodiesForStatus.length - 1 ? ", " : ""}
+                  {index < ejectedStatusRows.length - 1 ? ", " : ""}
                 </span>
               ))}
             </span>
@@ -884,7 +801,7 @@ function App() {
           displayPairState={{
             nbound: displayPairState.nbound,
             state: displayPairState.state,
-            eps: DISPLAY_PAIR_ENERGY_EPS,
+            eps: DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
           }}
           dissolutionCounterSec={world.dissolutionCounterSec}
           dissolutionThresholdSec={DISSOLUTION_TIME_THRESHOLD_SECONDS}
