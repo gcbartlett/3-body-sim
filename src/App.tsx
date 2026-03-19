@@ -36,6 +36,8 @@ import {
 import { CanvasDiagnostics } from "./ui/CanvasDiagnostics";
 import { ControlPanel } from "./ui/ControlPanel";
 import { SaveProfileDialog } from "./ui/SaveProfileDialog";
+import { StageControls } from "./ui/stage/StageControls";
+import { StageHud } from "./ui/stage/StageHud";
 import { useCanvasCameraControls } from "./ui/useCanvasCameraControls";
 import { useSaveProfileDraft } from "./ui/useSaveProfileDraft";
 import { useSimulationLoop } from "./sim/useSimulationLoop";
@@ -632,77 +634,24 @@ function App() {
         onGenerateRandomChaotic={onGenerateRandomChaotic}
       />
       <main className="stage-wrap" ref={containerRef}>
-        <div className="canvas-status" title="Simulation status and active camera mode.">
-          <span>{statusLabel}</span>
-          {ejectedStatusRows.length > 0 ? (
-            <span>
-              {" • Ejected: "}
-              {ejectedStatusRows.map((body, index) => (
-                <span key={body.id}>
-                  <span className="status-eject-body" style={{ color: body.color }}>
-                    {body.label}
-                  </span>
-                  {index < ejectedStatusRows.length - 1 ? ", " : ""}
-                </span>
-              ))}
-            </span>
-          ) : null}
-        </div>
-        <div className="top-right-tools">
-          <div className="hud" title="Elapsed simulation time and current simulation rate. Hotkeys: '+' faster, '-' slower.">
-            <div>t = {world.elapsedTime.toFixed(3)}</div>
-            <div>rate = {params.speed.toFixed(2)}x</div>
-          </div>
-          <button
-            className="panel-toggle-icon"
-            title={panelExpanded ? "Hide panel (maximize canvas)" : "Show panel (restore layout)"}
-            onClick={onTogglePanelExpanded}
-            aria-label={panelExpanded ? "Maximize canvas" : "Restore panel"}
-          >
-            {panelExpanded ? (
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                <path
-                  d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                <rect x="5" y="5" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" />
-              </svg>
-            )}
-          </button>
-        </div>
-        <div className="stage-controls">
-          <div className="button-row">
-            <button
-              onClick={onStartPause}
-              title={runButtonTooltip}
-            >
-              {runButtonLabel}
-            </button>
-            <button onClick={onReset} title="Reset to current initial conditions and clear trails.">
-              Reset
-            </button>
-            <button onClick={onStep} title="Advance simulation by one integration step.">
-              Step
-            </button>
-          </div>
-          {world.ejectedBodyId && (
-            <p className="warning">
-              Paused: {latestEjectedLabel ?? world.ejectedBodyId} newly ejected from system.
-            </p>
-          )}
-          {world.dissolutionJustDetected && (
-            <p className="warning">
-              Paused: system dissolved.
-            </p>
-          )}
-        </div>
+        <StageHud
+          statusLabel={statusLabel}
+          ejectedStatusRows={ejectedStatusRows}
+          elapsedTime={world.elapsedTime}
+          speed={params.speed}
+          panelExpanded={panelExpanded}
+          onTogglePanelExpanded={onTogglePanelExpanded}
+        />
+        <StageControls
+          runButtonLabel={runButtonLabel}
+          runButtonTooltip={runButtonTooltip}
+          onStartPause={onStartPause}
+          onReset={onReset}
+          onStep={onStep}
+          ejectedBodyId={world.ejectedBodyId}
+          latestEjectedLabel={latestEjectedLabel}
+          dissolutionJustDetected={world.dissolutionJustDetected}
+        />
         <CanvasDiagnostics
           pairEnergies={{ e12: eps12, e13: eps13, e23: eps23 }}
           displayPairState={{
