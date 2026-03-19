@@ -10,6 +10,21 @@ import {
 } from "./sim/ejection";
 import { velocityVerletStep } from "./sim/integrators";
 import {
+  loadPersistedParams,
+  loadPersistedUiPrefs,
+  loadPersistedUserPresets,
+  PRESET_DESCRIPTION_MAX_LENGTH,
+  PRESET_ID_MAX_LENGTH,
+  PRESET_NAME_MAX_LENGTH,
+  sanitizePresetDescription,
+  sanitizePresetId,
+  sanitizePresetName,
+  savePersistedParams,
+  savePersistedUiPrefs,
+  savePersistedUserPresets,
+  type PersistedLockMode,
+} from "./sim/presetStorage";
+import {
   centerOfMass,
   computeAccelerations,
   totalEnergy,
@@ -22,7 +37,7 @@ import { CanvasDiagnostics } from "./ui/CanvasDiagnostics";
 import { ControlPanel } from "./ui/ControlPanel";
 import { magnitude } from "./sim/vector";
 
-type LockMode = "none" | "origin" | "com";
+type LockMode = PersistedLockMode;
 
 const initialCamera: Camera = {
   center: { x: 0, y: 0 },
@@ -64,194 +79,14 @@ const MAX_WORLD_UNITS_PER_PIXEL = 5;
 const BODY_COLORS = ["#f7b731", "#60a5fa", "#8bd450"];
 const BASE_MAX_STEPS = 12;
 const FAST_REFRAME_FRAMES = 60;
-const PARAMS_STORAGE_KEY = "three-body-sim.params.v1";
-const USER_PRESETS_STORAGE_KEY = "three-body-sim.user-presets.v1";
-const PANEL_EXPANDED_STORAGE_KEY = "three-body-sim.ui.panel-expanded.v1";
-const LOCK_MODE_STORAGE_KEY = "three-body-sim.ui.lock-mode.v1";
-const SHOW_ORIGIN_MARKER_STORAGE_KEY = "three-body-sim.ui.show-origin-marker.v1";
-const SHOW_GRID_STORAGE_KEY = "three-body-sim.ui.show-grid.v1";
-const SHOW_CENTER_OF_MASS_STORAGE_KEY = "three-body-sim.ui.show-center-of-mass.v1";
 const DISSOLUTION_TIME_THRESHOLD_SECONDS = 10;
 const DISPLAY_PAIR_ENERGY_EPS = 0.05;
-const PRESET_ID_MAX_LENGTH = 64;
-const PRESET_NAME_MAX_LENGTH = 80;
-const PRESET_DESCRIPTION_MAX_LENGTH = 280;
 
 const formatDiag = (value: number): string => {
   const normalized = Math.abs(value) < 0.0005 ? 0 : value;
   const abs = Math.abs(normalized);
   const dp = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
   return `${normalized >= 0 ? "+" : ""}${normalized.toFixed(dp)}`;
-};
-
-const sanitizeParams = (candidate: Partial<SimParams> | null | undefined): SimParams => {
-  const base = defaultParams();
-  if (!candidate) {
-    return base;
-  }
-  const safe = (value: unknown, fallback: number) =>
-    typeof value === "number" && Number.isFinite(value) ? value : fallback;
-
-  return {
-    G: Math.max(0, safe(candidate.G, base.G)),
-    dt: Math.max(0.0001, safe(candidate.dt, base.dt)),
-    speed: Math.max(0.01, safe(candidate.speed, base.speed)),
-    softening: Math.max(0, safe(candidate.softening, base.softening)),
-    trailFade: Math.max(0.0001, safe(candidate.trailFade, base.trailFade)),
-  };
-};
-
-const stripControlChars = (value: string, allowNewlines = false): string => {
-  const pattern = allowNewlines
-    ? /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g
-    : /[\u0000-\u001F\u007F]/g;
-  return value.replace(pattern, "");
-};
-
-const sanitizePresetId = (value: string): string => {
-  const normalized = stripControlChars(value)
-    .normalize("NFKC")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^A-Za-z0-9._-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^[-._]+|[-._]+$/g, "");
-  return normalized.slice(0, PRESET_ID_MAX_LENGTH);
-};
-
-const sanitizePresetName = (value: string): string =>
-  stripControlChars(value)
-    .normalize("NFKC")
-    .replace(/\s+/g, " ")
-    .replace(/[<>]/g, "")
-    .trim()
-    .slice(0, PRESET_NAME_MAX_LENGTH);
-
-const sanitizePresetDescription = (value: string): string =>
-  stripControlChars(value, true)
-    .normalize("NFKC")
-    .replace(/\r\n?/g, "\n")
-    .replace(/[^\S\n]+/g, " ")
-    .replace(/[<>]/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim()
-    .slice(0, PRESET_DESCRIPTION_MAX_LENGTH);
-
-const loadPersistedParams = (): SimParams => {
-  try {
-    const raw = localStorage.getItem(PARAMS_STORAGE_KEY);
-    if (!raw) {
-      return defaultParams();
-    }
-    return sanitizeParams(JSON.parse(raw) as Partial<SimParams>);
-  } catch {
-    return defaultParams();
-  }
-};
-
-const loadPersistedPanelExpanded = (): boolean => {
-  try {
-    const raw = localStorage.getItem(PANEL_EXPANDED_STORAGE_KEY);
-    if (raw === null) {
-      return true;
-    }
-    return raw === "1";
-  } catch {
-    return true;
-  }
-};
-
-const loadPersistedLockMode = (): LockMode => {
-  try {
-    const raw = localStorage.getItem(LOCK_MODE_STORAGE_KEY);
-    if (raw === "none" || raw === "origin" || raw === "com") {
-      return raw;
-    }
-    return "com";
-  } catch {
-    return "com";
-  }
-};
-
-const loadPersistedBoolean = (storageKey: string, fallback: boolean): boolean => {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (raw === null) {
-      return fallback;
-    }
-    return raw === "1";
-  } catch {
-    return fallback;
-  }
-};
-
-const sanitizeBodyArray = (candidate: unknown): BodyState[] | null => {
-  if (!Array.isArray(candidate) || candidate.length !== 3) {
-    return null;
-  }
-  const defaultSet = defaultBodies();
-  const safeNumber = (value: unknown, fallback: number) =>
-    typeof value === "number" && Number.isFinite(value) ? value : fallback;
-
-  return candidate.map((body, index) => {
-    const fallback = defaultSet[index];
-    const source = body as Partial<BodyState> | null;
-    const sourcePosition = source?.position as Partial<{ x: number; y: number }> | undefined;
-    const sourceVelocity = source?.velocity as Partial<{ x: number; y: number }> | undefined;
-
-    return {
-      id: fallback.id,
-      color: fallback.color,
-      mass: Math.max(0.001, safeNumber(source?.mass, fallback.mass)),
-      position: {
-        x: safeNumber(sourcePosition?.x, fallback.position.x),
-        y: safeNumber(sourcePosition?.y, fallback.position.y),
-      },
-      velocity: {
-        x: safeNumber(sourceVelocity?.x, fallback.velocity.x),
-        y: safeNumber(sourceVelocity?.y, fallback.velocity.y),
-      },
-    };
-  });
-};
-
-const loadPersistedUserPresets = (): PresetProfile[] => {
-  try {
-    const raw = localStorage.getItem(USER_PRESETS_STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    const seenIds = new Set<string>();
-    const safePresets: PresetProfile[] = [];
-    for (const item of parsed) {
-      const source = item as Partial<PresetProfile> | null;
-      const id = typeof source?.id === "string" ? sanitizePresetId(source.id) : "";
-      const name = typeof source?.name === "string" ? sanitizePresetName(source.name) : "";
-      const description =
-        typeof source?.description === "string"
-          ? sanitizePresetDescription(source.description)
-          : "";
-      const bodies = sanitizeBodyArray(source?.bodies);
-      if (!id || !name || !description || !bodies || seenIds.has(id)) {
-        continue;
-      }
-      seenIds.add(id);
-      safePresets.push({
-        id,
-        name,
-        description,
-        bodies,
-        params: sanitizeParams(source?.params),
-      });
-    }
-    return safePresets;
-  } catch {
-    return [];
-  }
 };
 
 const nextUserPresetNumber = (presetIds: string[]): number => {
@@ -392,23 +227,18 @@ const generateRandomChaoticBodies = (): BodyState[] => {
 };
 
 function App() {
+  const [initialUiPrefs] = useState(loadPersistedUiPrefs);
   const [params, setParams] = useState<SimParams>(loadPersistedParams);
   const [userPresets, setUserPresets] = useState<PresetProfile[]>(loadPersistedUserPresets);
   const [draftBodies, setDraftBodies] = useState<BodyState[]>(defaultBodies);
   const [world, setWorld] = useState<WorldState>(initialWorld);
   const [selectedPresetId, setSelectedPresetId] = useState<string>(PRESETS[0].id);
-  const [lockMode, setLockMode] = useState<LockMode>(loadPersistedLockMode);
+  const [lockMode, setLockMode] = useState<LockMode>(initialUiPrefs.lockMode);
   const [manualPanZoom, setManualPanZoom] = useState<boolean>(false);
-  const [showOriginMarker, setShowOriginMarker] = useState<boolean>(() =>
-    loadPersistedBoolean(SHOW_ORIGIN_MARKER_STORAGE_KEY, true),
-  );
-  const [showGrid, setShowGrid] = useState<boolean>(() =>
-    loadPersistedBoolean(SHOW_GRID_STORAGE_KEY, true),
-  );
-  const [showCenterOfMass, setShowCenterOfMass] = useState<boolean>(() =>
-    loadPersistedBoolean(SHOW_CENTER_OF_MASS_STORAGE_KEY, true),
-  );
-  const [panelExpanded, setPanelExpanded] = useState<boolean>(loadPersistedPanelExpanded);
+  const [showOriginMarker, setShowOriginMarker] = useState<boolean>(initialUiPrefs.showOriginMarker);
+  const [showGrid, setShowGrid] = useState<boolean>(initialUiPrefs.showGrid);
+  const [showCenterOfMass, setShowCenterOfMass] = useState<boolean>(initialUiPrefs.showCenterOfMass);
+  const [panelExpanded, setPanelExpanded] = useState<boolean>(initialUiPrefs.panelExpanded);
   const [diagnosticsInsetPx, setDiagnosticsInsetPx] = useState<number>(0);
   const [hoverBody, setHoverBody] = useState<{
     x: number;
@@ -611,31 +441,21 @@ function App() {
   }, [params]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(PARAMS_STORAGE_KEY, JSON.stringify(params));
-    } catch {
-      // Ignore storage failures (quota/private mode).
-    }
+    savePersistedParams(params);
   }, [params]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(PANEL_EXPANDED_STORAGE_KEY, panelExpanded ? "1" : "0");
-      localStorage.setItem(LOCK_MODE_STORAGE_KEY, lockMode);
-      localStorage.setItem(SHOW_ORIGIN_MARKER_STORAGE_KEY, showOriginMarker ? "1" : "0");
-      localStorage.setItem(SHOW_GRID_STORAGE_KEY, showGrid ? "1" : "0");
-      localStorage.setItem(SHOW_CENTER_OF_MASS_STORAGE_KEY, showCenterOfMass ? "1" : "0");
-    } catch {
-      // Ignore storage failures (quota/private mode).
-    }
+    savePersistedUiPrefs({
+      panelExpanded,
+      lockMode,
+      showOriginMarker,
+      showGrid,
+      showCenterOfMass,
+    });
   }, [lockMode, panelExpanded, showCenterOfMass, showGrid, showOriginMarker]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(USER_PRESETS_STORAGE_KEY, JSON.stringify(userPresets));
-    } catch {
-      // Ignore storage failures (quota/private mode).
-    }
+    savePersistedUserPresets(userPresets);
   }, [userPresets]);
 
   useEffect(() => {
