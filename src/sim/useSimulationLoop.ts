@@ -17,47 +17,49 @@ type Viewport = {
 type UseSimulationLoopArgs = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   viewport: Viewport;
-  lockMode: LockMode;
-  manualPanZoom: boolean;
-  showOriginMarker: boolean;
-  showGrid: boolean;
-  showCenterOfMass: boolean;
-  worldRef: RefObject<WorldState>;
-  paramsRef: RefObject<SimParams>;
-  cameraRef: RefObject<Camera>;
-  trailsRef: RefObject<TrailMap>;
-  rafRef: RefObject<number | null>;
-  lastTimeRef: RefObject<number | null>;
-  accumulatorRef: RefObject<number>;
-  forceFastZoomInFramesRef: RefObject<number>;
-  simStepCounterRef: RefObject<number>;
-  hoverBodyIdRef: RefObject<string | null>;
-  hoverLastUpdateTimeRef: RefObject<number>;
+  runtime: {
+    lockMode: LockMode;
+    manualPanZoom: boolean;
+    showOriginMarker: boolean;
+    showGrid: boolean;
+    showCenterOfMass: boolean;
+  };
+  refs: {
+    worldRef: RefObject<WorldState>;
+    paramsRef: RefObject<SimParams>;
+    cameraRef: RefObject<Camera>;
+    trailsRef: RefObject<TrailMap>;
+    rafRef: RefObject<number | null>;
+    lastTimeRef: RefObject<number | null>;
+    accumulatorRef: RefObject<number>;
+    forceFastZoomInFramesRef: RefObject<number>;
+    simStepCounterRef: RefObject<number>;
+  };
+  hover: {
+    hoverBodyIdRef: RefObject<string | null>;
+    hoverLastUpdateTimeRef: RefObject<number>;
+    refreshHoverTooltipForBodyId: (bodyId: string) => void;
+  };
   setWorld: (world: WorldState) => void;
-  refreshHoverTooltipForBodyId: (bodyId: string) => void;
 };
 
 export const useSimulationLoop = ({
   canvasRef,
   viewport,
-  lockMode,
-  manualPanZoom,
-  showOriginMarker,
-  showGrid,
-  showCenterOfMass,
-  worldRef,
-  paramsRef,
-  cameraRef,
-  trailsRef,
-  rafRef,
-  lastTimeRef,
-  accumulatorRef,
-  forceFastZoomInFramesRef,
-  simStepCounterRef,
-  hoverBodyIdRef,
-  hoverLastUpdateTimeRef,
+  runtime: { lockMode, manualPanZoom, showOriginMarker, showGrid, showCenterOfMass },
+  refs: {
+    worldRef,
+    paramsRef,
+    cameraRef,
+    trailsRef,
+    rafRef,
+    lastTimeRef,
+    accumulatorRef,
+    forceFastZoomInFramesRef,
+    simStepCounterRef,
+  },
+  hover: { hoverBodyIdRef, hoverLastUpdateTimeRef, refreshHoverTooltipForBodyId },
   setWorld,
-  refreshHoverTooltipForBodyId,
 }: UseSimulationLoopArgs): void => {
   const refreshHoverTooltipForBodyIdRef = useRef(refreshHoverTooltipForBodyId);
 
