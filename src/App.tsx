@@ -17,6 +17,7 @@ import {
 } from "./sim/physics";
 import { PRESETS, cloneBodies } from "./sim/presets";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./sim/types";
+import { createStoppedWorld } from "./sim/worldState";
 import { CanvasDiagnostics } from "./ui/CanvasDiagnostics";
 import { ControlPanel } from "./ui/ControlPanel";
 import { magnitude } from "./sim/vector";
@@ -916,16 +917,7 @@ function App() {
     setDraftBodies((prev) => {
       const next = prev.map((body, i) => (i === index ? applyBodyField(body, field, value) : body));
       if (!worldRef.current.isRunning && worldRef.current.elapsedTime === 0) {
-        const synced = {
-          ...worldRef.current,
-          bodies: next,
-          ejectedBodyId: null,
-          ejectedBodyIds: [],
-          ejectionCounterById: {},
-          dissolutionCounterSec: 0,
-          dissolutionDetected: false,
-          dissolutionJustDetected: false,
-        };
+        const synced = createStoppedWorld(next);
         worldRef.current = synced;
         setWorld(synced);
         setBaselineDiagnostics(diagnosticsSnapshot(synced.bodies, paramsRef.current));
@@ -977,17 +969,7 @@ function App() {
     lastTimeRef.current = null;
     setManualMode(false);
     scheduleFastReframe();
-    const next: WorldState = {
-      bodies: cloneBodies(draftBodies),
-      elapsedTime: 0,
-      isRunning: false,
-      ejectedBodyId: null,
-      ejectedBodyIds: [],
-      ejectionCounterById: {},
-      dissolutionCounterSec: 0,
-      dissolutionDetected: false,
-      dissolutionJustDetected: false,
-    };
+    const next = createStoppedWorld(draftBodies);
     worldRef.current = next;
     setWorld(next);
     setBaselineDiagnostics(diagnosticsSnapshot(next.bodies, paramsRef.current));
@@ -1029,17 +1011,7 @@ function App() {
     setParams(nextParams);
     paramsRef.current = nextParams;
 
-    const nextWorld: WorldState = {
-      bodies: cloneBodies(nextBodies),
-      elapsedTime: 0,
-      isRunning: false,
-      ejectedBodyId: null,
-      ejectedBodyIds: [],
-      ejectionCounterById: {},
-      dissolutionCounterSec: 0,
-      dissolutionDetected: false,
-      dissolutionJustDetected: false,
-    };
+    const nextWorld = createStoppedWorld(nextBodies);
     worldRef.current = nextWorld;
     setWorld(nextWorld);
     setBaselineDiagnostics(diagnosticsSnapshot(nextWorld.bodies, nextParams));
@@ -1108,17 +1080,7 @@ function App() {
 
   const applyBodiesAsNewInitialState = (nextBodies: BodyState[]) => {
     setDraftBodies(nextBodies);
-    const nextWorld: WorldState = {
-      bodies: cloneBodies(nextBodies),
-      elapsedTime: 0,
-      isRunning: false,
-      ejectedBodyId: null,
-      ejectedBodyIds: [],
-      ejectionCounterById: {},
-      dissolutionCounterSec: 0,
-      dissolutionDetected: false,
-      dissolutionJustDetected: false,
-    };
+    const nextWorld = createStoppedWorld(nextBodies);
     worldRef.current = nextWorld;
     setWorld(nextWorld);
     setBaselineDiagnostics(diagnosticsSnapshot(nextWorld.bodies, paramsRef.current));

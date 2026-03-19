@@ -1,4 +1,5 @@
 import type { BodyConfig, SimParams, WorldState } from "./types";
+import { createStoppedWorld } from "./worldState";
 
 export const defaultBodies = (): BodyConfig[] => [
   {
@@ -32,14 +33,4 @@ export const defaultParams = (): SimParams => ({
   trailFade: 0.05,
 });
 
-export const initialWorld = (): WorldState => ({
-  bodies: defaultBodies(),
-  elapsedTime: 0,
-  isRunning: false,
-  ejectionCounterById: {},
-  ejectedBodyId: null,
-  ejectedBodyIds: [],
-  dissolutionCounterSec: 0,
-  dissolutionDetected: false,
-  dissolutionJustDetected: false,
-});
+export const initialWorld = (): WorldState => createStoppedWorld(defaultBodies());
