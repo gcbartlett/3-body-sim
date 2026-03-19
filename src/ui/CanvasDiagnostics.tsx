@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { formatDiagnosticValue } from "../sim/diagnosticFormatting";
 import { FAR_FIELD_RATIO_GATE } from "../sim/ejection";
 import type { DiagnosticsSnapshot } from "../sim/types";
 import { magnitude } from "../sim/vector";
@@ -86,12 +87,6 @@ export const CanvasDiagnostics = ({
     };
   }, [isOpen, onVisibleHeightChange]);
 
-  const fmt = (value: number) => {
-    const normalized = Math.abs(value) < 0.0005 ? 0 : value;
-    const abs = Math.abs(normalized);
-    const dp = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
-    return `${normalized >= 0 ? "+" : ""}${normalized.toFixed(dp)}`;
-  };
   const deltaEnergy = diagnostics.energy - baselineDiagnostics.energy;
   const energyDriftPct = (Math.abs(deltaEnergy) / Math.max(1e-9, Math.abs(baselineDiagnostics.energy))) * 100;
   const deltaMomentum = {
@@ -119,33 +114,33 @@ export const CanvasDiagnostics = ({
       <summary className="collapsible-summary">Diagnostics</summary>
       <div className="diagnostics-grid">
         <div className="diag-column">
-          <p className="metric" title="Total mechanical energy (kinetic + potential) of the system at this instant.">Energy: {fmt(diagnostics.energy)}</p>
-          <p className="metric" title="Energy drift from baseline at run/reset start. Smaller drift indicates better numerical stability.">ΔE: {fmt(deltaEnergy)} ({fmt(energyDriftPct)}%)</p>
+          <p className="metric" title="Total mechanical energy (kinetic + potential) of the system at this instant.">Energy: {formatDiagnosticValue(diagnostics.energy)}</p>
+          <p className="metric" title="Energy drift from baseline at run/reset start. Smaller drift indicates better numerical stability.">ΔE: {formatDiagnosticValue(deltaEnergy)} ({formatDiagnosticValue(energyDriftPct)}%)</p>
           <p className="metric" title="Magnitude of total linear momentum of all bodies.">
-            |P|: {fmt(magnitude(diagnostics.momentum))}
+            |P|: {formatDiagnosticValue(magnitude(diagnostics.momentum))}
           </p>
-          <p className="metric" title="Momentum drift from baseline at run/reset start.">Δ|P|: {fmt(deltaMomentumMag)} ({fmt(momentumDriftPct)}%)</p>
+          <p className="metric" title="Momentum drift from baseline at run/reset start.">Δ|P|: {formatDiagnosticValue(deltaMomentumMag)} ({formatDiagnosticValue(momentumDriftPct)}%)</p>
           <p className="metric" title="Pairwise specific relative energies. Negative means the pair is bound in two-body sense.">
             Eij:{" "}
             <span
               className="diag-positive-lozenge"
               style={pairEnergies.e12 > 0 ? pairGradient(c1, c2) : undefined}
             >
-              {fmt(pairEnergies.e12)}
+              {formatDiagnosticValue(pairEnergies.e12)}
             </span>
             {" "}
             <span
               className="diag-positive-lozenge"
               style={pairEnergies.e13 > 0 ? pairGradient(c1, c3) : undefined}
             >
-              {fmt(pairEnergies.e13)}
+              {formatDiagnosticValue(pairEnergies.e13)}
             </span>
             {" "}
             <span
               className="diag-positive-lozenge"
               style={pairEnergies.e23 > 0 ? pairGradient(c2, c3) : undefined}
             >
-              {fmt(pairEnergies.e23)}
+              {formatDiagnosticValue(pairEnergies.e23)}
             </span>
           </p>
           <p className="metric" title="Fallback non-hierarchical indicator (for k < 5): count of bound pairs using pairwise specific energies εij.">
@@ -178,13 +173,13 @@ export const CanvasDiagnostics = ({
         {bodyVectors.map((body, index) => (
           <div key={body.id} className="diag-column body-vector-column" style={{ color: body.color }}>
             <p className="metric diag-body-heading" title="Diagnostics for this body.">Body {index + 1}</p>
-            <p className="metric" title="Current position vector of this body in world units.">r: ({fmt(body.position.x)}, {fmt(body.position.y)})</p>
+            <p className="metric" title="Current position vector of this body in world units.">r: ({formatDiagnosticValue(body.position.x)}, {formatDiagnosticValue(body.position.y)})</p>
             <p className="metric" title="Current velocity vector of this body in world-units per second.">
-              v: ({fmt(body.velocity.x)}, {fmt(body.velocity.y)}) |v|: {fmt(magnitude(body.velocity))}
+              v: ({formatDiagnosticValue(body.velocity.x)}, {formatDiagnosticValue(body.velocity.y)}) |v|: {formatDiagnosticValue(magnitude(body.velocity))}
             </p>
             <p className="metric" title="Current acceleration vector of this body from gravitational interactions.">
-              a: ({fmt(body.acceleration.x)}, {fmt(body.acceleration.y)}) a||:{" "}
-              {fmt(
+              a: ({formatDiagnosticValue(body.acceleration.x)}, {formatDiagnosticValue(body.acceleration.y)}) a||:{" "}
+              {formatDiagnosticValue(
                 magnitude(body.velocity) > 1e-9
                   ? (body.acceleration.x * body.velocity.x + body.acceleration.y * body.velocity.y) /
                       magnitude(body.velocity)
@@ -201,7 +196,7 @@ export const CanvasDiagnostics = ({
                     : undefined
                 }
               >
-                {fmt(bodyEjectionStatuses[index]?.energy ?? 0)}
+                {formatDiagnosticValue(bodyEjectionStatuses[index]?.energy ?? 0)}
               </span>
             </p>
             <p className="metric" title="Relative speed divided by local escape speed from the two-body core. Values above +1 indicate escape-speed excess.">
@@ -214,7 +209,7 @@ export const CanvasDiagnostics = ({
                     : undefined
                 }
               >
-                {fmt(bodyEjectionStatuses[index]?.speedRatioToEscape ?? 0)}
+                {formatDiagnosticValue(bodyEjectionStatuses[index]?.speedRatioToEscape ?? 0)}
               </span>
             </p>
             <p className="metric" title="Core-distance ratio: r_rel / a_core, where a_core is separation of the other two bodies. A common conservative guide is k >= 5.">
@@ -227,7 +222,7 @@ export const CanvasDiagnostics = ({
                     : undefined
                 }
               >
-                {fmt(bodyEjectionStatuses[index]?.farCoreRatio ?? 0)}
+                {formatDiagnosticValue(bodyEjectionStatuses[index]?.farCoreRatio ?? 0)}
               </span>
             </p>
             <p className="metric" title="Outward indicates motion away from the two-body core. Count tracks accumulated strong-escape time toward the ejection threshold in seconds.">

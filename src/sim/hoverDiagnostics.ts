@@ -3,17 +3,11 @@ import {
   EJECTION_TIME_THRESHOLD_SECONDS,
   type CoreEscapeMetrics,
 } from "./ejection";
+import { formatDiagnosticValue } from "./diagnosticFormatting";
 import { worldToScreen, type Camera } from "./camera";
 import { computeAccelerations } from "./physics";
 import type { BodyState, SimParams, Vec2, WorldState } from "./types";
 import { magnitude } from "./vector";
-
-const formatDiag = (value: number): string => {
-  const normalized = Math.abs(value) < 0.0005 ? 0 : value;
-  const abs = Math.abs(normalized);
-  const dp = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
-  return `${normalized >= 0 ? "+" : ""}${normalized.toFixed(dp)}`;
-};
 
 const ejectionCounterLabel = (
   isEjected: boolean,
@@ -50,11 +44,11 @@ export const buildHoverTooltipLines = ({
 
   return [
     `Body ${bodyIndex + 1}`,
-    `r: (${formatDiag(body.position.x)}, ${formatDiag(body.position.y)})`,
-    `v: (${formatDiag(body.velocity.x)}, ${formatDiag(body.velocity.y)}) |v|: ${formatDiag(speed)}`,
-    `a: (${formatDiag(acceleration.x)}, ${formatDiag(acceleration.y)}) a||: ${formatDiag(aParallel)}`,
-    `Erel: ${formatDiag(ejectMetrics?.energy ?? 0)}`,
-    `v/vesc: ${formatDiag(ejectMetrics?.speedRatioToEscape ?? 0)}`,
+    `r: (${formatDiagnosticValue(body.position.x)}, ${formatDiagnosticValue(body.position.y)})`,
+    `v: (${formatDiagnosticValue(body.velocity.x)}, ${formatDiagnosticValue(body.velocity.y)}) |v|: ${formatDiagnosticValue(speed)}`,
+    `a: (${formatDiagnosticValue(acceleration.x)}, ${formatDiagnosticValue(acceleration.y)}) a||: ${formatDiagnosticValue(aParallel)}`,
+    `Erel: ${formatDiagnosticValue(ejectMetrics?.energy ?? 0)}`,
+    `v/vesc: ${formatDiagnosticValue(ejectMetrics?.speedRatioToEscape ?? 0)}`,
     `out: ${(ejectMetrics?.outward ?? false) ? "Y" : "N"} ` +
       `cnt: ${ejectionCntText}`,
   ];
