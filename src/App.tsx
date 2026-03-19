@@ -26,6 +26,7 @@ import {
   totalEnergy,
   totalMomentum,
 } from "./sim/physics";
+import { buildHoverTooltipLines } from "./sim/hoverDiagnostics";
 import { PRESETS, cloneBodies } from "./sim/presets";
 import { generateRandomChaoticBodies, generateRandomStableBodies } from "./sim/randomProfiles";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./sim/types";
@@ -35,7 +36,6 @@ import { ControlPanel } from "./ui/ControlPanel";
 import { SaveProfileDialog } from "./ui/SaveProfileDialog";
 import { useCanvasCameraControls } from "./ui/useCanvasCameraControls";
 import { useSaveProfileDraft } from "./ui/useSaveProfileDraft";
-import { magnitude } from "./sim/vector";
 import { useSimulationLoop } from "./sim/useSimulationLoop";
 import {
   bodyEjectionStatusesForDisplay,
@@ -88,13 +88,6 @@ const FAST_REFRAME_FRAMES = 60;
 const DISSOLUTION_TIME_THRESHOLD_SECONDS = 10;
 const MIN_VIEWPORT_WIDTH_PX = 320;
 const MIN_VIEWPORT_HEIGHT_PX = 120;
-
-const formatDiag = (value: number): string => {
-  const normalized = Math.abs(value) < 0.0005 ? 0 : value;
-  const abs = Math.abs(normalized);
-  const dp = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
-  return `${normalized >= 0 ? "+" : ""}${normalized.toFixed(dp)}`;
-};
 
 const appendTrailPoints = (trails: TrailMap, bodies: BodyState[]): TrailMap => {
   const updated: TrailMap = { ...trails };
@@ -189,18 +182,11 @@ function App() {
     const accelerations = computeAccelerations(bodies, paramsRef.current);
     const body = bodies[nearestIndex];
     const a = accelerations[nearestIndex];
-    const speed = magnitude(body.velocity);
-    const aParallel =
-      speed > 1e-9
-        ? (a.x * body.velocity.x + a.y * body.velocity.y) / speed
-        : 0;
     const ejectMetrics = coreEscapeMetricsForBody(nearestIndex, worldRef.current, paramsRef.current);
     const ejectionTimeSec = worldRef.current.ejectionCounterById[body.id] ?? 0;
-    const ejectionCntText =
+    const isEjected =
       worldRef.current.ejectedBodyIds.includes(body.id) ||
-      ejectionTimeSec >= EJECTION_TIME_THRESHOLD_SECONDS
-        ? "ejected"
-        : `${ejectionTimeSec.toFixed(1)}s/${EJECTION_TIME_THRESHOLD_SECONDS.toFixed(0)}s`;
+      ejectionTimeSec >= EJECTION_TIME_THRESHOLD_SECONDS;
 
     hoverBodyIdRef.current = body.id;
     hoverLastUpdateTimeRef.current = performance.now();
@@ -208,16 +194,15 @@ function App() {
       x: nearestScreen.x,
       y: nearestScreen.y,
       color: body.color,
-      lines: [
-        `Body ${nearestIndex + 1}`,
-        `r: (${formatDiag(body.position.x)}, ${formatDiag(body.position.y)})`,
-        `v: (${formatDiag(body.velocity.x)}, ${formatDiag(body.velocity.y)}) |v|: ${formatDiag(speed)}`,
-        `a: (${formatDiag(a.x)}, ${formatDiag(a.y)}) a||: ${formatDiag(aParallel)}`,
-        `Erel: ${formatDiag(ejectMetrics?.energy ?? 0)}`,
-        `v/vesc: ${formatDiag(ejectMetrics?.speedRatioToEscape ?? 0)}`,
-        `out: ${(ejectMetrics?.outward ?? false) ? "Y" : "N"} ` +
-          `cnt: ${ejectionCntText}`,
-      ],
+      lines: buildHoverTooltipLines({
+        body,
+        bodyIndex: nearestIndex,
+        acceleration: a,
+        ejectMetrics,
+        ejectionTimeSec,
+        ejectionThresholdSec: EJECTION_TIME_THRESHOLD_SECONDS,
+        isEjected,
+      }),
     });
   };
 
@@ -231,33 +216,25 @@ function App() {
     }
     const body = bodies[index];
     const a = computeAccelerations(bodies, paramsRef.current)[index];
-    const speed = magnitude(body.velocity);
-    const aParallel =
-      speed > 1e-9
-        ? (a.x * body.velocity.x + a.y * body.velocity.y) / speed
-        : 0;
     const ejectMetrics = coreEscapeMetricsForBody(index, worldRef.current, paramsRef.current);
     const ejectionTimeSec = worldRef.current.ejectionCounterById[body.id] ?? 0;
-    const ejectionCntText =
+    const isEjected =
       worldRef.current.ejectedBodyIds.includes(body.id) ||
-      ejectionTimeSec >= EJECTION_TIME_THRESHOLD_SECONDS
-        ? "ejected"
-        : `${ejectionTimeSec.toFixed(1)}s/${EJECTION_TIME_THRESHOLD_SECONDS.toFixed(0)}s`;
+      ejectionTimeSec >= EJECTION_TIME_THRESHOLD_SECONDS;
     const screen = worldToScreen(body.position, cameraRef.current, viewport);
     setHoverBody({
       x: screen.x,
       y: screen.y,
       color: body.color,
-      lines: [
-        `Body ${index + 1}`,
-        `r: (${formatDiag(body.position.x)}, ${formatDiag(body.position.y)})`,
-        `v: (${formatDiag(body.velocity.x)}, ${formatDiag(body.velocity.y)}) |v|: ${formatDiag(speed)}`,
-        `a: (${formatDiag(a.x)}, ${formatDiag(a.y)}) a||: ${formatDiag(aParallel)}`,
-        `Erel: ${formatDiag(ejectMetrics?.energy ?? 0)}`,
-        `v/vesc: ${formatDiag(ejectMetrics?.speedRatioToEscape ?? 0)}`,
-        `out: ${(ejectMetrics?.outward ?? false) ? "Y" : "N"} ` +
-          `cnt: ${ejectionCntText}`,
-      ],
+      lines: buildHoverTooltipLines({
+        body,
+        bodyIndex: index,
+        acceleration: a,
+        ejectMetrics,
+        ejectionTimeSec,
+        ejectionThresholdSec: EJECTION_TIME_THRESHOLD_SECONDS,
+        isEjected,
+      }),
     });
   };
 
