@@ -31,6 +31,7 @@ import {
   totalMomentum,
 } from "./sim/physics";
 import { PRESETS, cloneBodies } from "./sim/presets";
+import { generateRandomChaoticBodies, generateRandomStableBodies } from "./sim/randomProfiles";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./sim/types";
 import { createStoppedWorld } from "./sim/worldState";
 import { CanvasDiagnostics } from "./ui/CanvasDiagnostics";
@@ -81,6 +82,8 @@ const BASE_MAX_STEPS = 12;
 const FAST_REFRAME_FRAMES = 60;
 const DISSOLUTION_TIME_THRESHOLD_SECONDS = 10;
 const DISPLAY_PAIR_ENERGY_EPS = 0.05;
+const MIN_VIEWPORT_WIDTH_PX = 320;
+const MIN_VIEWPORT_HEIGHT_PX = 120;
 
 const formatDiag = (value: number): string => {
   const normalized = Math.abs(value) < 0.0005 ? 0 : value;
@@ -168,62 +171,6 @@ const displayPairStateFromEnergies = (
     nbound,
     state: nbound === 0 ? "dissolving" : nbound === 1 ? "binary+single" : "resonant",
   };
-};
-
-const randomIn = (min: number, max: number): number =>
-  min + Math.random() * (max - min);
-
-const generateRandomStableBodies = (): BodyState[] => {
-  const masses = [randomIn(0.8, 1.3), randomIn(0.8, 1.3), randomIn(0.8, 1.3)];
-  const r = randomIn(0.9, 1.4);
-  const angle = randomIn(0, Math.PI * 2);
-  const points = [0, 2 * Math.PI / 3, 4 * Math.PI / 3].map((offset) => ({
-    x: r * Math.cos(angle + offset),
-    y: r * Math.sin(angle + offset),
-  }));
-  const meanMass = (masses[0] + masses[1] + masses[2]) / 3;
-  const vMag = Math.sqrt(Math.max(0.05, meanMass / r));
-  const velocities = points.map((p) => ({
-    x: (-p.y / Math.max(0.2, r)) * vMag + randomIn(-0.08, 0.08),
-    y: (p.x / Math.max(0.2, r)) * vMag + randomIn(-0.08, 0.08),
-  }));
-
-  const momentum = velocities.reduce(
-    (sum, v, i) => ({ x: sum.x + masses[i] * v.x, y: sum.y + masses[i] * v.y }),
-    { x: 0, y: 0 },
-  );
-  const totalMass = masses[0] + masses[1] + masses[2];
-  const correction = { x: momentum.x / totalMass, y: momentum.y / totalMass };
-
-  return points.map((position, i) => ({
-    id: `body-${i + 1}`,
-    color: BODY_COLORS[i],
-    mass: masses[i],
-    position,
-    velocity: {
-      x: velocities[i].x - correction.x,
-      y: velocities[i].y - correction.y,
-    },
-  }));
-};
-
-const generateRandomChaoticBodies = (): BodyState[] => {
-  const masses = [randomIn(0.5, 1.8), randomIn(0.5, 1.8), randomIn(0.5, 1.8)];
-  const positions = [0, 1, 2].map(() => ({
-    x: randomIn(-1.2, 1.2),
-    y: randomIn(-1.2, 1.2),
-  }));
-  const velocities = [0, 1, 2].map(() => ({
-    x: randomIn(-1.5, 1.5),
-    y: randomIn(-1.5, 1.5),
-  }));
-  return positions.map((position, i) => ({
-    id: `body-${i + 1}`,
-    color: BODY_COLORS[i],
-    mass: masses[i],
-    position,
-    velocity: velocities[i],
-  }));
 };
 
 function App() {
@@ -511,9 +458,12 @@ function App() {
       return;
     }
     const updateViewportFromRect = (rect: DOMRectReadOnly) => {
-      const usableHeight = Math.max(120, Math.floor(rect.height - diagnosticsInsetPx));
+      const usableHeight = Math.max(
+        MIN_VIEWPORT_HEIGHT_PX,
+        Math.floor(rect.height - diagnosticsInsetPx),
+      );
       setViewport({
-        width: Math.max(320, Math.floor(rect.width)),
+        width: Math.max(MIN_VIEWPORT_WIDTH_PX, Math.floor(rect.width)),
         height: usableHeight,
       });
     };
@@ -910,7 +860,7 @@ function App() {
   };
 
   const onGenerateRandomStable = () => {
-    const nextBodies = generateRandomStableBodies();
+    const nextBodies = generateRandomStableBodies(BODY_COLORS);
     const nextParams = { ...paramsRef.current, G: 1, dt: 0.0045, speed: 1 };
     paramsRef.current = nextParams;
     setParams(nextParams);
@@ -918,7 +868,7 @@ function App() {
   };
 
   const onGenerateRandomChaotic = () => {
-    const nextBodies = generateRandomChaoticBodies();
+    const nextBodies = generateRandomChaoticBodies(BODY_COLORS);
     const nextParams = { ...paramsRef.current, G: 1.1, dt: 0.005, speed: 1.3 };
     paramsRef.current = nextParams;
     setParams(nextParams);
