@@ -10,9 +10,6 @@ import {
   loadPersistedParams,
   loadPersistedUiPrefs,
   loadPersistedUserPresets,
-  savePersistedParams,
-  savePersistedUiPrefs,
-  savePersistedUserPresets,
   type PersistedLockMode,
 } from "./sim/presetStorage";
 import { PRESETS } from "./sim/presets";
@@ -31,6 +28,7 @@ import { useSimulationLoop } from "./sim/useSimulationLoop";
 import { useHoverTooltipState } from "./ui/useHoverTooltipState";
 import { useSimulationSession } from "./sim/useSimulationSession";
 import { buildSavedPresetFromDraft } from "./sim/profileValidation";
+import { useAppPersistence } from "./ui/useAppPersistence";
 import {
   adjustedSimulationSpeed,
   diagnosticsSnapshot,
@@ -114,23 +112,15 @@ function App() {
     paramsRef.current = params;
   }, [params]);
 
-  useEffect(() => {
-    savePersistedParams(params);
-  }, [params]);
-
-  useEffect(() => {
-    savePersistedUiPrefs({
-      panelExpanded,
-      lockMode,
-      showOriginMarker,
-      showGrid,
-      showCenterOfMass,
-    });
-  }, [lockMode, panelExpanded, showCenterOfMass, showGrid, showOriginMarker]);
-
-  useEffect(() => {
-    savePersistedUserPresets(userPresets);
-  }, [userPresets]);
+  useAppPersistence({
+    params,
+    panelExpanded,
+    lockMode,
+    showOriginMarker,
+    showGrid,
+    showCenterOfMass,
+    userPresets,
+  });
 
   useEffect(() => {
     manualPanZoomRef.current = manualPanZoom;
