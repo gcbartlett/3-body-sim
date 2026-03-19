@@ -10,16 +10,13 @@ import {
   loadPersistedParams,
   loadPersistedUiPrefs,
   loadPersistedUserPresets,
-  sanitizePresetDescription,
-  sanitizePresetId,
-  sanitizePresetName,
   savePersistedParams,
   savePersistedUiPrefs,
   savePersistedUserPresets,
   type PersistedLockMode,
 } from "./sim/presetStorage";
 import { totalEnergy, totalMomentum } from "./sim/physics";
-import { PRESETS, cloneBodies } from "./sim/presets";
+import { PRESETS } from "./sim/presets";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./sim/types";
 import { CanvasDiagnostics } from "./ui/CanvasDiagnostics";
 import { ControlPanel } from "./ui/ControlPanel";
@@ -33,6 +30,7 @@ import { useSimulationHotkeys } from "./ui/useSimulationHotkeys";
 import { useSimulationLoop } from "./sim/useSimulationLoop";
 import { useHoverTooltipState } from "./ui/useHoverTooltipState";
 import { useSimulationSession } from "./sim/useSimulationSession";
+import { buildSavedPresetFromDraft } from "./sim/profileValidation";
 import {
   bodyEjectionStatusesForDisplay,
   bodyVectorsForDisplay,
@@ -286,36 +284,19 @@ function App() {
     if (!saveProfileDraft) {
       return;
     }
-    const id = sanitizePresetId(saveProfileDraft.id);
-    const name = sanitizePresetName(saveProfileDraft.name);
-    const description = sanitizePresetDescription(saveProfileDraft.description);
-    const existingIds = allPresets.map((preset) => preset.id);
-    if (!id) {
-      window.alert("Profile id must include letters, numbers, dots, underscores, or hyphens.");
+    const result = buildSavedPresetFromDraft({
+      draft: saveProfileDraft,
+      existingIds: allPresets.map((preset) => preset.id),
+      bodies: draftBodies,
+      params: paramsRef.current,
+    });
+    if (!result.ok) {
+      window.alert(result.message);
       return;
     }
-    if (existingIds.includes(id)) {
-      window.alert(`Profile id '${id}' already exists. Please use a unique id.`);
-      return;
-    }
-    if (!name) {
-      window.alert("Profile name cannot be empty.");
-      return;
-    }
-    if (!description) {
-      window.alert("Profile description cannot be empty.");
-      return;
-    }
-
-    const savedPreset: PresetProfile = {
-      id,
-      name,
-      description,
-      bodies: cloneBodies(draftBodies),
-      params: { ...paramsRef.current },
-    };
+    const savedPreset: PresetProfile = result.preset;
     setUserPresets((prev) => [...prev, savedPreset]);
-    setSelectedPresetId(id);
+    setSelectedPresetId(savedPreset.id);
     cancelSaveProfileDraft();
   };
 
