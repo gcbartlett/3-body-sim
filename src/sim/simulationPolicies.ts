@@ -7,6 +7,9 @@ export type BodyEditField = "mass" | "position.x" | "position.y" | "velocity.x" 
 
 const MAX_TRAIL_POINTS_PER_BODY = 2400;
 export const DISSOLUTION_TIME_THRESHOLD_SECONDS = 10;
+const MIN_SIMULATION_SPEED = 0.01;
+const MAX_SIMULATION_SPEED = 30;
+const SIMULATION_SPEED_DECIMAL_PLACES = 3;
 
 export const applyBodyField = (
   body: BodyState,
@@ -64,3 +67,12 @@ export const applyDissolutionProgress = (
     isRunning: crossedThreshold ? false : baseWorld.isRunning,
   };
 };
+
+export const adjustedSimulationSpeed = (currentSpeed: number, factor: number): number =>
+  Math.max(
+    MIN_SIMULATION_SPEED,
+    Math.min(
+      MAX_SIMULATION_SPEED,
+      Number((currentSpeed * factor).toFixed(SIMULATION_SPEED_DECIMAL_PLACES)),
+    ),
+  );

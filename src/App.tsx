@@ -32,6 +32,7 @@ import { useHoverTooltipState } from "./ui/useHoverTooltipState";
 import { useSimulationSession } from "./sim/useSimulationSession";
 import { buildSavedPresetFromDraft } from "./sim/profileValidation";
 import {
+  adjustedSimulationSpeed,
   diagnosticsSnapshot,
   DISSOLUTION_TIME_THRESHOLD_SECONDS,
 } from "./sim/simulationPolicies";
@@ -175,7 +176,7 @@ function App() {
 
   const adjustRateByFactor = (factor: number) => {
     const current = paramsRef.current.speed;
-    const nextSpeed = Math.max(0.01, Math.min(30, Number((current * factor).toFixed(3))));
+    const nextSpeed = adjustedSimulationSpeed(current, factor);
     if (nextSpeed === current) {
       return;
     }
