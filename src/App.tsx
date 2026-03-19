@@ -20,14 +20,8 @@ import {
 } from "./sim/presetStorage";
 import { totalEnergy, totalMomentum } from "./sim/physics";
 import { PRESETS, cloneBodies } from "./sim/presets";
-import { generateRandomChaoticBodies, generateRandomStableBodies } from "./sim/randomProfiles";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./sim/types";
 import { createStoppedWorld } from "./sim/worldState";
-import {
-  buildNewInitialStateTransition,
-  buildSingleStepTransition,
-  buildStartPauseTransition,
-} from "./sim/sessionTransitions";
 import { CanvasDiagnostics } from "./ui/CanvasDiagnostics";
 import { ControlPanel } from "./ui/ControlPanel";
 import { SaveProfileDialog } from "./ui/SaveProfileDialog";
@@ -39,6 +33,7 @@ import { useStageViewport } from "./ui/useStageViewport";
 import { useSimulationHotkeys } from "./ui/useSimulationHotkeys";
 import { useSimulationLoop } from "./sim/useSimulationLoop";
 import { useHoverTooltipState } from "./ui/useHoverTooltipState";
+import { useSimulationSession } from "./sim/useSimulationSession";
 import {
   bodyEjectionStatusesForDisplay,
   bodyVectorsForDisplay,
@@ -322,60 +317,6 @@ function App() {
     }
   };
 
-  const onStartPause = () => {
-    setWorld((prev) => {
-      const transition = buildStartPauseTransition(prev, paramsRef.current, diagnosticsSnapshot);
-      if (transition.baselineDiagnostics) {
-        setBaselineDiagnostics(transition.baselineDiagnostics);
-      }
-      worldRef.current = transition.nextWorld;
-      return transition.nextWorld;
-    });
-  };
-
-  const applyNewInitialStateTransition = (nextBodies: BodyState[], nextParams: SimParams) => {
-    const transition = buildNewInitialStateTransition(nextBodies, nextParams, diagnosticsSnapshot);
-    worldRef.current = transition.nextWorld;
-    setWorld(transition.nextWorld);
-    setBaselineDiagnostics(transition.baselineDiagnostics);
-    trailsRef.current = {};
-    simStepCounterRef.current = 0;
-  };
-
-  const onReset = () => {
-    accumulatorRef.current = 0;
-    lastTimeRef.current = null;
-    setManualMode(false);
-    scheduleFastReframe();
-    applyNewInitialStateTransition(draftBodies, paramsRef.current);
-  };
-
-  const onStep = () => {
-    const nextWorld = buildSingleStepTransition(
-      worldRef.current,
-      paramsRef.current,
-      applyDissolutionProgress,
-    );
-    worldRef.current = nextWorld;
-    setWorld(nextWorld);
-    trailsRef.current = appendTrailPoints(trailsRef.current, nextWorld.bodies);
-  };
-
-  const onApplyPreset = () => {
-    const preset = allPresets.find((candidate) => candidate.id === selectedPresetId);
-    if (!preset) {
-      return;
-    }
-
-    const nextBodies = cloneBodies(preset.bodies);
-    const nextParams = { ...paramsRef.current, ...preset.params };
-    setDraftBodies(nextBodies);
-    setParams(nextParams);
-    paramsRef.current = nextParams;
-    applyNewInitialStateTransition(nextBodies, nextParams);
-    scheduleFastReframe();
-  };
-
   const onSaveProfile = () => {
     beginSaveProfileDraft();
   };
@@ -417,27 +358,34 @@ function App() {
     cancelSaveProfileDraft();
   };
 
-  const applyBodiesAsNewInitialState = (nextBodies: BodyState[]) => {
-    setDraftBodies(nextBodies);
-    applyNewInitialStateTransition(nextBodies, paramsRef.current);
-    scheduleFastReframe();
-  };
-
-  const onGenerateRandomStable = () => {
-    const nextBodies = generateRandomStableBodies(BODY_COLORS);
-    const nextParams = { ...paramsRef.current, G: 1, dt: 0.0045, speed: 1 };
-    paramsRef.current = nextParams;
-    setParams(nextParams);
-    applyBodiesAsNewInitialState(nextBodies);
-  };
-
-  const onGenerateRandomChaotic = () => {
-    const nextBodies = generateRandomChaoticBodies(BODY_COLORS);
-    const nextParams = { ...paramsRef.current, G: 1.1, dt: 0.005, speed: 1.3 };
-    paramsRef.current = nextParams;
-    setParams(nextParams);
-    applyBodiesAsNewInitialState(nextBodies);
-  };
+  const {
+    onStartPause,
+    onReset,
+    onStep,
+    onApplyPreset,
+    onGenerateRandomStable,
+    onGenerateRandomChaotic,
+  } = useSimulationSession({
+    draftBodies,
+    allPresets,
+    selectedPresetId,
+    bodyColors: BODY_COLORS,
+    worldRef,
+    paramsRef,
+    trailsRef,
+    accumulatorRef,
+    lastTimeRef,
+    simStepCounterRef,
+    setWorld,
+    setParams,
+    setDraftBodies,
+    setBaselineDiagnostics,
+    setManualMode,
+    scheduleFastReframe,
+    appendTrailPoints,
+    applyDissolutionProgress,
+    diagnosticsSnapshot,
+  });
 
   const onTogglePanelExpanded = () => {
     scheduleFastReframe();
