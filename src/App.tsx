@@ -23,6 +23,7 @@ import { ControlPanel } from "./ui/ControlPanel";
 import { SaveProfileDialog } from "./ui/SaveProfileDialog";
 import { StageControls } from "./ui/stage/StageControls";
 import { StageHud } from "./ui/stage/StageHud";
+import { HoverTooltip } from "./ui/stage/HoverTooltip";
 import { useCanvasCameraControls } from "./ui/useCanvasCameraControls";
 import { useSaveProfileDraft } from "./ui/useSaveProfileDraft";
 import { useStageViewport } from "./ui/useStageViewport";
@@ -439,23 +440,11 @@ function App() {
           onWheel={onCanvasWheel}
           onDoubleClick={onCanvasDoubleClick}
         />
-        {hoverBody && (
-          <div
-            className="body-hover-tooltip"
-            style={{
-              left: Math.min(viewport.width - 420, hoverBody.x + 12),
-              top: Math.min(viewport.height - 90, hoverBody.y + 12),
-              borderColor: hoverBody.color,
-              color: hoverBody.color,
-            }}
-          >
-            {hoverBody.lines.map((line, index) => (
-              <div key={index} className={index === 0 ? "body-hover-title" : "body-hover-line"}>
-                {line}
-              </div>
-            ))}
-          </div>
-        )}
+        <HoverTooltip
+          hoverBody={hoverBody}
+          viewportWidth={viewport.width}
+          viewportHeight={viewport.height}
+        />
       </main>
       <SaveProfileDialog
         draft={saveProfileDraft}
