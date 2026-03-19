@@ -3,8 +3,9 @@ import { drawFrame, fadeAndPruneTrails, type TrailMap } from "../render/canvasRe
 import { type Camera } from "./camera";
 import { type LockMode, computeAutoCamera } from "./cameraPolicy";
 import { centerOfMass } from "./physics";
+import { appendTrailPoints, applyDissolutionProgress } from "./simulationPolicies";
 import { advanceRunningWorldStep } from "./simulationTick";
-import type { BodyState, SimParams, WorldState } from "./types";
+import type { SimParams, WorldState } from "./types";
 
 const HOVER_REFRESH_INTERVAL_MS = 1000;
 
@@ -33,8 +34,6 @@ type UseSimulationLoopArgs = {
   hoverBodyIdRef: RefObject<string | null>;
   hoverLastUpdateTimeRef: RefObject<number>;
   setWorld: (world: WorldState) => void;
-  appendTrailPoints: (trails: TrailMap, bodies: BodyState[]) => TrailMap;
-  applyDissolutionProgress: (world: WorldState, params: SimParams, dt: number) => WorldState;
   refreshHoverTooltipForBodyId: (bodyId: string) => void;
 };
 
@@ -58,21 +57,9 @@ export const useSimulationLoop = ({
   hoverBodyIdRef,
   hoverLastUpdateTimeRef,
   setWorld,
-  appendTrailPoints,
-  applyDissolutionProgress,
   refreshHoverTooltipForBodyId,
 }: UseSimulationLoopArgs): void => {
-  const appendTrailPointsRef = useRef(appendTrailPoints);
-  const applyDissolutionProgressRef = useRef(applyDissolutionProgress);
   const refreshHoverTooltipForBodyIdRef = useRef(refreshHoverTooltipForBodyId);
-
-  useEffect(() => {
-    appendTrailPointsRef.current = appendTrailPoints;
-  }, [appendTrailPoints]);
-
-  useEffect(() => {
-    applyDissolutionProgressRef.current = applyDissolutionProgress;
-  }, [applyDissolutionProgress]);
 
   useEffect(() => {
     refreshHoverTooltipForBodyIdRef.current = refreshHoverTooltipForBodyId;
@@ -105,8 +92,8 @@ export const useSimulationLoop = ({
         accumulator: accumulatorRef.current,
         trails: trailsRef.current,
         simStepCounter: simStepCounterRef.current,
-        appendTrailPoints: appendTrailPointsRef.current,
-        applyDissolutionProgress: applyDissolutionProgressRef.current,
+        appendTrailPoints,
+        applyDissolutionProgress,
       });
       accumulatorRef.current = stepResult.nextAccumulator;
       trailsRef.current = stepResult.nextTrails;

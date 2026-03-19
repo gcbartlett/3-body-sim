@@ -15,7 +15,6 @@ import {
   savePersistedUserPresets,
   type PersistedLockMode,
 } from "./sim/presetStorage";
-import { totalEnergy, totalMomentum } from "./sim/physics";
 import { PRESETS } from "./sim/presets";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./sim/types";
 import { CanvasDiagnostics } from "./ui/CanvasDiagnostics";
@@ -33,12 +32,15 @@ import { useHoverTooltipState } from "./ui/useHoverTooltipState";
 import { useSimulationSession } from "./sim/useSimulationSession";
 import { buildSavedPresetFromDraft } from "./sim/profileValidation";
 import {
+  diagnosticsSnapshot,
+  DISSOLUTION_TIME_THRESHOLD_SECONDS,
+} from "./sim/simulationPolicies";
+import {
   bodyEjectionStatusesForDisplay,
   bodyVectorsForDisplay,
   boundPairStateLabel,
   DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
   displayPairStateFromEnergies,
-  pairBindingStateForBodies,
   pairEnergiesForBodies,
   stageViewModelForWorld,
 } from "./sim/simulationSelectors";
@@ -50,48 +52,8 @@ const initialCamera: Camera = {
   worldUnitsPerPixel: 0.01,
 };
 
-const applyBodyField = (
-  body: BodyState,
-  field: "mass" | "position.x" | "position.y" | "velocity.x" | "velocity.y",
-  value: number,
-): BodyState => {
-  if (field === "mass") {
-    return { ...body, mass: Math.max(0.001, value) };
-  }
-  if (field === "position.x") {
-    return { ...body, position: { ...body.position, x: value } };
-  }
-  if (field === "position.y") {
-    return { ...body, position: { ...body.position, y: value } };
-  }
-  if (field === "velocity.x") {
-    return { ...body, velocity: { ...body.velocity, x: value } };
-  }
-  return { ...body, velocity: { ...body.velocity, y: value } };
-};
-
-const diagnosticsSnapshot = (bodies: BodyState[], params: SimParams): DiagnosticsSnapshot => ({
-  energy: totalEnergy(bodies, params),
-  momentum: totalMomentum(bodies),
-});
-
-const MAX_TRAIL_POINTS_PER_BODY = 2400;
 const BODY_COLORS = ["#f7b731", "#60a5fa", "#8bd450"];
 const FAST_REFRAME_FRAMES = 60;
-const DISSOLUTION_TIME_THRESHOLD_SECONDS = 10;
-
-const appendTrailPoints = (trails: TrailMap, bodies: BodyState[]): TrailMap => {
-  const updated: TrailMap = { ...trails };
-  for (const body of bodies) {
-    const existing = updated[body.id] ?? [];
-    const next = [...existing, { x: body.position.x, y: body.position.y, life: 1 }];
-    updated[body.id] =
-      next.length > MAX_TRAIL_POINTS_PER_BODY
-        ? next.slice(next.length - MAX_TRAIL_POINTS_PER_BODY)
-        : next;
-  }
-  return updated;
-};
 
 function App() {
   const [initialUiPrefs] = useState(loadPersistedUiPrefs);
@@ -211,26 +173,6 @@ function App() {
     onLockModeChange(lockMode === "none" ? "com" : lockMode === "com" ? "origin" : "none");
   };
 
-  const applyDissolutionProgress = (
-    baseWorld: WorldState,
-    stepParams: SimParams,
-    stepDt: number,
-  ): WorldState => {
-    const pairState = pairBindingStateForBodies(baseWorld.bodies, stepParams);
-    const nextCounterSec =
-      pairState === "dissolving" ? baseWorld.dissolutionCounterSec + Math.max(0, stepDt) : 0;
-    const crossedThreshold =
-      !baseWorld.dissolutionDetected &&
-      nextCounterSec >= DISSOLUTION_TIME_THRESHOLD_SECONDS;
-    return {
-      ...baseWorld,
-      dissolutionCounterSec: nextCounterSec,
-      dissolutionDetected: baseWorld.dissolutionDetected || crossedThreshold,
-      dissolutionJustDetected: crossedThreshold ? true : baseWorld.dissolutionJustDetected,
-      isRunning: crossedThreshold ? false : baseWorld.isRunning,
-    };
-  };
-
   const adjustRateByFactor = (factor: number) => {
     const current = paramsRef.current.speed;
     const nextSpeed = Math.max(0.01, Math.min(30, Number((current * factor).toFixed(3))));
@@ -270,8 +212,6 @@ function App() {
     hoverBodyIdRef,
     hoverLastUpdateTimeRef,
     setWorld,
-    appendTrailPoints,
-    applyDissolutionProgress,
     refreshHoverTooltipForBodyId,
   });
 
@@ -326,10 +266,6 @@ function App() {
     setBaselineDiagnostics,
     setManualMode,
     scheduleFastReframe,
-    appendTrailPoints,
-    applyDissolutionProgress,
-    diagnosticsSnapshot,
-    applyBodyField,
   });
 
   const onTogglePanelExpanded = () => {

@@ -4,14 +4,19 @@ import { defaultParams } from "./defaults";
 import { cloneBodies } from "./presets";
 import { generateRandomChaoticBodies, generateRandomStableBodies } from "./randomProfiles";
 import {
+  appendTrailPoints,
+  applyBodyField,
+  applyDissolutionProgress,
+  diagnosticsSnapshot,
+  type BodyEditField,
+} from "./simulationPolicies";
+import {
   buildNewInitialStateTransition,
   buildSingleStepTransition,
   buildStartPauseTransition,
 } from "./sessionTransitions";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./types";
 import { createStoppedWorld } from "./worldState";
-
-export type BodyEditField = "mass" | "position.x" | "position.y" | "velocity.x" | "velocity.y";
 
 type UseSimulationSessionArgs = {
   draftBodies: BodyState[];
@@ -30,10 +35,6 @@ type UseSimulationSessionArgs = {
   setBaselineDiagnostics: Dispatch<SetStateAction<DiagnosticsSnapshot>>;
   setManualMode: (enabled: boolean) => void;
   scheduleFastReframe: () => void;
-  appendTrailPoints: (trails: TrailMap, bodies: BodyState[]) => TrailMap;
-  applyDissolutionProgress: (world: WorldState, stepParams: SimParams, dt: number) => WorldState;
-  diagnosticsSnapshot: (bodies: BodyState[], params: SimParams) => DiagnosticsSnapshot;
-  applyBodyField: (body: BodyState, field: BodyEditField, value: number) => BodyState;
 };
 
 type SimulationSessionHandlers = {
@@ -65,10 +66,6 @@ export const useSimulationSession = ({
   setBaselineDiagnostics,
   setManualMode,
   scheduleFastReframe,
-  appendTrailPoints,
-  applyDissolutionProgress,
-  diagnosticsSnapshot,
-  applyBodyField,
 }: UseSimulationSessionArgs): SimulationSessionHandlers => {
   const shouldSyncDraftEditsToStoppedWorld = (candidateWorld: WorldState) =>
     !candidateWorld.isRunning && candidateWorld.elapsedTime === 0;
