@@ -41,6 +41,7 @@ import { StageHud } from "./ui/stage/StageHud";
 import { useCanvasCameraControls } from "./ui/useCanvasCameraControls";
 import { useSaveProfileDraft } from "./ui/useSaveProfileDraft";
 import { useStageViewport } from "./ui/useStageViewport";
+import { useSimulationHotkeys } from "./ui/useSimulationHotkeys";
 import { useSimulationLoop } from "./sim/useSimulationLoop";
 import {
   bodyEjectionStatusesForDisplay,
@@ -295,6 +296,10 @@ function App() {
     setLockMode(mode);
   };
 
+  const onCycleLockMode = () => {
+    onLockModeChange(lockMode === "none" ? "com" : lockMode === "com" ? "origin" : "none");
+  };
+
   const applyDissolutionProgress = (
     baseWorld: WorldState,
     stepParams: SimParams,
@@ -326,39 +331,13 @@ function App() {
     setParams(next);
   };
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const isEditable =
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement ||
-        Boolean(target?.isContentEditable);
-      if (isEditable) {
-        return;
-      }
-      if (e.key === "Escape") {
-        setManualMode(false);
-        return;
-      }
-      if (e.key === "+" || e.key === "=" || e.code === "NumpadAdd") {
-        e.preventDefault();
-        adjustRateByFactor(1.1);
-        return;
-      }
-      if (e.key === "-" || e.key === "_" || e.code === "NumpadSubtract") {
-        e.preventDefault();
-        adjustRateByFactor(1 / 1.1);
-        return;
-      }
-      if (e.key === "l" || e.key === "L") {
-        e.preventDefault();
-        onLockModeChange(lockMode === "none" ? "com" : lockMode === "com" ? "origin" : "none");
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [lockMode]);
+  useSimulationHotkeys({
+    lockMode,
+    onEscape: () => setManualMode(false),
+    onIncreaseRate: () => adjustRateByFactor(1.1),
+    onDecreaseRate: () => adjustRateByFactor(1 / 1.1),
+    onCycleLockMode,
+  });
 
   useSimulationLoop({
     canvasRef,
