@@ -21,7 +21,6 @@ import {
 import { totalEnergy, totalMomentum } from "./sim/physics";
 import { PRESETS, cloneBodies } from "./sim/presets";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./sim/types";
-import { createStoppedWorld } from "./sim/worldState";
 import { CanvasDiagnostics } from "./ui/CanvasDiagnostics";
 import { ControlPanel } from "./ui/ControlPanel";
 import { SaveProfileDialog } from "./ui/SaveProfileDialog";
@@ -279,44 +278,6 @@ function App() {
     refreshHoverTooltipForBodyId,
   });
 
-  const onBodyChange = (
-    index: number,
-    field: "mass" | "position.x" | "position.y" | "velocity.x" | "velocity.y",
-    value: number,
-  ) => {
-    setDraftBodies((prev) => {
-      const next = prev.map((body, i) => (i === index ? applyBodyField(body, field, value) : body));
-      if (!worldRef.current.isRunning && worldRef.current.elapsedTime === 0) {
-        const synced = createStoppedWorld(next);
-        worldRef.current = synced;
-        setWorld(synced);
-        setBaselineDiagnostics(diagnosticsSnapshot(synced.bodies, paramsRef.current));
-      }
-      return next;
-    });
-  };
-
-  const onParamChange = (field: keyof SimParams, value: number) => {
-    if (!Number.isFinite(value)) {
-      return;
-    }
-    const next = { ...paramsRef.current, [field]: value };
-    paramsRef.current = next;
-    setParams(next);
-    if (!worldRef.current.isRunning && worldRef.current.elapsedTime === 0) {
-      setBaselineDiagnostics(diagnosticsSnapshot(worldRef.current.bodies, next));
-    }
-  };
-
-  const onResetParams = () => {
-    const next = defaultParams();
-    paramsRef.current = next;
-    setParams(next);
-    if (!worldRef.current.isRunning && worldRef.current.elapsedTime === 0) {
-      setBaselineDiagnostics(diagnosticsSnapshot(worldRef.current.bodies, next));
-    }
-  };
-
   const onSaveProfile = () => {
     beginSaveProfileDraft();
   };
@@ -359,6 +320,9 @@ function App() {
   };
 
   const {
+    onBodyChange,
+    onParamChange,
+    onResetParams,
     onStartPause,
     onReset,
     onStep,
@@ -385,6 +349,7 @@ function App() {
     appendTrailPoints,
     applyDissolutionProgress,
     diagnosticsSnapshot,
+    applyBodyField,
   });
 
   const onTogglePanelExpanded = () => {

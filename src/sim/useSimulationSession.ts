@@ -1,5 +1,6 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { TrailMap } from "../render/canvasRenderer";
+import { defaultParams } from "./defaults";
 import { cloneBodies } from "./presets";
 import { generateRandomChaoticBodies, generateRandomStableBodies } from "./randomProfiles";
 import {
@@ -8,6 +9,9 @@ import {
   buildStartPauseTransition,
 } from "./sessionTransitions";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./types";
+import { createStoppedWorld } from "./worldState";
+
+export type BodyEditField = "mass" | "position.x" | "position.y" | "velocity.x" | "velocity.y";
 
 type UseSimulationSessionArgs = {
   draftBodies: BodyState[];
@@ -29,9 +33,13 @@ type UseSimulationSessionArgs = {
   appendTrailPoints: (trails: TrailMap, bodies: BodyState[]) => TrailMap;
   applyDissolutionProgress: (world: WorldState, stepParams: SimParams, dt: number) => WorldState;
   diagnosticsSnapshot: (bodies: BodyState[], params: SimParams) => DiagnosticsSnapshot;
+  applyBodyField: (body: BodyState, field: BodyEditField, value: number) => BodyState;
 };
 
 type SimulationSessionHandlers = {
+  onBodyChange: (index: number, field: BodyEditField, value: number) => void;
+  onParamChange: (field: keyof SimParams, value: number) => void;
+  onResetParams: () => void;
   onStartPause: () => void;
   onReset: () => void;
   onStep: () => void;
@@ -60,7 +68,49 @@ export const useSimulationSession = ({
   appendTrailPoints,
   applyDissolutionProgress,
   diagnosticsSnapshot,
+  applyBodyField,
 }: UseSimulationSessionArgs): SimulationSessionHandlers => {
+  const shouldSyncDraftEditsToStoppedWorld = (candidateWorld: WorldState) =>
+    !candidateWorld.isRunning && candidateWorld.elapsedTime === 0;
+
+  const syncStoppedWorldAndBaseline = (nextBodies: BodyState[], nextParams: SimParams) => {
+    const synced = createStoppedWorld(nextBodies);
+    worldRef.current = synced;
+    setWorld(synced);
+    setBaselineDiagnostics(diagnosticsSnapshot(synced.bodies, nextParams));
+  };
+
+  const onBodyChange = (index: number, field: BodyEditField, value: number) => {
+    setDraftBodies((prev) => {
+      const next = prev.map((body, i) => (i === index ? applyBodyField(body, field, value) : body));
+      if (shouldSyncDraftEditsToStoppedWorld(worldRef.current)) {
+        syncStoppedWorldAndBaseline(next, paramsRef.current);
+      }
+      return next;
+    });
+  };
+
+  const onParamChange = (field: keyof SimParams, value: number) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    const next = { ...paramsRef.current, [field]: value };
+    paramsRef.current = next;
+    setParams(next);
+    if (shouldSyncDraftEditsToStoppedWorld(worldRef.current)) {
+      setBaselineDiagnostics(diagnosticsSnapshot(worldRef.current.bodies, next));
+    }
+  };
+
+  const onResetParams = () => {
+    const next = defaultParams();
+    paramsRef.current = next;
+    setParams(next);
+    if (shouldSyncDraftEditsToStoppedWorld(worldRef.current)) {
+      setBaselineDiagnostics(diagnosticsSnapshot(worldRef.current.bodies, next));
+    }
+  };
+
   const applyNewInitialStateTransition = (nextBodies: BodyState[], nextParams: SimParams) => {
     const transition = buildNewInitialStateTransition(nextBodies, nextParams, diagnosticsSnapshot);
     worldRef.current = transition.nextWorld;
@@ -138,6 +188,9 @@ export const useSimulationSession = ({
   };
 
   return {
+    onBodyChange,
+    onParamChange,
+    onResetParams,
     onStartPause,
     onReset,
     onStep,
