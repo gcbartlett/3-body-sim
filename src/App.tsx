@@ -13,9 +13,6 @@ import {
   loadPersistedParams,
   loadPersistedUiPrefs,
   loadPersistedUserPresets,
-  PRESET_DESCRIPTION_MAX_LENGTH,
-  PRESET_ID_MAX_LENGTH,
-  PRESET_NAME_MAX_LENGTH,
   sanitizePresetDescription,
   sanitizePresetId,
   sanitizePresetName,
@@ -35,7 +32,9 @@ import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldSta
 import { createStoppedWorld } from "./sim/worldState";
 import { CanvasDiagnostics } from "./ui/CanvasDiagnostics";
 import { ControlPanel } from "./ui/ControlPanel";
+import { SaveProfileDialog } from "./ui/SaveProfileDialog";
 import { useCanvasCameraControls } from "./ui/useCanvasCameraControls";
+import { useSaveProfileDraft } from "./ui/useSaveProfileDraft";
 import { magnitude } from "./sim/vector";
 import { useSimulationLoop } from "./sim/useSimulationLoop";
 import {
@@ -97,21 +96,6 @@ const formatDiag = (value: number): string => {
   return `${normalized >= 0 ? "+" : ""}${normalized.toFixed(dp)}`;
 };
 
-const nextUserPresetNumber = (presetIds: string[]): number => {
-  const used = new Set<number>();
-  for (const id of presetIds) {
-    const match = /^user-(\d+)$/.exec(id);
-    if (match) {
-      used.add(Number(match[1]));
-    }
-  }
-  let next = 1;
-  while (used.has(next)) {
-    next += 1;
-  }
-  return next;
-};
-
 const appendTrailPoints = (trails: TrailMap, bodies: BodyState[]): TrailMap => {
   const updated: TrailMap = { ...trails };
   for (const body of bodies) {
@@ -144,11 +128,6 @@ function App() {
     y: number;
     color: string;
     lines: string[];
-  } | null>(null);
-  const [saveProfileDraft, setSaveProfileDraft] = useState<{
-    id: string;
-    name: string;
-    description: string;
   } | null>(null);
   const [baselineDiagnostics, setBaselineDiagnostics] = useState<DiagnosticsSnapshot>(() =>
     diagnosticsSnapshot(initialWorld().bodies, defaultParams()),
@@ -340,6 +319,12 @@ function App() {
   });
 
   const allPresets = [...PRESETS, ...userPresets];
+  const {
+    saveProfileDraft,
+    beginSaveProfileDraft,
+    onSaveProfileFieldChange,
+    cancelSaveProfileDraft,
+  } = useSaveProfileDraft(allPresets);
 
   const onLockModeChange = (mode: LockMode) => {
     setManualMode(false);
@@ -581,24 +566,7 @@ function App() {
   };
 
   const onSaveProfile = () => {
-    const existingIds = allPresets.map((preset) => preset.id);
-    const suggestedNumber = nextUserPresetNumber(existingIds);
-    const defaultId = `user-${suggestedNumber}`;
-    const defaultName = `User Profile #${suggestedNumber}`;
-    const defaultDescription = "Saved from current initial conditions and simulation parameters.";
-    setSaveProfileDraft({
-      id: defaultId,
-      name: defaultName,
-      description: defaultDescription,
-    });
-  };
-
-  const onSaveProfileFieldChange = (field: "id" | "name" | "description", value: string) => {
-    setSaveProfileDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
-  };
-
-  const onCancelSaveProfile = () => {
-    setSaveProfileDraft(null);
+    beginSaveProfileDraft();
   };
 
   const onConfirmSaveProfile = () => {
@@ -635,7 +603,7 @@ function App() {
     };
     setUserPresets((prev) => [...prev, savedPreset]);
     setSelectedPresetId(id);
-    setSaveProfileDraft(null);
+    cancelSaveProfileDraft();
   };
 
   const applyBodiesAsNewInitialState = (nextBodies: BodyState[]) => {
@@ -842,49 +810,12 @@ function App() {
           </div>
         )}
       </main>
-      {saveProfileDraft && (
-        <div className="modal-backdrop" onClick={onCancelSaveProfile}>
-          <div
-            className="modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Save Profile"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3>Save Profile</h3>
-            <label title="Unique profile identifier used internally and in preset selection.">
-              Id
-              <input
-                type="text"
-                value={saveProfileDraft.id}
-                maxLength={PRESET_ID_MAX_LENGTH}
-                onChange={(e) => onSaveProfileFieldChange("id", e.target.value)}
-              />
-            </label>
-            <label title="Display name shown in the profile dropdown.">
-              Name
-              <input
-                type="text"
-                value={saveProfileDraft.name}
-                maxLength={PRESET_NAME_MAX_LENGTH}
-                onChange={(e) => onSaveProfileFieldChange("name", e.target.value)}
-              />
-            </label>
-            <label title="Short description shown under the profile selector.">
-              Description
-              <textarea
-                value={saveProfileDraft.description}
-                maxLength={PRESET_DESCRIPTION_MAX_LENGTH}
-                onChange={(e) => onSaveProfileFieldChange("description", e.target.value)}
-              />
-            </label>
-            <div className="button-row">
-              <button onClick={onConfirmSaveProfile}>Save</button>
-              <button onClick={onCancelSaveProfile}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SaveProfileDialog
+        draft={saveProfileDraft}
+        onFieldChange={onSaveProfileFieldChange}
+        onSave={onConfirmSaveProfile}
+        onCancel={cancelSaveProfileDraft}
+      />
     </div>
   );
 }
