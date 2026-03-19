@@ -1,5 +1,11 @@
-import type { CoreEscapeMetrics } from "./ejection";
-import type { BodyState, Vec2 } from "./types";
+import {
+  coreEscapeMetricsForBody,
+  EJECTION_TIME_THRESHOLD_SECONDS,
+  type CoreEscapeMetrics,
+} from "./ejection";
+import { worldToScreen, type Camera } from "./camera";
+import { computeAccelerations } from "./physics";
+import type { BodyState, SimParams, Vec2, WorldState } from "./types";
 import { magnitude } from "./vector";
 
 const formatDiag = (value: number): string => {
@@ -52,4 +58,92 @@ export const buildHoverTooltipLines = ({
     `out: ${(ejectMetrics?.outward ?? false) ? "Y" : "N"} ` +
       `cnt: ${ejectionCntText}`,
   ];
+};
+
+export type HoverTooltipSnapshot = {
+  bodyId: string;
+  x: number;
+  y: number;
+  color: string;
+  lines: string[];
+};
+
+export const findBodyIndexById = (bodies: BodyState[], bodyId: string): number =>
+  bodies.findIndex((body) => body.id === bodyId);
+
+export const findNearestBodyIndexAtScreenPoint = (
+  bodies: BodyState[],
+  camera: Camera,
+  viewport: { width: number; height: number },
+  screenX: number,
+  screenY: number,
+  thresholdPx: number,
+): { bodyIndex: number; screen: Vec2 } | null => {
+  let nearestIndex = -1;
+  let nearestDistSq = Number.POSITIVE_INFINITY;
+  let nearestScreen = { x: 0, y: 0 };
+
+  for (let i = 0; i < bodies.length; i += 1) {
+    const screen = worldToScreen(bodies[i].position, camera, viewport);
+    const dx = screen.x - screenX;
+    const dy = screen.y - screenY;
+    const distSq = dx * dx + dy * dy;
+    if (distSq < nearestDistSq) {
+      nearestDistSq = distSq;
+      nearestIndex = i;
+      nearestScreen = screen;
+    }
+  }
+
+  if (nearestIndex < 0 || nearestDistSq > thresholdPx * thresholdPx) {
+    return null;
+  }
+
+  return { bodyIndex: nearestIndex, screen: nearestScreen };
+};
+
+export const buildHoverTooltipSnapshotForBodyIndex = ({
+  world,
+  params,
+  camera,
+  viewport,
+  bodyIndex,
+  screen,
+}: {
+  world: WorldState;
+  params: SimParams;
+  camera: Camera;
+  viewport: { width: number; height: number };
+  bodyIndex: number;
+  screen?: Vec2;
+}): HoverTooltipSnapshot | null => {
+  const body = world.bodies[bodyIndex];
+  if (!body) {
+    return null;
+  }
+
+  const accelerations = computeAccelerations(world.bodies, params);
+  const acceleration = accelerations[bodyIndex];
+  const ejectMetrics = coreEscapeMetricsForBody(bodyIndex, world, params);
+  const ejectionTimeSec = world.ejectionCounterById[body.id] ?? 0;
+  const isEjected =
+    world.ejectedBodyIds.includes(body.id) ||
+    ejectionTimeSec >= EJECTION_TIME_THRESHOLD_SECONDS;
+  const screenPos = screen ?? worldToScreen(body.position, camera, viewport);
+
+  return {
+    bodyId: body.id,
+    x: screenPos.x,
+    y: screenPos.y,
+    color: body.color,
+    lines: buildHoverTooltipLines({
+      body,
+      bodyIndex,
+      acceleration,
+      ejectMetrics,
+      ejectionTimeSec,
+      ejectionThresholdSec: EJECTION_TIME_THRESHOLD_SECONDS,
+      isEjected,
+    }),
+  };
 };
