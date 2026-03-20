@@ -45,7 +45,7 @@ export const useStageViewport = ({
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [containerRef, diagnosticsInsetPx]);
+  }, [diagnosticsInsetPx]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -54,7 +54,7 @@ export const useStageViewport = ({
     }
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-  }, [canvasRef, viewport]);
+  }, [viewport]);
 
   return viewport;
 };

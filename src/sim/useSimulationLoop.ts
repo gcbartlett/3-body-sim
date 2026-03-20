@@ -145,24 +145,12 @@ export const useSimulationLoop = ({
       }
     };
   }, [
-    cameraRef,
-    canvasRef,
     lockMode,
     manualPanZoom,
-    paramsRef,
-    rafRef,
     showCenterOfMass,
     showGrid,
     showOriginMarker,
     viewport,
-    worldRef,
-    accumulatorRef,
-    forceFastZoomInFramesRef,
-    hoverBodyIdRef,
-    hoverLastUpdateTimeRef,
-    lastTimeRef,
     setWorld,
-    simStepCounterRef,
-    trailsRef,
   ]);
 };
