@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useEffectEvent, type RefObject } from "react";
 import { drawFrame, fadeAndPruneTrails, type TrailMap } from "../render/canvasRenderer";
 import { type Camera } from "./camera";
 import { type LockMode, computeAutoCamera } from "./cameraPolicy";
@@ -61,11 +61,10 @@ export const useSimulationLoop = ({
   hover: { hoverBodyIdRef, hoverLastUpdateTimeRef, refreshHoverTooltipForBodyId },
   setWorld,
 }: UseSimulationLoopArgs): void => {
-  const refreshHoverTooltipForBodyIdRef = useRef(refreshHoverTooltipForBodyId);
-
-  useEffect(() => {
-    refreshHoverTooltipForBodyIdRef.current = refreshHoverTooltipForBodyId;
-  }, [refreshHoverTooltipForBodyId]);
+  const onHoverRefreshEvent = useEffectEvent((bodyId: string, time: number) => {
+    refreshHoverTooltipForBodyId(bodyId);
+    hoverLastUpdateTimeRef.current = time;
+  });
 
   useEffect(() => {
     const tick = (time: number) => {
@@ -133,8 +132,7 @@ export const useSimulationLoop = ({
         hoverBodyIdRef.current &&
         time - hoverLastUpdateTimeRef.current >= HOVER_REFRESH_INTERVAL_MS
       ) {
-        refreshHoverTooltipForBodyIdRef.current(hoverBodyIdRef.current);
-        hoverLastUpdateTimeRef.current = time;
+        onHoverRefreshEvent(hoverBodyIdRef.current, time);
       }
 
       rafRef.current = requestAnimationFrame(tick);
