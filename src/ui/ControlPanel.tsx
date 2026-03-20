@@ -9,7 +9,6 @@ import type { BodyConfigField, LockMode } from "./controlPanel/types";
 type Props = {
   bodies: BodyState[];
   params: SimParams;
-  isRunning: boolean;
   presets: PresetProfile[];
   selectedPresetId: string;
   lockMode: LockMode;

@@ -298,7 +298,6 @@ function App() {
       <ControlPanel
         bodies={draftBodies}
         params={params}
-        isRunning={world.isRunning}
         presets={allPresets}
         selectedPresetId={selectedPresetId}
         lockMode={lockMode}
