@@ -1,12 +1,8 @@
-type EjectedStatusRow = {
-  id: string;
-  label: string;
-  color: string;
-};
+import type { EjectedBodyStatusBadge } from "../../sim/simulationSelectors";
 
 type StageHudProps = {
   statusLabel: string;
-  ejectedStatusRows: EjectedStatusRow[];
+  ejectedStatusRows: EjectedBodyStatusBadge[];
   elapsedTime: number;
   speed: number;
   panelExpanded: boolean;

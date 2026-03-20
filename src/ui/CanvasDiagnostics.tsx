@@ -1,47 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { formatDiagnosticValue } from "../sim/diagnosticFormatting";
 import { FAR_FIELD_RATIO_GATE } from "../sim/ejection";
+import type {
+  BodyEjectionStatusSnapshot,
+  BodyVectorSnapshot,
+  DisplayPairState,
+} from "../sim/simulationSelectors";
 import type { DiagnosticsSnapshot } from "../sim/types";
 import { magnitude } from "../sim/vector";
 import { loadCanvasDiagnosticsOpenState, saveCanvasDiagnosticsOpenState } from "./uiPrefsStorage";
 
-type Vec2 = { x: number; y: number };
-type BodyVectors = {
-  id: string;
-  color: string;
-  position: Vec2;
-  velocity: Vec2;
-  acceleration: Vec2;
-};
-type BodyEjectionStatus = {
-  id: string;
-  energy: number;
-  speedRatioToEscape: number;
-  farCoreRatio: number;
-  outward: boolean;
-  counter: number;
-  threshold: number;
-  isEjected: boolean;
-};
+type DisplayPairStateWithEps = DisplayPairState & { eps: number };
+type PairEnergyDisplay = { eps12: number; eps13: number; eps23: number };
 
 type Props = {
-  pairEnergies: {
-    e12: number;
-    e13: number;
-    e23: number;
-  };
-  displayPairState: {
-    nbound: number;
-    state: "dissolving" | "binary+single" | "resonant";
-    eps: number;
-  };
+  pairEnergies: PairEnergyDisplay;
+  displayPairState: DisplayPairStateWithEps;
   dissolutionCounterSec: number;
   dissolutionThresholdSec: number;
   dissolutionDetected: boolean;
   diagnostics: DiagnosticsSnapshot;
   baselineDiagnostics: DiagnosticsSnapshot;
-  bodyVectors: BodyVectors[];
-  bodyEjectionStatuses: BodyEjectionStatus[];
+  bodyVectors: BodyVectorSnapshot[];
+  bodyEjectionStatuses: BodyEjectionStatusSnapshot[];
   onVisibleHeightChange?: (height: number) => void;
 };
 
@@ -124,23 +105,23 @@ export const CanvasDiagnostics = ({
             Eij:{" "}
             <span
               className="diag-positive-lozenge"
-              style={pairEnergies.e12 > 0 ? pairGradient(c1, c2) : undefined}
+              style={pairEnergies.eps12 > 0 ? pairGradient(c1, c2) : undefined}
             >
-              {formatDiagnosticValue(pairEnergies.e12)}
+              {formatDiagnosticValue(pairEnergies.eps12)}
             </span>
             {" "}
             <span
               className="diag-positive-lozenge"
-              style={pairEnergies.e13 > 0 ? pairGradient(c1, c3) : undefined}
+              style={pairEnergies.eps13 > 0 ? pairGradient(c1, c3) : undefined}
             >
-              {formatDiagnosticValue(pairEnergies.e13)}
+              {formatDiagnosticValue(pairEnergies.eps13)}
             </span>
             {" "}
             <span
               className="diag-positive-lozenge"
-              style={pairEnergies.e23 > 0 ? pairGradient(c2, c3) : undefined}
+              style={pairEnergies.eps23 > 0 ? pairGradient(c2, c3) : undefined}
             >
-              {formatDiagnosticValue(pairEnergies.e23)}
+              {formatDiagnosticValue(pairEnergies.eps23)}
             </span>
           </p>
           <p className="metric" title="Fallback non-hierarchical indicator (for k < 5): count of bound pairs using pairwise specific energies εij.">

@@ -270,11 +270,11 @@ function App() {
   };
 
   const diagnostics = diagnosticsSnapshot(world.bodies, params);
-  const { eps12, eps13, eps23 } = pairEnergiesForBodies(world.bodies, params);
+  const pairEnergies = pairEnergiesForBodies(world.bodies, params);
   const displayPairState = displayPairStateFromEnergies(
-    eps12,
-    eps13,
-    eps23,
+    pairEnergies.eps12,
+    pairEnergies.eps13,
+    pairEnergies.eps23,
     world.ejectedBodyIds.length > 0,
     DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
   );
@@ -338,7 +338,7 @@ function App() {
           dissolutionJustDetected={world.dissolutionJustDetected}
         />
         <CanvasDiagnostics
-          pairEnergies={{ e12: eps12, e13: eps13, e23: eps23 }}
+          pairEnergies={pairEnergies}
           displayPairState={{
             nbound: displayPairState.nbound,
             state: displayPairState.state,
