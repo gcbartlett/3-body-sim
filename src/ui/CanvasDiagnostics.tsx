@@ -4,14 +4,12 @@ import { FAR_FIELD_RATIO_GATE } from "../sim/ejection";
 import type {
   BodyEjectionStatusSnapshot,
   BodyVectorSnapshot,
-  DisplayPairState,
+  DisplayPairStateWithEps,
+  PairEnergyDisplay,
 } from "../sim/simulationSelectors";
 import type { DiagnosticsSnapshot } from "../sim/types";
 import { magnitude } from "../sim/vector";
 import { loadCanvasDiagnosticsOpenState, saveCanvasDiagnosticsOpenState } from "./uiPrefsStorage";
-
-type DisplayPairStateWithEps = DisplayPairState & { eps: number };
-type PairEnergyDisplay = { eps12: number; eps13: number; eps23: number };
 
 type Props = {
   pairEnergies: PairEnergyDisplay;
