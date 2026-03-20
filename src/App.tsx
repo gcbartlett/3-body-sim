@@ -41,12 +41,8 @@ import {
   DISSOLUTION_TIME_THRESHOLD_SECONDS,
 } from "./sim/simulationPolicies";
 import {
-  bodyEjectionStatusesForDisplay,
-  bodyVectorsForDisplay,
   boundPairStateLabel,
-  DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
-  displayPairStateFromEnergies,
-  pairEnergiesForBodies,
+  stageDiagnosticsViewModelForWorld,
   stageViewModelForWorld,
 } from "./sim/simulationSelectors";
 
@@ -274,21 +270,13 @@ function App() {
   };
 
   const diagnostics = diagnosticsSnapshot(world.bodies, params);
-  const pairEnergies = pairEnergiesForBodies(world.bodies, params);
-  const displayPairState = displayPairStateFromEnergies(
-    pairEnergies.eps12,
-    pairEnergies.eps13,
-    pairEnergies.eps23,
-    world.ejectedBodyIds.length > 0,
-    DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
-  );
-  const boundPairState = boundPairStateLabel(displayPairState, world.dissolutionDetected);
-  const bodyVectors = bodyVectorsForDisplay(world.bodies, params);
-  const bodyEjectionStatuses = bodyEjectionStatusesForDisplay(
+  const diagnosticsViewModel = stageDiagnosticsViewModelForWorld({
     world,
     params,
-    EJECTION_TIME_THRESHOLD_SECONDS,
-  );
+    ejectionThresholdSec: EJECTION_TIME_THRESHOLD_SECONDS,
+  });
+  const displayPairState = diagnosticsViewModel.displayPairState;
+  const boundPairState = boundPairStateLabel(displayPairState, world.dissolutionDetected);
   const stageViewModel = stageViewModelForWorld({
     world,
     lockMode,
@@ -342,19 +330,15 @@ function App() {
           dissolutionJustDetected={world.dissolutionJustDetected}
         />
         <CanvasDiagnostics
-          pairEnergies={pairEnergies}
-          displayPairState={{
-            nbound: displayPairState.nbound,
-            state: displayPairState.state,
-            eps: DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
-          }}
+          pairEnergies={diagnosticsViewModel.pairEnergies}
+          displayPairState={diagnosticsViewModel.displayPairState}
           dissolutionCounterSec={world.dissolutionCounterSec}
           dissolutionThresholdSec={DISSOLUTION_TIME_THRESHOLD_SECONDS}
           dissolutionDetected={world.dissolutionDetected}
           diagnostics={diagnostics}
           baselineDiagnostics={baselineDiagnostics}
-          bodyVectors={bodyVectors}
-          bodyEjectionStatuses={bodyEjectionStatuses}
+          bodyVectors={diagnosticsViewModel.bodyVectors}
+          bodyEjectionStatuses={diagnosticsViewModel.bodyEjectionStatuses}
           onVisibleHeightChange={setDiagnosticsInsetPx}
         />
         <canvas

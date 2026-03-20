@@ -11,6 +11,14 @@ export type DisplayPairState = {
   state: PairBindingState;
 };
 
+export type DisplayPairStateWithEps = DisplayPairState & { eps: number };
+
+export type PairEnergyDisplay = {
+  eps12: number;
+  eps13: number;
+  eps23: number;
+};
+
 export type BodyVectorSnapshot = {
   id: string;
   color: string;
@@ -52,6 +60,20 @@ export type StageViewModel = {
   statusLabel: string;
   ejectedStatusRows: EjectedBodyStatusBadge[];
   latestEjectedLabel: string | null;
+};
+
+type StageDiagnosticsViewModelInput = {
+  world: WorldState;
+  params: SimParams;
+  ejectionThresholdSec: number;
+  displayPairEnergyEps?: number;
+};
+
+export type StageDiagnosticsViewModel = {
+  pairEnergies: PairEnergyDisplay;
+  displayPairState: DisplayPairStateWithEps;
+  bodyVectors: BodyVectorSnapshot[];
+  bodyEjectionStatuses: BodyEjectionStatusSnapshot[];
 };
 
 const pairSpecificEnergyForBodies = (
@@ -228,5 +250,29 @@ export const stageViewModelForWorld = ({
     statusLabel: statusLabelForWorld(world, statusModeSegment, pairStateLabel),
     ejectedStatusRows: ejectedBodiesForStatus(world, bodyColors),
     latestEjectedLabel: latestEjectedLabelForStatus(world),
+  };
+};
+
+export const stageDiagnosticsViewModelForWorld = ({
+  world,
+  params,
+  ejectionThresholdSec,
+  displayPairEnergyEps = DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
+}: StageDiagnosticsViewModelInput): StageDiagnosticsViewModel => {
+  const pairEnergies = pairEnergiesForBodies(world.bodies, params);
+  return {
+    pairEnergies,
+    displayPairState: {
+      ...displayPairStateFromEnergies(
+        pairEnergies.eps12,
+        pairEnergies.eps13,
+        pairEnergies.eps23,
+        world.ejectedBodyIds.length > 0,
+        displayPairEnergyEps,
+      ),
+      eps: displayPairEnergyEps,
+    },
+    bodyVectors: bodyVectorsForDisplay(world.bodies, params),
+    bodyEjectionStatuses: bodyEjectionStatusesForDisplay(world, params, ejectionThresholdSec),
   };
 };
