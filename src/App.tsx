@@ -176,7 +176,6 @@ function App() {
   };
 
   useSimulationHotkeys({
-    lockMode,
     onEscape: () => setManualMode(false),
     onIncreaseRate: () => adjustRateByFactor(1.1),
     onDecreaseRate: () => adjustRateByFactor(1 / 1.1),
