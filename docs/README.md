@@ -28,6 +28,13 @@ The app renders three gravitating bodies on a canvas with trails, diagnostics, p
 The app includes Vercel Web Analytics to track high-level usage and performance trends in deployed environments.
 This helps monitor real-user behavior and identify regressions after releases.
 
+### Privacy Note
+
+- This repository uses `@vercel/analytics/react` via `<Analytics />` in `src/main.tsx`.
+- The app does not send custom analytics events or user identifiers from application code.
+- User-created simulation settings/presets are stored locally in browser `localStorage` and are not sent to a backend by this app.
+- If you deploy a public instance, review your host privacy disclosures and Vercel Analytics settings before launch.
+
 ## Getting Started
 
 ### Prerequisites
@@ -116,24 +123,57 @@ The app stores UI and user data in browser `localStorage`, including:
 
 ```text
 src/
-  App.tsx                 # App state, simulation loop, controls wiring
+  App.tsx                 # Composition root and high-level wiring
+  main.tsx                # React entry point
   styles.css              # Layout and visual styling
   render/
     canvasRenderer.ts     # Canvas drawing and trail rendering
   sim/
-    physics.ts            # Accelerations, COM, energy, momentum
-    integrators.ts        # Velocity Verlet stepper
-    ejection.ts           # Ejection metrics and detection
-    presets.ts            # Built-in preset profiles
+    camera.ts             # Camera transforms and tracking helpers
+    cameraPolicy.ts       # Auto-camera framing and lock-mode policy
     defaults.ts           # Default bodies/params/world
-    camera.ts             # Camera transforms and tracking
-    types.ts              # Shared simulation types
+    diagnosticFormatting.ts # Shared diagnostics text formatting
+    ejection.ts           # Ejection metrics and detection
+    hoverDiagnostics.ts   # Hover tooltip diagnostic assembly
+    integrators.ts        # Velocity Verlet stepper
+    physics.ts            # Accelerations, COM, energy, momentum
+    presetStorage.ts      # localStorage load/save/sanitize for params/presets/UI prefs
+    presets.ts            # Built-in preset profiles
+    profileValidation.ts  # Saved profile validation and id/name rules
+    randomProfiles.ts     # Random stable/chaotic body generators
+    sessionTransitions.ts # Runtime world transition helpers
+    simulationPolicies.ts # Shared runtime policy constants/helpers
+    simulationSelectors.ts # Stage/diagnostics view-model selectors
+    simulationTick.ts     # Per-frame stepping transition logic
+    types.ts              # Canonical shared simulation/domain types
+    useDraftEditPolicy.ts # Stopped-world draft edit policy
+    useSimulationLoop.ts  # RAF lifecycle and loop orchestration
+    useSimulationSession.ts # Session command handlers (start/reset/step/apply)
     vector.ts             # Vector utilities
+    worldState.ts         # Canonical stopped-world constructors
   ui/
-    ControlPanel.tsx      # Inputs and preset controls
     CanvasDiagnostics.tsx # Diagnostics panel
+    ControlPanel.tsx      # Control panel composition
+    SaveProfileDialog.tsx # Save-profile modal
+    controlPanel/
+      BodyConfigurationSection.tsx # Body mass/position/velocity editors
+      PresetsSection.tsx   # Preset selection/apply/random/save controls
+      SimulationParametersSection.tsx # Global sim parameter controls
+      types.ts             # Shared control-panel prop types
+    stage/
+      HoverTooltip.tsx     # Hover tooltip overlay
+      StageControls.tsx    # Run/reset/step controls and alerts
+      StageHud.tsx         # Status strip and panel toggle
+    uiPrefsStorage.ts      # UI open-state persistence helpers
+    useAppPersistence.ts   # App-level persistence side effects
+    useCanvasCameraControls.ts # Pointer/touch/wheel camera interactions
+    useHoverTooltipState.ts # Hover tooltip lifecycle/state hook
+    useSaveProfileDraft.ts # Save-profile draft state hook
+    useSimulationHotkeys.ts # Keyboard shortcut handling
+    useStageViewport.ts    # Canvas container/viewport sizing hook
 docs/
-  3BodyProblem.PNG        # Screenshot/reference image
+  3BodyProblem.PNG        # Screenshot image
+  README.md               # Project documentation (this file)
 ```
 
 ## Current Scope
