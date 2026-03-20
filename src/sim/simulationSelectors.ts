@@ -1,6 +1,6 @@
 import { coreEscapeMetricsForBody } from "./ejection";
 import { computeAccelerations } from "./physics";
-import type { BodyState, SimParams, Vec2, WorldState } from "./types";
+import type { BodyState, LockMode, SimParams, Vec2, WorldState } from "./types";
 
 export const DEFAULT_DISPLAY_PAIR_ENERGY_EPS = 0.05;
 
@@ -36,13 +36,11 @@ export type EjectedBodyStatusBadge = {
   color: string;
 };
 
-type StageLockMode = "none" | "origin" | "com";
-
 type StagePairStateLabel = "Dissolved" | "Dissolving" | "Binary+Single" | "Resonant";
 
 type StageViewModelInput = {
   world: WorldState;
-  lockMode: StageLockMode;
+  lockMode: LockMode;
   manualPanZoom: boolean;
   bodyColors: string[];
   pairStateLabel: StagePairStateLabel;
@@ -213,7 +211,7 @@ const runButtonCopyForWorld = (
   };
 };
 
-const lockModeLabelForStage = (lockMode: StageLockMode): string =>
+const lockModeLabelForStage = (lockMode: LockMode): string =>
   lockMode === "none" ? "No Lock" : lockMode === "origin" ? "Origin Lock" : "COM Lock";
 
 export const stageViewModelForWorld = ({

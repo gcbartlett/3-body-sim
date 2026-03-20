@@ -1,5 +1,5 @@
 import { defaultBodies, defaultParams } from "./defaults";
-import type { BodyState, PresetProfile, SimParams } from "./types";
+import { isLockMode, type BodyState, type LockMode, type PresetProfile, type SimParams } from "./types";
 
 const PARAMS_STORAGE_KEY = "three-body-sim.params.v1";
 const USER_PRESETS_STORAGE_KEY = "three-body-sim.user-presets.v1";
@@ -9,15 +9,13 @@ const SHOW_ORIGIN_MARKER_STORAGE_KEY = "three-body-sim.ui.show-origin-marker.v1"
 const SHOW_GRID_STORAGE_KEY = "three-body-sim.ui.show-grid.v1";
 const SHOW_CENTER_OF_MASS_STORAGE_KEY = "three-body-sim.ui.show-center-of-mass.v1";
 
-export type PersistedLockMode = "none" | "origin" | "com";
-
 export const PRESET_ID_MAX_LENGTH = 64;
 export const PRESET_NAME_MAX_LENGTH = 80;
 export const PRESET_DESCRIPTION_MAX_LENGTH = 280;
 
 type PersistedUiPrefs = {
   panelExpanded: boolean;
-  lockMode: PersistedLockMode;
+  lockMode: LockMode;
   showOriginMarker: boolean;
   showGrid: boolean;
   showCenterOfMass: boolean;
@@ -142,10 +140,10 @@ export const loadPersistedUiPrefs = (): PersistedUiPrefs => {
     }
   };
 
-  let lockMode: PersistedLockMode = "com";
+  let lockMode: LockMode = "com";
   try {
     const raw = localStorage.getItem(LOCK_MODE_STORAGE_KEY);
-    if (raw === "none" || raw === "origin" || raw === "com") {
+    if (isLockMode(raw)) {
       lockMode = raw;
     }
   } catch {

@@ -1,11 +1,11 @@
 import { useEffect, useEffectEvent, type RefObject } from "react";
 import { drawFrame, fadeAndPruneTrails, type TrailMap } from "../render/canvasRenderer";
 import { type Camera } from "./camera";
-import { type LockMode, computeAutoCamera } from "./cameraPolicy";
+import { computeAutoCamera } from "./cameraPolicy";
 import { centerOfMass } from "./physics";
 import { appendTrailPoints, applyDissolutionProgress } from "./simulationPolicies";
 import { advanceRunningWorldStep } from "./simulationTick";
-import type { SimParams, WorldState } from "./types";
+import type { LockMode, SimParams, WorldState } from "./types";
 
 const HOVER_REFRESH_INTERVAL_MS = 1000;
 
@@ -144,6 +144,7 @@ export const useSimulationLoop = ({
         cancelAnimationFrame(rafRef.current);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- RefObject params are stable identities; effect should react only to runtime flags/viewport/setWorld.
   }, [
     lockMode,
     manualPanZoom,

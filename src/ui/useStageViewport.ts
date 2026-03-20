@@ -45,6 +45,7 @@ export const useStageViewport = ({
     });
     observer.observe(element);
     return () => observer.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- containerRef is a stable RefObject input; reactivity is driven by diagnosticsInsetPx.
   }, [diagnosticsInsetPx]);
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export const useStageViewport = ({
     }
     canvas.width = viewport.width;
     canvas.height = viewport.height;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- canvasRef is a stable RefObject input; effect should rerun only when viewport changes.
   }, [viewport]);
 
   return viewport;

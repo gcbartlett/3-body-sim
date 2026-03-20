@@ -3,14 +3,13 @@ import {
   savePersistedParams,
   savePersistedUiPrefs,
   savePersistedUserPresets,
-  type PersistedLockMode,
 } from "../sim/presetStorage";
-import type { PresetProfile, SimParams } from "../sim/types";
+import type { LockMode, PresetProfile, SimParams } from "../sim/types";
 
 type UseAppPersistenceParams = {
   params: SimParams;
   panelExpanded: boolean;
-  lockMode: PersistedLockMode;
+  lockMode: LockMode;
   showOriginMarker: boolean;
   showGrid: boolean;
   showCenterOfMass: boolean;

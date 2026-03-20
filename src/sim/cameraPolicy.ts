@@ -1,6 +1,6 @@
 import { updateCamera, type Camera } from "./camera";
 import { centerOfMass } from "./physics";
-import type { BodyState, Vec2 } from "./types";
+import type { BodyState, LockMode, Vec2 } from "./types";
 
 const VIEWPORT_TARGET_FRACTION = 0.66;
 const ZOOM_DAMPING_OUT = 0.2;
@@ -11,8 +11,6 @@ type Viewport = {
   width: number;
   height: number;
 };
-
-export type LockMode = "none" | "origin" | "com";
 
 type AutoCameraArgs = {
   camera: Camera;

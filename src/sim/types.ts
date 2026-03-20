@@ -21,6 +21,12 @@ export type SimParams = {
   trailFade: number;
 };
 
+export const LOCK_MODES = ["none", "origin", "com"] as const;
+export type LockMode = (typeof LOCK_MODES)[number];
+
+export const isLockMode = (value: unknown): value is LockMode =>
+  value === "none" || value === "origin" || value === "com";
+
 export type DiagnosticsSnapshot = {
   energy: number;
   momentum: Vec2;

@@ -10,10 +10,16 @@ import {
   loadPersistedParams,
   loadPersistedUiPrefs,
   loadPersistedUserPresets,
-  type PersistedLockMode,
 } from "./sim/presetStorage";
 import { PRESETS } from "./sim/presets";
-import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./sim/types";
+import type {
+  BodyState,
+  DiagnosticsSnapshot,
+  LockMode,
+  PresetProfile,
+  SimParams,
+  WorldState,
+} from "./sim/types";
 import { CanvasDiagnostics } from "./ui/CanvasDiagnostics";
 import { ControlPanel } from "./ui/ControlPanel";
 import { SaveProfileDialog } from "./ui/SaveProfileDialog";
@@ -43,8 +49,6 @@ import {
   pairEnergiesForBodies,
   stageViewModelForWorld,
 } from "./sim/simulationSelectors";
-
-type LockMode = PersistedLockMode;
 
 const initialCamera: Camera = {
   center: { x: 0, y: 0 },
