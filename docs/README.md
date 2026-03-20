@@ -46,6 +46,20 @@ npm install
 npm run dev
 ```
 
+### Lint
+
+Run ESLint checks:
+
+```bash
+npm run lint
+```
+
+Auto-fix lint issues where possible:
+
+```bash
+npm run lint:fix
+```
+
 ### Build for production
 
 ```bash
