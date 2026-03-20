@@ -1,14 +1,11 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { TrailMap } from "../render/canvasRenderer";
-import { defaultParams } from "./defaults";
 import { cloneBodies } from "./presets";
 import { generateRandomChaoticBodies, generateRandomStableBodies } from "./randomProfiles";
 import {
   appendTrailPoints,
-  applyBodyField,
   applyDissolutionProgress,
   diagnosticsSnapshot,
-  type BodyEditField,
 } from "./simulationPolicies";
 import {
   buildNewInitialStateTransition,
@@ -16,31 +13,36 @@ import {
   buildStartPauseTransition,
 } from "./sessionTransitions";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./types";
-import { createStoppedWorld } from "./worldState";
+import { useDraftEditPolicy, type DraftEditPolicyHandlers } from "./useDraftEditPolicy";
 
 type UseSimulationSessionArgs = {
-  draftBodies: BodyState[];
-  allPresets: PresetProfile[];
-  selectedPresetId: string;
-  bodyColors: readonly string[];
-  worldRef: MutableRefObject<WorldState>;
-  paramsRef: MutableRefObject<SimParams>;
-  trailsRef: MutableRefObject<TrailMap>;
-  accumulatorRef: MutableRefObject<number>;
-  lastTimeRef: MutableRefObject<number | null>;
-  simStepCounterRef: MutableRefObject<number>;
-  setWorld: Dispatch<SetStateAction<WorldState>>;
-  setParams: Dispatch<SetStateAction<SimParams>>;
-  setDraftBodies: Dispatch<SetStateAction<BodyState[]>>;
-  setBaselineDiagnostics: Dispatch<SetStateAction<DiagnosticsSnapshot>>;
-  setManualMode: (enabled: boolean) => void;
-  scheduleFastReframe: () => void;
+  session: {
+    draftBodies: BodyState[];
+    allPresets: PresetProfile[];
+    selectedPresetId: string;
+    bodyColors: readonly string[];
+  };
+  runtimeRefs: {
+    worldRef: MutableRefObject<WorldState>;
+    paramsRef: MutableRefObject<SimParams>;
+    trailsRef: MutableRefObject<TrailMap>;
+    accumulatorRef: MutableRefObject<number>;
+    lastTimeRef: MutableRefObject<number | null>;
+    simStepCounterRef: MutableRefObject<number>;
+  };
+  stateSetters: {
+    setWorld: Dispatch<SetStateAction<WorldState>>;
+    setParams: Dispatch<SetStateAction<SimParams>>;
+    setDraftBodies: Dispatch<SetStateAction<BodyState[]>>;
+    setBaselineDiagnostics: Dispatch<SetStateAction<DiagnosticsSnapshot>>;
+  };
+  controls: {
+    setManualMode: (enabled: boolean) => void;
+    scheduleFastReframe: () => void;
+  };
 };
 
-type SimulationSessionHandlers = {
-  onBodyChange: (index: number, field: BodyEditField, value: number) => void;
-  onParamChange: (field: keyof SimParams, value: number) => void;
-  onResetParams: () => void;
+type SimulationSessionHandlers = DraftEditPolicyHandlers & {
   onStartPause: () => void;
   onReset: () => void;
   onStep: () => void;
@@ -50,63 +52,24 @@ type SimulationSessionHandlers = {
 };
 
 export const useSimulationSession = ({
-  draftBodies,
-  allPresets,
-  selectedPresetId,
-  bodyColors,
-  worldRef,
-  paramsRef,
-  trailsRef,
-  accumulatorRef,
-  lastTimeRef,
-  simStepCounterRef,
-  setWorld,
-  setParams,
-  setDraftBodies,
-  setBaselineDiagnostics,
-  setManualMode,
-  scheduleFastReframe,
+  session,
+  runtimeRefs,
+  stateSetters,
+  controls,
 }: UseSimulationSessionArgs): SimulationSessionHandlers => {
-  const shouldSyncDraftEditsToStoppedWorld = (candidateWorld: WorldState) =>
-    !candidateWorld.isRunning && candidateWorld.elapsedTime === 0;
+  const { draftBodies, allPresets, selectedPresetId, bodyColors } = session;
+  const { worldRef, paramsRef, trailsRef, accumulatorRef, lastTimeRef, simStepCounterRef } = runtimeRefs;
+  const { setWorld, setParams, setDraftBodies, setBaselineDiagnostics } = stateSetters;
+  const { setManualMode, scheduleFastReframe } = controls;
 
-  const syncStoppedWorldAndBaseline = (nextBodies: BodyState[], nextParams: SimParams) => {
-    const synced = createStoppedWorld(nextBodies);
-    worldRef.current = synced;
-    setWorld(synced);
-    setBaselineDiagnostics(diagnosticsSnapshot(synced.bodies, nextParams));
-  };
-
-  const onBodyChange = (index: number, field: BodyEditField, value: number) => {
-    setDraftBodies((prev) => {
-      const next = prev.map((body, i) => (i === index ? applyBodyField(body, field, value) : body));
-      if (shouldSyncDraftEditsToStoppedWorld(worldRef.current)) {
-        syncStoppedWorldAndBaseline(next, paramsRef.current);
-      }
-      return next;
-    });
-  };
-
-  const onParamChange = (field: keyof SimParams, value: number) => {
-    if (!Number.isFinite(value)) {
-      return;
-    }
-    const next = { ...paramsRef.current, [field]: value };
-    paramsRef.current = next;
-    setParams(next);
-    if (shouldSyncDraftEditsToStoppedWorld(worldRef.current)) {
-      setBaselineDiagnostics(diagnosticsSnapshot(worldRef.current.bodies, next));
-    }
-  };
-
-  const onResetParams = () => {
-    const next = defaultParams();
-    paramsRef.current = next;
-    setParams(next);
-    if (shouldSyncDraftEditsToStoppedWorld(worldRef.current)) {
-      setBaselineDiagnostics(diagnosticsSnapshot(worldRef.current.bodies, next));
-    }
-  };
+  const { onBodyChange, onParamChange, onResetParams } = useDraftEditPolicy({
+    worldRef,
+    paramsRef,
+    setWorld,
+    setParams,
+    setDraftBodies,
+    setBaselineDiagnostics,
+  });
 
   const applyNewInitialStateTransition = (nextBodies: BodyState[], nextParams: SimParams) => {
     const transition = buildNewInitialStateTransition(nextBodies, nextParams, diagnosticsSnapshot);

@@ -246,22 +246,30 @@ function App() {
     onGenerateRandomStable,
     onGenerateRandomChaotic,
   } = useSimulationSession({
-    draftBodies,
-    allPresets,
-    selectedPresetId,
-    bodyColors: BODY_COLORS,
-    worldRef,
-    paramsRef,
-    trailsRef,
-    accumulatorRef,
-    lastTimeRef,
-    simStepCounterRef,
-    setWorld,
-    setParams,
-    setDraftBodies,
-    setBaselineDiagnostics,
-    setManualMode,
-    scheduleFastReframe,
+    session: {
+      draftBodies,
+      allPresets,
+      selectedPresetId,
+      bodyColors: BODY_COLORS,
+    },
+    runtimeRefs: {
+      worldRef,
+      paramsRef,
+      trailsRef,
+      accumulatorRef,
+      lastTimeRef,
+      simStepCounterRef,
+    },
+    stateSetters: {
+      setWorld,
+      setParams,
+      setDraftBodies,
+      setBaselineDiagnostics,
+    },
+    controls: {
+      setManualMode,
+      scheduleFastReframe,
+    },
   });
 
   const onTogglePanelExpanded = () => {
