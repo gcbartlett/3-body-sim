@@ -41,9 +41,12 @@ const sanitizeParams = (candidate: Partial<SimParams> | null | undefined): SimPa
 };
 
 const stripControlChars = (value: string, allowNewlines = false): string => {
+  // Intentional: sanitize ASCII control chars (U+0000-U+001F and U+007F).
+  /* eslint-disable no-control-regex */
   const pattern = allowNewlines
     ? /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g
     : /[\u0000-\u001F\u007F]/g;
+  /* eslint-enable no-control-regex */
   return value.replace(pattern, "");
 };
 
