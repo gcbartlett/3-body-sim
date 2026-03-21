@@ -37,6 +37,12 @@ This helps monitor real-user behavior and identify regressions after releases.
 
 ## Getting Started
 
+### Runtime and demo options
+
+This app runs entirely in the browser with no server/backend component, so local development (`npm run dev`) is the primary way to run it.
+For a live demo, you can also use the Vercel deployment at `https://3-body-sim.vercel.app/`, subject to project usage limits.
+Vercel automatically rebuilds and redeploys when the GitHub repository (`https://github.com/gcbartlett/3-body-sim`) is updated, so the live demo stays on the latest version.
+
 ### Prerequisites
 
 - Node.js `20.19+` or `22.12+`
@@ -53,6 +59,18 @@ npm install
 npm run dev
 ```
 
+### Build for production
+
+```bash
+npm run build
+```
+
+### Preview production build
+
+```bash
+npm run preview
+```
+
 ### Lint
 
 Run ESLint checks:
@@ -65,18 +83,6 @@ Auto-fix lint issues where possible:
 
 ```bash
 npm run lint:fix
-```
-
-### Build for production
-
-```bash
-npm run build
-```
-
-### Preview production build
-
-```bash
-npm run preview
 ```
 
 ## Controls
@@ -172,7 +178,7 @@ src/
     useSimulationHotkeys.ts # Keyboard shortcut handling
     useStageViewport.ts    # Canvas container/viewport sizing hook
 docs/
-  3BodyProblem.PNG        # Screenshot image
+  3BodySim.png            # Screenshot image
   README.md               # Project documentation (this file)
 ```
 
@@ -181,3 +187,18 @@ docs/
 - Planar (2D) simulation only
 - Exactly three bodies
 - No backend; everything runs in-browser
+
+## License
+
+This project is licensed under the MIT License. See `LICENSE` at the repository root.
+
+## Contributing and Support
+
+- Contributing guide: `CONTRIBUTING.md`
+- Code of Conduct: `CODE_OF_CONDUCT.md`
+- Security reporting: `SECURITY.md`
+
+## Maintenance Expectations
+
+This project is maintained on a best-effort basis.
+There is no guaranteed response or fix SLA for issues or pull requests.
