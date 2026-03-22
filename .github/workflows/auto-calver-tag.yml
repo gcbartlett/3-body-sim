@@ -1,0 +1,47 @@
+name: Auto CalVer Tag
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  tag-latest-main:
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/Los_Angeles
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Replace auto CalVer tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          COMMIT_DATE="$(git show -s --format=%cd --date=format:%Y.%m.%d "$GITHUB_SHA")"
+          SHORT_SHA="$(git rev-parse --short=7 "$GITHUB_SHA")"
+          NEW_TAG="${COMMIT_DATE}+g${SHORT_SHA}"
+
+          git fetch --tags --force
+
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            if [ "$tag" != "$NEW_TAG" ]; then
+              git push origin ":refs/tags/$tag"
+              git tag -d "$tag" || true
+            fi
+          done < <(git tag -l "20*+g*")
+
+          if git rev-parse -q --verify "refs/tags/$NEW_TAG" >/dev/null; then
+            echo "Tag already exists: $NEW_TAG"
+            exit 0
+          fi
+
+          git tag "$NEW_TAG" "$GITHUB_SHA"
+          git push origin "$NEW_TAG"
