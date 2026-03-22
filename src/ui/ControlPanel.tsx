@@ -63,7 +63,10 @@ export const ControlPanel = ({
 
   return (
     <aside className="panel">
-      <h1>Three-Body Simulator</h1>
+      <div className="panel-title">
+        <img className="panel-title-icon" src="/favicon.svg" alt="" aria-hidden="true" />
+        <h1>Three-Body Simulator</h1>
+      </div>
       <p className="muted">Set initial conditions, then start the simulation.</p>
 
       <SimulationParametersSection

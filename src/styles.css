@@ -44,6 +44,18 @@ body,
   font-size: 1.4rem;
 }
 
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.panel-title-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+  flex: 0 0 auto;
+}
+
 .panel h2 {
   margin: 0.25rem 0;
   font-size: 1rem;
