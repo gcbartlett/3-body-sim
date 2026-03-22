@@ -22,15 +22,17 @@ The app renders three gravitating bodies on a canvas with trails, diagnostics, p
 - TypeScript 5.9
 - Vite 8
 - Vercel Web Analytics (`@vercel/analytics/react`)
+- Vercel Speed Insights (`@vercel/speed-insights/react`)
 
 ## Analytics
 
-The app includes Vercel Web Analytics to track high-level usage and performance trends in deployed environments.
-This helps monitor real-user behavior and identify regressions after releases.
+The app includes Vercel Web Analytics and Vercel Speed Insights to track high-level usage and real-user performance trends in deployed environments.
+This helps monitor behavior and identify regressions after releases.
 
 ### Privacy Note
 
 - This repository uses `@vercel/analytics/react` via `<Analytics />` in `src/main.tsx`.
+- This repository uses `@vercel/speed-insights/react` via `<SpeedInsights />` in `src/main.tsx`.
 - The app does not send custom analytics events or user identifiers from application code.
 - User-created simulation settings/presets are stored locally in browser `localStorage` and are not sent to a backend by this app.
 - If you deploy a public instance, review your host privacy disclosures and Vercel Analytics settings before launch.
