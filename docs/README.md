@@ -1,5 +1,7 @@
 # Three-Body Simulator
 
+[![Version](https://img.shields.io/github/v/tag/gcbartlett/3-body-sim?label=latest%20version&filter=20*%2Bg*)](https://github.com/gcbartlett/3-body-sim/tags)
+
 Interactive 2D Newtonian three-body simulator built with React + TypeScript + Vite.  
 The app renders three gravitating bodies on a canvas with trails, diagnostics, presets, and runtime controls for camera and integration speed.
 
@@ -23,6 +25,10 @@ The app renders three gravitating bodies on a canvas with trails, diagnostics, p
 - Vite 8
 - Vercel Web Analytics (`@vercel/analytics/react`)
 - Vercel Speed Insights (`@vercel/speed-insights/react`)
+
+## Versioning
+
+Builds use a short CalVer derived from Git commit metadata: `YYYY.MM.DD+g<shortSha>`, auto-updated when commits change.
 
 ## Analytics
 

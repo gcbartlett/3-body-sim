@@ -50,6 +50,24 @@ body,
   gap: 0.45rem;
 }
 
+.panel-header {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.04rem;
+  max-width: 100%;
+}
+
+.panel-version {
+  align-self: flex-end;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.77rem;
+  line-height: 1.05;
+}
+
+.panel > p.muted {
+  margin: 0.08rem 0 0.18rem;
+}
+
 .panel-title-icon {
   width: 1.3rem;
   height: 1.3rem;
@@ -62,24 +80,24 @@ body,
 }
 
 .panel section {
-  margin: 0.65rem 0;
-  padding-bottom: 0.45rem;
+  margin: 0.15rem 0;
+  padding-bottom: 0.12rem;
   border-bottom: 1px solid #1f2937;
 }
 
 .collapsible-summary {
   cursor: pointer;
   font-weight: 600;
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.18rem;
 }
 
 .body-config-matrix {
   display: grid;
   grid-template-columns: max-content repeat(3, minmax(var(--body-col-min), 1fr));
-  gap: 0.35rem 0.4rem;
+  gap: 0.22rem 0.4rem;
   align-items: center;
   overflow-x: auto;
-  padding-bottom: 0.25rem;
+  padding-bottom: 0.15rem;
 }
 
 .body-config-header {
@@ -121,8 +139,16 @@ body,
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
-  margin: 0.35rem 0;
+  margin: 0.12rem 0;
   font-size: 0.9rem;
+}
+
+.panel details > p {
+  margin: 0.1rem 0;
+}
+
+.base-dt-note {
+  font-size: 0.82rem;
 }
 
 .panel input {
@@ -166,7 +192,7 @@ body,
 }
 
 .control-matrix {
-  margin: 0.35rem 0;
+  margin: 0.12rem 0;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.4rem 0.7rem;

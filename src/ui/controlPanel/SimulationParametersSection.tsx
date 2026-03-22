@@ -66,7 +66,10 @@ export const SimulationParametersSection = ({
           onChange={(e) => onParamChange("speed", Number(e.target.value))}
         />
       </label>
-      <p className="muted" title="Base dt used at low/normal rates. At high rate, effective dt and trail sampling are adapted automatically.">
+      <p
+        className="base-dt-note muted"
+        title="Base dt used at low/normal rates. At high rate, effective dt and trail sampling are adapted automatically."
+      >
         Base dt: {params.dt.toFixed(4)} (auto-adaptive at high rate)
       </p>
       <label title="How quickly trail points fade over time. Higher values fade faster.">

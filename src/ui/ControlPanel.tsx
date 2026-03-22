@@ -9,6 +9,7 @@ import type { BodyConfigField, LockMode } from "./controlPanel/types";
 type Props = {
   bodies: BodyState[];
   params: SimParams;
+  appVersion: string;
   presets: PresetProfile[];
   selectedPresetId: string;
   lockMode: LockMode;
@@ -34,6 +35,7 @@ type Props = {
 export const ControlPanel = ({
   bodies,
   params,
+  appVersion,
   presets,
   selectedPresetId,
   lockMode,
@@ -63,9 +65,12 @@ export const ControlPanel = ({
 
   return (
     <aside className="panel">
-      <div className="panel-title">
-        <img className="panel-title-icon" src="/favicon.svg" alt="" aria-hidden="true" />
-        <h1>Three-Body Simulator</h1>
+      <div className="panel-header">
+        <div className="panel-title">
+          <img className="panel-title-icon" src="/favicon.svg" alt="" aria-hidden="true" />
+          <h1>Three-Body Simulator</h1>
+        </div>
+        <div className="panel-version muted">build {appVersion}</div>
       </div>
       <p className="muted">Set initial conditions, then start the simulation.</p>
 

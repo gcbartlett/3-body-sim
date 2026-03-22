@@ -53,6 +53,7 @@ const initialCamera: Camera = {
 
 const BODY_COLORS = ["#f7b731", "#60a5fa", "#8bd450"];
 const FAST_REFRAME_FRAMES = 60;
+const APP_VERSION = __APP_VERSION__;
 
 function App() {
   const [initialUiPrefs] = useState(loadPersistedUiPrefs);
@@ -297,6 +298,7 @@ function App() {
       <ControlPanel
         bodies={draftBodies}
         params={params}
+        appVersion={APP_VERSION}
         presets={allPresets}
         selectedPresetId={selectedPresetId}
         lockMode={lockMode}
