@@ -1,7 +1,8 @@
-# Three-Body Simulator
-
-[![Version](https://img.shields.io/github/v/tag/gcbartlett/3-body-sim?label=latest%20version&filter=20*%2Bg*)](https://github.com/gcbartlett/3-body-sim/tags)
+[![Version](https://img.shields.io/github/v/tag/gcbartlett/3-body-sim?label=Latest%20Version&filter=20*%2Bg*&logo=github)](https://github.com/gcbartlett/3-body-sim/tags)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-blue?logo=vercel)](https://3-body-sim.vercel.app/)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-yellow?logo=buy-me-a-coffee)](https://buymeacoffee.com/gcbartlett)
+
+# Three-Body Simulator
 
 Interactive 2D Newtonian three-body simulator built with React + TypeScript + Vite.  
 The app renders three gravitating bodies on a canvas with trails, diagnostics, presets, and runtime controls for camera and integration speed.
