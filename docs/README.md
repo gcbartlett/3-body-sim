@@ -95,6 +95,20 @@ Auto-fix lint issues where possible:
 npm run lint:fix
 ```
 
+### Tests
+
+Run unit tests with Vitest:
+
+```bash
+npm run test
+```
+
+Unit tests live under `tests/unit/`, mirroring feature areas from `src/` when practical.
+
+Current example:
+
+- `tests/unit/ui/controlPanel/numberInputPrecision.test.ts`
+
 ## Controls
 
 ### Simulation
@@ -175,6 +189,8 @@ src/
       BodyConfigurationSection.tsx # Body mass/position/velocity editors
       PresetsSection.tsx   # Preset selection/apply/random/save controls
       SimulationParametersSection.tsx # Global sim parameter controls
+      StepperNumberInput.tsx # Shared numeric input with stepping/precision behavior
+      numberInputPrecision.ts # Decimal precision helper for control-panel number inputs
       types.ts             # Shared control-panel prop types
     stage/
       HoverTooltip.tsx     # Hover tooltip overlay
@@ -187,6 +203,11 @@ src/
     useSaveProfileDraft.ts # Save-profile draft state hook
     useSimulationHotkeys.ts # Keyboard shortcut handling
     useStageViewport.ts    # Canvas container/viewport sizing hook
+tests/
+  unit/
+    ui/
+      controlPanel/
+        numberInputPrecision.test.ts # Unit tests for decimal precision parsing/clamping
 docs/
   3BodySim.png            # Screenshot image
   README.md               # Project documentation (this file)

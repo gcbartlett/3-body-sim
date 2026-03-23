@@ -15,6 +15,7 @@ Thanks for your interest in contributing.
 - Keep changes focused and easy to review.
 - Follow existing React + TypeScript patterns in the codebase.
 - Avoid adding new dependencies unless clearly necessary.
+- Place unit tests under `tests/unit/` and mirror `src/` feature paths when practical.
 - Update docs when behavior or workflow changes.
 
 ## Validation Before Opening a PR
@@ -23,6 +24,7 @@ Run the following locally:
 
 1. `npm run lint`
 2. `npm run build`
+3. `npm run test`
 
 If your change affects behavior, add or update tests where applicable.
 
@@ -32,6 +34,7 @@ If your change affects behavior, add or update tests where applicable.
   - What changed
   - Why it changed
   - How it was validated
+  - Test results (`npm run test`)
 - Link related issues when relevant.
 - Keep PRs scoped to one concern.
 

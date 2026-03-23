@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  lint:
-    name: lint
+  validate:
+    name: validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,23 +31,8 @@ jobs:
       - name: Run lint
         run: npm run lint
 
-  build:
-    name: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
       - name: Run build
         run: npm run build
+
+      - name: Run tests
+        run: npm run test

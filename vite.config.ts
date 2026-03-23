@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { execSync } from "node:child_process";
+import { fileURLToPath, URL } from "node:url";
 
 const VERSION_TIMEZONE = "America/Los_Angeles";
 
@@ -23,6 +24,11 @@ const appVersion = commitDate && shortSha ? `${commitDate}+g${shortSha}` : "dev"
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "~": fileURLToPath(new URL(".", import.meta.url)),
+    },
+  },
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
   },
