@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { formatDiagnosticValue } from "../sim/diagnosticFormatting";
 import { FAR_FIELD_RATIO_GATE } from "../sim/ejection";
+import { diagnosticsDriftMetrics } from "../sim/diagnosticsSelectors";
 import type {
   BodyEjectionStatusSnapshot,
   BodyVectorSnapshot,
@@ -66,15 +67,10 @@ export const CanvasDiagnostics = ({
     };
   }, [isOpen, onVisibleHeightChange]);
 
-  const deltaEnergy = diagnostics.energy - baselineDiagnostics.energy;
-  const energyDriftPct = (Math.abs(deltaEnergy) / Math.max(1e-9, Math.abs(baselineDiagnostics.energy))) * 100;
-  const deltaMomentum = {
-    x: diagnostics.momentum.x - baselineDiagnostics.momentum.x,
-    y: diagnostics.momentum.y - baselineDiagnostics.momentum.y,
-  };
-  const deltaMomentumMag = magnitude(deltaMomentum);
-  const baselineMomentumMag = magnitude(baselineDiagnostics.momentum);
-  const momentumDriftPct = (deltaMomentumMag / Math.max(1e-9, baselineMomentumMag)) * 100;
+  const { deltaEnergy, energyDriftPct, deltaMomentumMag, momentumDriftPct } = diagnosticsDriftMetrics(
+    diagnostics,
+    baselineDiagnostics,
+  );
   const c1 = bodyVectors[0]?.color ?? "#f7b731";
   const c2 = bodyVectors[1]?.color ?? "#60a5fa";
   const c3 = bodyVectors[2]?.color ?? "#8bd450";

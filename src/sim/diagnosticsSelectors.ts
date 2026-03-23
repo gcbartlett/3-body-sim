@@ -1,6 +1,6 @@
 import { coreEscapeMetricsForBody } from "./ejection";
 import { computeAccelerations } from "./physics";
-import type { BodyState, SimParams, Vec2, WorldState } from "./types";
+import type { BodyState, DiagnosticsSnapshot, SimParams, Vec2, WorldState } from "./types";
 
 export const DEFAULT_DISPLAY_PAIR_ENERGY_EPS = 0.05;
 
@@ -36,6 +36,13 @@ export type BodyEjectionStatusSnapshot = {
   counter: number;
   threshold: number;
   isEjected: boolean;
+};
+
+export type DiagnosticsDriftMetrics = {
+  deltaEnergy: number;
+  energyDriftPct: number;
+  deltaMomentumMag: number;
+  momentumDriftPct: number;
 };
 
 type StageDiagnosticsViewModelInput = {
@@ -135,6 +142,28 @@ export const bodyEjectionStatusesForDisplay = (
       isEjected: world.ejectedBodyIds.includes(body.id),
     };
   });
+
+export const diagnosticsDriftMetrics = (
+  diagnostics: DiagnosticsSnapshot,
+  baselineDiagnostics: DiagnosticsSnapshot,
+): DiagnosticsDriftMetrics => {
+  const deltaEnergy = diagnostics.energy - baselineDiagnostics.energy;
+  const energyDriftPct = (Math.abs(deltaEnergy) / Math.max(1e-9, Math.abs(baselineDiagnostics.energy))) * 100;
+  const deltaMomentumX = diagnostics.momentum.x - baselineDiagnostics.momentum.x;
+  const deltaMomentumY = diagnostics.momentum.y - baselineDiagnostics.momentum.y;
+  const deltaMomentumMag = Math.hypot(deltaMomentumX, deltaMomentumY);
+  const baselineMomentumMag = Math.hypot(
+    baselineDiagnostics.momentum.x,
+    baselineDiagnostics.momentum.y,
+  );
+  const momentumDriftPct = (deltaMomentumMag / Math.max(1e-9, baselineMomentumMag)) * 100;
+  return {
+    deltaEnergy,
+    energyDriftPct,
+    deltaMomentumMag,
+    momentumDriftPct,
+  };
+};
 
 export const stageDiagnosticsViewModelForWorld = ({
   world,
