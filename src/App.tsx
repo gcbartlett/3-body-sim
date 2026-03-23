@@ -10,6 +10,9 @@ import {
   loadPersistedParams,
   loadPersistedUiPrefs,
   loadPersistedUserPresets,
+  sanitizePresetDescription,
+  sanitizePresetId,
+  sanitizePresetName,
 } from "./sim/presetStorage";
 import { PRESETS } from "./sim/presets";
 import type {
@@ -22,6 +25,7 @@ import type {
 } from "./sim/types";
 import { CanvasDiagnostics } from "./ui/CanvasDiagnostics";
 import { ControlPanel } from "./ui/ControlPanel";
+import { EditProfileDialog, type EditProfileDraft } from "./ui/EditProfileDialog";
 import { SaveProfileDialog } from "./ui/SaveProfileDialog";
 import { StageControls } from "./ui/stage/StageControls";
 import { StageHud } from "./ui/stage/StageHud";
@@ -54,6 +58,25 @@ const initialCamera: Camera = {
 const BODY_COLORS = ["#f7b731", "#60a5fa", "#8bd450"];
 const FAST_REFRAME_FRAMES = 60;
 const APP_VERSION = __APP_VERSION__;
+const EPS = 1e-12;
+
+const sameNumber = (a: number, b: number) => Math.abs(a - b) <= EPS;
+
+const sameIbcBodies = (a: BodyState[], b: BodyState[]) =>
+  a.length === b.length &&
+  a.every((body, index) => {
+    const candidate = b[index];
+    if (!candidate) {
+      return false;
+    }
+    return (
+      sameNumber(body.mass, candidate.mass) &&
+      sameNumber(body.position.x, candidate.position.x) &&
+      sameNumber(body.position.y, candidate.position.y) &&
+      sameNumber(body.velocity.x, candidate.velocity.x) &&
+      sameNumber(body.velocity.y, candidate.velocity.y)
+    );
+  });
 
 function App() {
   const [initialUiPrefs] = useState(loadPersistedUiPrefs);
@@ -62,6 +85,7 @@ function App() {
   const [draftBodies, setDraftBodies] = useState<BodyState[]>(defaultBodies);
   const [world, setWorld] = useState<WorldState>(initialWorld);
   const [selectedPresetId, setSelectedPresetId] = useState<string>(PRESETS[0].id);
+  const [editProfileDraft, setEditProfileDraft] = useState<EditProfileDraft | null>(null);
   const [lockMode, setLockMode] = useState<LockMode>(initialUiPrefs.lockMode);
   const [manualPanZoom, setManualPanZoom] = useState<boolean>(false);
   const [showOriginMarker, setShowOriginMarker] = useState<boolean>(initialUiPrefs.showOriginMarker);
@@ -216,6 +240,80 @@ function App() {
     beginSaveProfileDraft();
   };
 
+  const onDeleteUserPreset = (id: string) => {
+    const target = userPresets.find((preset) => preset.id === id);
+    if (!target) {
+      return;
+    }
+    setUserPresets((prev) => prev.filter((preset) => preset.id !== id));
+    if (selectedPresetId === id) {
+      setSelectedPresetId(PRESETS[0].id);
+    }
+  };
+
+  const onEditUserPreset = (id: string) => {
+    const target = userPresets.find((preset) => preset.id === id);
+    if (!target) {
+      return;
+    }
+    setEditProfileDraft({
+      originalId: target.id,
+      id: target.id,
+      name: target.name,
+      description: target.description,
+    });
+  };
+
+  const onEditProfileFieldChange = (field: "id" | "name" | "description", value: string) => {
+    setEditProfileDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const onCancelEditProfile = () => {
+    setEditProfileDraft(null);
+  };
+
+  const onConfirmEditProfile = () => {
+    if (!editProfileDraft) {
+      return;
+    }
+    const id = sanitizePresetId(editProfileDraft.id);
+    const name = sanitizePresetName(editProfileDraft.name);
+    const description = sanitizePresetDescription(editProfileDraft.description);
+    const existingIds = allPresets
+      .map((preset) => preset.id)
+      .filter((existingId) => existingId !== editProfileDraft.originalId);
+
+    if (!id) {
+      window.alert("Profile id must include letters, numbers, dots, underscores, or hyphens.");
+      return;
+    }
+    if (existingIds.includes(id)) {
+      window.alert(`Profile id '${id}' already exists. Please use a unique id.`);
+      return;
+    }
+    if (!name) {
+      window.alert("Profile name cannot be empty.");
+      return;
+    }
+
+    setUserPresets((prev) =>
+      prev.map((preset) =>
+        preset.id === editProfileDraft.originalId
+          ? {
+              ...preset,
+              id,
+              name,
+              description,
+            }
+          : preset,
+      ),
+    );
+    if (selectedPresetId === editProfileDraft.originalId) {
+      setSelectedPresetId(id);
+    }
+    setEditProfileDraft(null);
+  };
+
   const onConfirmSaveProfile = () => {
     if (!saveProfileDraft) {
       return;
@@ -284,6 +382,9 @@ function App() {
     params,
     ejectionThresholdSec: EJECTION_TIME_THRESHOLD_SECONDS,
   });
+  const selectedUserPreset = userPresets.find((preset) => preset.id === selectedPresetId) ?? null;
+  const selectedUserPresetIbcDirty =
+    selectedUserPreset === null ? false : !sameIbcBodies(selectedUserPreset.bodies, draftBodies);
   const displayPairState = diagnosticsViewModel.displayPairState;
   const boundPairState = boundPairStateLabel(displayPairState, world.dissolutionDetected);
   const stageViewModel = stageViewModelForWorld({
@@ -301,6 +402,8 @@ function App() {
         appVersion={APP_VERSION}
         presets={allPresets}
         selectedPresetId={selectedPresetId}
+        defaultPresetIds={PRESETS.map((preset) => preset.id)}
+        selectedUserPresetIbcDirty={selectedUserPresetIbcDirty}
         lockMode={lockMode}
         manualPanZoom={manualPanZoom}
         showOriginMarker={showOriginMarker}
@@ -315,6 +418,8 @@ function App() {
         onToggleShowCenterOfMass={setShowCenterOfMass}
         onResetParams={onResetParams}
         onPresetSelect={setSelectedPresetId}
+        onEditUserPreset={onEditUserPreset}
+        onDeleteUserPreset={onDeleteUserPreset}
         onApplyPreset={onApplyPreset}
         onSaveProfile={onSaveProfile}
         onGenerateRandomStable={onGenerateRandomStable}
@@ -374,6 +479,12 @@ function App() {
         onFieldChange={onSaveProfileFieldChange}
         onSave={onConfirmSaveProfile}
         onCancel={cancelSaveProfileDraft}
+      />
+      <EditProfileDialog
+        draft={editProfileDraft}
+        onFieldChange={onEditProfileFieldChange}
+        onSave={onConfirmEditProfile}
+        onCancel={onCancelEditProfile}
       />
     </div>
   );

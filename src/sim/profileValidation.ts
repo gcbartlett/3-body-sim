@@ -50,10 +50,6 @@ export const buildSavedPresetFromDraft = ({
   if (!name) {
     return { ok: false, message: "Profile name cannot be empty." };
   }
-  if (!description) {
-    return { ok: false, message: "Profile description cannot be empty." };
-  }
-
   return {
     ok: true,
     preset: {

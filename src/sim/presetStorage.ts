@@ -11,7 +11,7 @@ const SHOW_CENTER_OF_MASS_STORAGE_KEY = "three-body-sim.ui.show-center-of-mass.v
 
 export const PRESET_ID_MAX_LENGTH = 64;
 export const PRESET_NAME_MAX_LENGTH = 80;
-export const PRESET_DESCRIPTION_MAX_LENGTH = 280;
+export const PRESET_DESCRIPTION_MAX_LENGTH = 560;
 
 type PersistedUiPrefs = {
   panelExpanded: boolean;
@@ -192,7 +192,7 @@ export const loadPersistedUserPresets = (): PresetProfile[] => {
           ? sanitizePresetDescription(source.description)
           : "";
       const bodies = sanitizeBodyArray(source?.bodies);
-      if (!id || !name || !description || !bodies || seenIds.has(id)) {
+      if (!id || !name || !bodies || seenIds.has(id)) {
         continue;
       }
       seenIds.add(id);

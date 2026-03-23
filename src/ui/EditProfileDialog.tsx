@@ -3,34 +3,35 @@ import {
   PRESET_ID_MAX_LENGTH,
   PRESET_NAME_MAX_LENGTH,
 } from "../sim/presetStorage";
-import type { SaveProfileDraft } from "./useSaveProfileDraft";
 
-type SaveProfileDialogProps = {
-  draft: SaveProfileDraft | null;
-  onFieldChange: (field: keyof SaveProfileDraft, value: string) => void;
+export type EditProfileDraft = {
+  originalId: string;
+  id: string;
+  name: string;
+  description: string;
+};
+
+type EditProfileDialogProps = {
+  draft: EditProfileDraft | null;
+  onFieldChange: (field: "id" | "name" | "description", value: string) => void;
   onSave: () => void;
   onCancel: () => void;
 };
 
-export function SaveProfileDialog({
+export function EditProfileDialog({
   draft,
   onFieldChange,
   onSave,
   onCancel,
-}: SaveProfileDialogProps) {
+}: EditProfileDialogProps) {
   if (!draft) {
     return null;
   }
 
   return (
     <div className="modal-backdrop">
-      <div
-        className="modal-card"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Save Profile"
-      >
-        <h3>Save Profile</h3>
+      <div className="modal-card" role="dialog" aria-modal="true" aria-label="Edit Profile">
+        <h3>Edit Profile</h3>
         <label title="Unique profile identifier used internally and in preset selection.">
           Id
           <input

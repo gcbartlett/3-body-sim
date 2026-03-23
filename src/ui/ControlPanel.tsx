@@ -12,6 +12,8 @@ type Props = {
   appVersion: string;
   presets: PresetProfile[];
   selectedPresetId: string;
+  defaultPresetIds: string[];
+  selectedUserPresetIbcDirty: boolean;
   lockMode: LockMode;
   manualPanZoom: boolean;
   showOriginMarker: boolean;
@@ -26,6 +28,8 @@ type Props = {
   onToggleShowCenterOfMass: (value: boolean) => void;
   onResetParams: () => void;
   onPresetSelect: (id: string) => void;
+  onEditUserPreset: (id: string) => void;
+  onDeleteUserPreset: (id: string) => void;
   onApplyPreset: () => void;
   onSaveProfile: () => void;
   onGenerateRandomStable: () => void;
@@ -38,6 +42,8 @@ export const ControlPanel = ({
   appVersion,
   presets,
   selectedPresetId,
+  defaultPresetIds,
+  selectedUserPresetIbcDirty,
   lockMode,
   manualPanZoom,
   showOriginMarker,
@@ -52,6 +58,8 @@ export const ControlPanel = ({
   onToggleShowCenterOfMass,
   onResetParams,
   onPresetSelect,
+  onEditUserPreset,
+  onDeleteUserPreset,
   onApplyPreset,
   onSaveProfile,
   onGenerateRandomStable,
@@ -104,11 +112,15 @@ export const ControlPanel = ({
       <PresetsSection
         presets={presets}
         selectedPresetId={selectedPresetId}
+        defaultPresetIds={defaultPresetIds}
+        selectedUserPresetIbcDirty={selectedUserPresetIbcDirty}
         open={sectionState.presetsOpen}
         onOpenChange={(open) => {
           setSectionState((prev) => ({ ...prev, presetsOpen: open }));
         }}
         onPresetSelect={onPresetSelect}
+        onEditUserPreset={onEditUserPreset}
+        onDeleteUserPreset={onDeleteUserPreset}
         onApplyPreset={onApplyPreset}
         onSaveProfile={onSaveProfile}
         onGenerateRandomStable={onGenerateRandomStable}
