@@ -1,10 +1,10 @@
 import { coreEscapeMetricsForBody } from "./ejection";
 import { computeAccelerations } from "./physics";
-import type { BodyState, LockMode, SimParams, Vec2, WorldState } from "./types";
+import type { BodyState, SimParams, Vec2, WorldState } from "./types";
 
 export const DEFAULT_DISPLAY_PAIR_ENERGY_EPS = 0.05;
 
-type PairBindingState = "dissolving" | "binary+single" | "resonant";
+export type PairBindingState = "dissolving" | "binary+single" | "resonant";
 
 export type DisplayPairState = {
   nbound: number;
@@ -36,30 +36,6 @@ export type BodyEjectionStatusSnapshot = {
   counter: number;
   threshold: number;
   isEjected: boolean;
-};
-
-export type EjectedBodyStatusBadge = {
-  id: string;
-  label: string;
-  color: string;
-};
-
-type StagePairStateLabel = "Dissolved" | "Dissolving" | "Binary+Single" | "Resonant";
-
-type StageViewModelInput = {
-  world: WorldState;
-  lockMode: LockMode;
-  manualPanZoom: boolean;
-  bodyColors: string[];
-  pairStateLabel: StagePairStateLabel;
-};
-
-export type StageViewModel = {
-  runButtonLabel: string;
-  runButtonTooltip: string;
-  statusLabel: string;
-  ejectedStatusRows: EjectedBodyStatusBadge[];
-  latestEjectedLabel: string | null;
 };
 
 type StageDiagnosticsViewModelInput = {
@@ -96,7 +72,7 @@ const pairSpecificEnergyForBodies = (
   return 0.5 * vrel2 - (params.G * (bi.mass + bj.mass)) / Math.max(1e-9, r);
 };
 
-export const pairEnergiesForBodies = (bodies: BodyState[], params: SimParams) => {
+export const pairEnergiesForBodies = (bodies: BodyState[], params: SimParams): PairEnergyDisplay => {
   const eps12 = pairSpecificEnergyForBodies(bodies, params, 0, 1);
   const eps13 = pairSpecificEnergyForBodies(bodies, params, 0, 2);
   const eps23 = pairSpecificEnergyForBodies(bodies, params, 1, 2);
@@ -130,20 +106,6 @@ export const displayPairStateFromEnergies = (
   };
 };
 
-export const boundPairStateLabel = (
-  displayPairState: DisplayPairState,
-  dissolutionDetected: boolean,
-): "Dissolved" | "Dissolving" | "Binary+Single" | "Resonant" => {
-  if (dissolutionDetected) {
-    return "Dissolved";
-  }
-  return displayPairState.state === "dissolving"
-    ? "Dissolving"
-    : displayPairState.state === "binary+single"
-    ? "Binary+Single"
-    : "Resonant";
-};
-
 export const bodyVectorsForDisplay = (bodies: BodyState[], params: SimParams): BodyVectorSnapshot[] => {
   const accelerations = computeAccelerations(bodies, params);
   return bodies.map((body, index) => ({
@@ -173,85 +135,6 @@ export const bodyEjectionStatusesForDisplay = (
       isEjected: world.ejectedBodyIds.includes(body.id),
     };
   });
-
-export const ejectedBodiesForStatus = (
-  world: WorldState,
-  bodyColors: string[],
-): EjectedBodyStatusBadge[] =>
-  world.ejectedBodyIds.map((id) => {
-    const idx = world.bodies.findIndex((body) => body.id === id);
-    return {
-      id,
-      label: idx >= 0 ? `B${idx + 1}` : id,
-      color: idx >= 0 ? bodyColors[idx] ?? "#d1d5db" : "#d1d5db",
-    };
-  });
-
-export const latestEjectedLabelForStatus = (world: WorldState): string | null => {
-  if (!world.ejectedBodyId) {
-    return null;
-  }
-  const idx = world.bodies.findIndex((body) => body.id === world.ejectedBodyId);
-  return idx >= 0 ? `B${idx + 1}` : world.ejectedBodyId;
-};
-
-export const statusLabelForWorld = (
-  world: Pick<WorldState, "dissolutionDetected" | "isRunning" | "elapsedTime">,
-  statusModeSegment: string,
-  pairStateLabel: "Dissolved" | "Dissolving" | "Binary+Single" | "Resonant",
-): string => {
-  if (world.dissolutionDetected && !world.isRunning) {
-    return "Dissolved";
-  }
-  if (world.isRunning) {
-    return `Running • ${statusModeSegment} • ${pairStateLabel}`;
-  }
-  if (world.elapsedTime > 0) {
-    return `Paused • ${statusModeSegment} • ${pairStateLabel}`;
-  }
-  return `Ready • ${statusModeSegment} • ${pairStateLabel}`;
-};
-
-const runButtonCopyForWorld = (
-  world: Pick<WorldState, "isRunning" | "elapsedTime">,
-): Pick<StageViewModel, "runButtonLabel" | "runButtonTooltip"> => {
-  if (world.isRunning) {
-    return {
-      runButtonLabel: "Pause",
-      runButtonTooltip: "Pause simulation time progression.",
-    };
-  }
-  if (world.elapsedTime > 0) {
-    return {
-      runButtonLabel: "Resume",
-      runButtonTooltip: "Resume running the simulation.",
-    };
-  }
-  return {
-    runButtonLabel: "Start",
-    runButtonTooltip: "Start running the simulation.",
-  };
-};
-
-const lockModeLabelForStage = (lockMode: LockMode): string =>
-  lockMode === "none" ? "No Lock" : lockMode === "origin" ? "Origin Lock" : "COM Lock";
-
-export const stageViewModelForWorld = ({
-  world,
-  lockMode,
-  manualPanZoom,
-  bodyColors,
-  pairStateLabel,
-}: StageViewModelInput): StageViewModel => {
-  const runButtonCopy = runButtonCopyForWorld(world);
-  const statusModeSegment = manualPanZoom ? "Manual" : lockModeLabelForStage(lockMode);
-  return {
-    ...runButtonCopy,
-    statusLabel: statusLabelForWorld(world, statusModeSegment, pairStateLabel),
-    ejectedStatusRows: ejectedBodiesForStatus(world, bodyColors),
-    latestEjectedLabel: latestEjectedLabelForStatus(world),
-  };
-};
 
 export const stageDiagnosticsViewModelForWorld = ({
   world,

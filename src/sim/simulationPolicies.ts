@@ -1,6 +1,6 @@
 import type { TrailMap } from "../render/canvasRenderer";
 import { totalEnergy, totalMomentum } from "./physics";
-import { pairBindingStateForBodies } from "./simulationSelectors";
+import { pairBindingStateForBodies } from "./diagnosticsSelectors";
 import type { BodyState, DiagnosticsSnapshot, SimParams, WorldState } from "./types";
 
 export type BodyEditField = "mass" | "position.x" | "position.y" | "velocity.x" | "velocity.y";

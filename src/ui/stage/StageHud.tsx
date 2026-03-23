@@ -1,4 +1,4 @@
-import type { EjectedBodyStatusBadge } from "../../sim/simulationSelectors";
+import type { EjectedBodyStatusBadge } from "../../sim/stageSelectors";
 
 type StageHudProps = {
   statusLabel: string;

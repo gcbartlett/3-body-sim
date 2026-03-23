@@ -45,10 +45,9 @@ import {
   DISSOLUTION_TIME_THRESHOLD_SECONDS,
 } from "./sim/simulationPolicies";
 import {
-  boundPairStateLabel,
   stageDiagnosticsViewModelForWorld,
-  stageViewModelForWorld,
-} from "./sim/simulationSelectors";
+} from "./sim/diagnosticsSelectors";
+import { boundPairStateLabel, stageViewModelForWorld } from "./sim/stageSelectors";
 
 const initialCamera: Camera = {
   center: { x: 0, y: 0 },

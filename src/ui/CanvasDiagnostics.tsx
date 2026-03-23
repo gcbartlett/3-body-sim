@@ -6,7 +6,7 @@ import type {
   BodyVectorSnapshot,
   DisplayPairStateWithEps,
   PairEnergyDisplay,
-} from "../sim/simulationSelectors";
+} from "../sim/diagnosticsSelectors";
 import type { DiagnosticsSnapshot } from "../sim/types";
 import { magnitude } from "../sim/vector";
 import { loadCanvasDiagnosticsOpenState, saveCanvasDiagnosticsOpenState } from "./uiPrefsStorage";
