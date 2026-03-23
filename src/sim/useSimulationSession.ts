@@ -1,4 +1,4 @@
-import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { TrailMap } from "../render/canvasRenderer";
 import { cloneBodies } from "./presets";
 import { generateRandomChaoticBodies, generateRandomStableBodies } from "./randomProfiles";
@@ -23,12 +23,12 @@ type UseSimulationSessionArgs = {
     bodyColors: readonly string[];
   };
   runtimeRefs: {
-    worldRef: MutableRefObject<WorldState>;
-    paramsRef: MutableRefObject<SimParams>;
-    trailsRef: MutableRefObject<TrailMap>;
-    accumulatorRef: MutableRefObject<number>;
-    lastTimeRef: MutableRefObject<number | null>;
-    simStepCounterRef: MutableRefObject<number>;
+    worldRef: RefObject<WorldState>;
+    paramsRef: RefObject<SimParams>;
+    trailsRef: RefObject<TrailMap>;
+    accumulatorRef: RefObject<number>;
+    lastTimeRef: RefObject<number | null>;
+    simStepCounterRef: RefObject<number>;
   };
   stateSetters: {
     setWorld: Dispatch<SetStateAction<WorldState>>;

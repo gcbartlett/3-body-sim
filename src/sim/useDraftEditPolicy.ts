@@ -1,4 +1,4 @@
-import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
 import { defaultParams } from "./defaults";
 import {
   applyBodyField,
@@ -9,8 +9,8 @@ import type { BodyState, DiagnosticsSnapshot, SimParams, WorldState } from "./ty
 import { createStoppedWorld } from "./worldState";
 
 type UseDraftEditPolicyArgs = {
-  worldRef: MutableRefObject<WorldState>;
-  paramsRef: MutableRefObject<SimParams>;
+  worldRef: RefObject<WorldState>;
+  paramsRef: RefObject<SimParams>;
   setWorld: Dispatch<SetStateAction<WorldState>>;
   setParams: Dispatch<SetStateAction<SimParams>>;
   setDraftBodies: Dispatch<SetStateAction<BodyState[]>>;
