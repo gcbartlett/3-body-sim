@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeAccelerations } from "~/src/sim/physics";
+import { computeAccelerations, totalEnergy } from "~/src/sim/physics";
 import type { BodyState, SimParams } from "~/src/sim/types";
 
 const makeParams = (overrides: Partial<SimParams> = {}): SimParams => ({
@@ -89,5 +89,62 @@ describe("computeAccelerations", () => {
       expect(shiftedAccelerations[i].x).toBeCloseTo(baseAccelerations[i].x, 12);
       expect(shiftedAccelerations[i].y).toBeCloseTo(baseAccelerations[i].y, 12);
     }
+  });
+});
+
+describe("totalEnergy", () => {
+  it("matches kinetic-only expectation when gravity influence is negligible", () => {
+    const bodies: BodyState[] = [
+      makeBody("a", 2, { x: -1e9, y: 0 }, { x: 3, y: 4 }),
+      makeBody("b", 1.5, { x: 1e9, y: 0 }, { x: -2, y: 1 }),
+    ];
+    const params = makeParams({ G: 1e-12, softening: 0 });
+    const expectedKinetic = 0.5 * 2 * (3 * 3 + 4 * 4) + 0.5 * 1.5 * ((-2) * (-2) + 1 * 1);
+
+    const energy = totalEnergy(bodies, params);
+
+    expect(energy).toBeCloseTo(expectedKinetic, 9);
+  });
+
+  it("uses pairwise attractive potential without double counting", () => {
+    const bodies: BodyState[] = [
+      makeBody("a", 2, { x: 0, y: 0 }),
+      makeBody("b", 3, { x: 3, y: 0 }),
+      makeBody("c", 4, { x: 0, y: 4 }),
+    ];
+    const params = makeParams({ G: 6, softening: 0 });
+    const expectedPotential =
+      (-6 * 2 * 3) / 3 +
+      (-6 * 2 * 4) / 4 +
+      (-6 * 3 * 4) / 5;
+
+    const energy = totalEnergy(bodies, params);
+
+    expect(energy).toBeLessThan(0);
+    expect(energy).toBeCloseTo(expectedPotential, 12);
+  });
+
+  it("stays finite for coincident bodies when softening is applied", () => {
+    const bodies: BodyState[] = [
+      makeBody("a", 1, { x: 2, y: -3 }, { x: 0.5, y: -0.5 }),
+      makeBody("b", 2, { x: 2, y: -3 }, { x: -0.5, y: 0.5 }),
+    ];
+    const params = makeParams({ G: 10, softening: 0.25 });
+
+    const energy = totalEnergy(bodies, params);
+
+    expect(Number.isFinite(energy)).toBe(true);
+  });
+
+  it("matches a deterministic two-body fixture", () => {
+    const bodies: BodyState[] = [
+      makeBody("a", 2, { x: 0, y: 0 }, { x: 1, y: 0 }),
+      makeBody("b", 3, { x: 4, y: 0 }, { x: 0, y: 2 }),
+    ];
+    const params = makeParams({ G: 2, softening: 0 });
+
+    const energy = totalEnergy(bodies, params);
+
+    expect(energy).toBeCloseTo(4, 12);
   });
 });
