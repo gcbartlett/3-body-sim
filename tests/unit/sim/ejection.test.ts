@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EJECTION_TIME_THRESHOLD_SECONDS,
+  coreEscapeMetricsForBody,
   evaluateEjection,
 } from "~/src/sim/ejection";
 import type { BodyState, SimParams, WorldState } from "~/src/sim/types";
@@ -53,6 +54,140 @@ const makeParams = (overrides: Partial<SimParams> = {}): SimParams => ({
   softening: 0.01,
   trailFade: 0.01,
   ...overrides,
+});
+
+describe("coreEscapeMetricsForBody", () => {
+  it("returns null for out-of-range body index and for fewer than 3 bodies", () => {
+    const outOfRange = coreEscapeMetricsForBody(99, makeWorld(), makeParams());
+    const tooFewBodies = coreEscapeMetricsForBody(
+      0,
+      makeWorld({ bodies: makeBodies().slice(0, 2) }),
+      makeParams(),
+    );
+
+    expect(outOfRange).toBeNull();
+    expect(tooFewBodies).toBeNull();
+  });
+
+  it("produces stable finite outputs under near-zero separations", () => {
+    const world = makeWorld({
+      bodies: makeBodies([
+        { position: { x: 0, y: 0 }, velocity: { x: 0, y: 0 } },
+        { position: { x: 0, y: 0 }, velocity: { x: 0, y: 0 } },
+        { position: { x: 0, y: 0 }, velocity: { x: 0, y: 0 } },
+      ]),
+    });
+
+    const metrics = coreEscapeMetricsForBody(0, world, makeParams());
+
+    expect(metrics).not.toBeNull();
+    if (!metrics) {
+      throw new Error("Expected metrics for in-range body");
+    }
+    expect(Number.isFinite(metrics.energy)).toBe(true);
+    expect(Number.isFinite(metrics.speedRatioToEscape)).toBe(true);
+    expect(Number.isFinite(metrics.coreSeparation)).toBe(true);
+    expect(Number.isFinite(metrics.farCoreRatio)).toBe(true);
+    expect(Number.isFinite(metrics.relPosition.x)).toBe(true);
+    expect(Number.isFinite(metrics.relPosition.y)).toBe(true);
+    expect(Number.isFinite(metrics.relVelocity.x)).toBe(true);
+    expect(Number.isFinite(metrics.relVelocity.y)).toBe(true);
+  });
+
+  it("flags outward from the radial dot-product sign", () => {
+    const outwardMetrics = coreEscapeMetricsForBody(
+      0,
+      makeWorld({
+        bodies: makeBodies([
+          { position: { x: 10, y: 0 }, velocity: { x: 1, y: 0 } },
+          { position: { x: -0.5, y: 0 }, velocity: { x: 0, y: 0 } },
+          { position: { x: 0.5, y: 0 }, velocity: { x: 0, y: 0 } },
+        ]),
+      }),
+      makeParams(),
+    );
+    const inwardMetrics = coreEscapeMetricsForBody(
+      0,
+      makeWorld({
+        bodies: makeBodies([
+          { position: { x: 10, y: 0 }, velocity: { x: -1, y: 0 } },
+          { position: { x: -0.5, y: 0 }, velocity: { x: 0, y: 0 } },
+          { position: { x: 0.5, y: 0 }, velocity: { x: 0, y: 0 } },
+        ]),
+      }),
+      makeParams(),
+    );
+
+    expect(outwardMetrics?.outward).toBe(true);
+    expect(inwardMetrics?.outward).toBe(false);
+  });
+
+  it("sets strongEscape around ratio threshold and outward-enough gate", () => {
+    const params = makeParams();
+    const ratioThreshold = 1.08;
+    const baselineMetrics = coreEscapeMetricsForBody(
+      0,
+      makeWorld({
+        bodies: makeBodies([
+          { position: { x: 10, y: 0 }, velocity: { x: 1, y: 0 } },
+          { position: { x: -0.5, y: 0 }, velocity: { x: 0, y: 0 } },
+          { position: { x: 0.5, y: 0 }, velocity: { x: 0, y: 0 } },
+        ]),
+      }),
+      params,
+    );
+    if (!baselineMetrics) {
+      throw new Error("Expected baseline metrics");
+    }
+
+    const thresholdSpeed = ratioThreshold / baselineMetrics.speedRatioToEscape;
+    const belowThresholdSpeed = thresholdSpeed - 1e-6;
+    const aboveThresholdSpeed = thresholdSpeed + 1e-6;
+
+    const belowThreshold = coreEscapeMetricsForBody(
+      0,
+      makeWorld({
+        bodies: makeBodies([
+          { position: { x: 10, y: 0 }, velocity: { x: belowThresholdSpeed, y: 0 } },
+          { position: { x: -0.5, y: 0 }, velocity: { x: 0, y: 0 } },
+          { position: { x: 0.5, y: 0 }, velocity: { x: 0, y: 0 } },
+        ]),
+      }),
+      params,
+    );
+    const aboveThreshold = coreEscapeMetricsForBody(
+      0,
+      makeWorld({
+        bodies: makeBodies([
+          { position: { x: 10, y: 0 }, velocity: { x: aboveThresholdSpeed, y: 0 } },
+          { position: { x: -0.5, y: 0 }, velocity: { x: 0, y: 0 } },
+          { position: { x: 0.5, y: 0 }, velocity: { x: 0, y: 0 } },
+        ]),
+      }),
+      params,
+    );
+    const outwardTooSmall = coreEscapeMetricsForBody(
+      0,
+      makeWorld({
+        bodies: makeBodies([
+          {
+            position: { x: 10, y: 0 },
+            velocity: { x: aboveThresholdSpeed * 0.01, y: aboveThresholdSpeed },
+          },
+          { position: { x: -0.5, y: 0 }, velocity: { x: 0, y: 0 } },
+          { position: { x: 0.5, y: 0 }, velocity: { x: 0, y: 0 } },
+        ]),
+      }),
+      params,
+    );
+
+    expect(belowThreshold?.speedRatioToEscape).toBeLessThan(ratioThreshold);
+    expect(aboveThreshold?.speedRatioToEscape).toBeGreaterThan(ratioThreshold);
+    expect(belowThreshold?.strongEscape).toBe(false);
+    expect(aboveThreshold?.strongEscape).toBe(true);
+    expect(outwardTooSmall?.outward).toBe(true);
+    expect(outwardTooSmall?.strongEscape).toBe(false);
+  });
 });
 
 describe("evaluateEjection", () => {
