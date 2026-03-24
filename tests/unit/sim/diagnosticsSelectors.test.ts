@@ -122,3 +122,49 @@ describe("displayPairStateFromEnergies", () => {
     expect(customThreshold).toEqual({ nbound: 0, state: "dissolving" });
   });
 });
+
+describe("pairEnergiesForBodies", () => {
+  it("computes eps12/eps13/eps23 in the expected pair order", () => {
+    const energies = pairEnergiesForBodies(
+      makeBodies([
+        { velocity: { x: 0, y: 0 } },
+        { velocity: { x: 2, y: 0 } },
+        { velocity: { x: 0, y: 3 } },
+      ]),
+      makeParams({ G: 0 }),
+    );
+
+    expect(energies.eps12).toBeCloseTo(2, 12);
+    expect(energies.eps13).toBeCloseTo(4.5, 12);
+    expect(energies.eps23).toBeCloseTo(6.5, 12);
+  });
+
+  it("uses softened distance term and remains finite near zero separation", () => {
+    const energies = pairEnergiesForBodies(
+      makeBodies([
+        { position: { x: 0, y: 0 }, velocity: { x: 0, y: 0 } },
+        { position: { x: 0, y: 0 }, velocity: { x: 0, y: 0 } },
+        { position: { x: 1e-12, y: -1e-12 }, velocity: { x: 0, y: 0 } },
+      ]),
+      makeParams({ G: 10, softening: 0.1 }),
+    );
+
+    expect(Number.isFinite(energies.eps12)).toBe(true);
+    expect(Number.isFinite(energies.eps13)).toBe(true);
+    expect(Number.isFinite(energies.eps23)).toBe(true);
+  });
+
+  it("returns 0 for energies involving missing pair members", () => {
+    const energies = pairEnergiesForBodies(
+      makeBodies([
+        {},
+        {},
+      ]).slice(0, 2),
+      makeParams(),
+    );
+
+    expect(energies.eps13).toBe(0);
+    expect(energies.eps23).toBe(0);
+    expect(energies.eps12).not.toBe(0);
+  });
+});
