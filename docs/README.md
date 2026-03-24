@@ -104,22 +104,9 @@ Tests may import app modules via the `~` alias (for example `~/src/sim/physics`)
 - Double-click canvas: return to auto camera mode
 - Hover near a body: show body tooltip diagnostics
 
-## Simulation Notes
+## Simulation and Data Internals
 
-- Physics is Newtonian point-mass gravity with softening `epsilon` to avoid singular acceleration at close approach.
-- Integrator is Velocity Verlet (`src/sim/integrators.ts`).
-- Ejection logic requires sustained strong-escape conditions before flagging a body as ejected.
-- Dissolution is detected when no pair remains bound long enough, then the simulation pauses.
-
-## Persistence
-
-The app stores UI and user data in browser `localStorage`, including:
-
-- Simulation parameters
-- User-created preset profiles
-- Panel expanded/collapsed state
-- Control section open states
-- Diagnostics panel open state
+Simulation behavior details and persistence (`localStorage`) notes are documented in `docs/ARCHITECTURE.md`.
 
 ## Project Structure
 
