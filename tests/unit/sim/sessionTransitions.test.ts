@@ -11,7 +11,7 @@ vi.mock("~/src/sim/ejection", () => ({
 
 import { evaluateEjection } from "~/src/sim/ejection";
 import { velocityVerletStep } from "~/src/sim/integrators";
-import { buildSingleStepTransition } from "~/src/sim/sessionTransitions";
+import { buildSingleStepTransition, buildStartPauseTransition } from "~/src/sim/sessionTransitions";
 
 const makeBodies = (): BodyState[] => [
   {
@@ -142,5 +142,80 @@ describe("buildSingleStepTransition", () => {
     expect(result.ejectionCounterById).toEqual({ b: 9 });
     expect(result.ejectedBodyId).toBe("b");
     expect(result.ejectedBodyIds).toEqual(["b", "c"]);
+  });
+});
+
+describe("buildStartPauseTransition", () => {
+  it("toggles isRunning on each call", () => {
+    const computeDiagnostics = vi.fn(() => ({ energy: 1, momentum: { x: 0, y: 0 } }));
+
+    const started = buildStartPauseTransition(makeWorld({ isRunning: false }), makeParams(), computeDiagnostics);
+    const paused = buildStartPauseTransition(makeWorld({ isRunning: true }), makeParams(), computeDiagnostics);
+
+    expect(started.nextWorld.isRunning).toBe(true);
+    expect(paused.nextWorld.isRunning).toBe(false);
+  });
+
+  it("produces baseline diagnostics only when starting from stopped at elapsedTime===0", () => {
+    const diagnostics = { energy: 42, momentum: { x: 1, y: -1 } };
+    const computeDiagnostics = vi.fn(() => diagnostics);
+
+    const initialStart = buildStartPauseTransition(
+      makeWorld({ isRunning: false, elapsedTime: 0 }),
+      makeParams(),
+      computeDiagnostics,
+    );
+    const resumed = buildStartPauseTransition(
+      makeWorld({ isRunning: false, elapsedTime: 1 }),
+      makeParams(),
+      computeDiagnostics,
+    );
+    const paused = buildStartPauseTransition(
+      makeWorld({ isRunning: true, elapsedTime: 0 }),
+      makeParams(),
+      computeDiagnostics,
+    );
+
+    expect(initialStart.baselineDiagnostics).toEqual(diagnostics);
+    expect(resumed.baselineDiagnostics).toBeNull();
+    expect(paused.baselineDiagnostics).toBeNull();
+  });
+
+  it("clears ejectedBodyId when starting from stopped state", () => {
+    const computeDiagnostics = vi.fn(() => ({ energy: 0, momentum: { x: 0, y: 0 } }));
+    const result = buildStartPauseTransition(
+      makeWorld({ isRunning: false, ejectedBodyId: "b" }),
+      makeParams(),
+      computeDiagnostics,
+    );
+
+    expect(result.nextWorld.ejectedBodyId).toBeNull();
+  });
+
+  it("clears dissolutionJustDetected when starting from stopped state", () => {
+    const computeDiagnostics = vi.fn(() => ({ energy: 0, momentum: { x: 0, y: 0 } }));
+    const result = buildStartPauseTransition(
+      makeWorld({ isRunning: false, dissolutionJustDetected: true }),
+      makeParams(),
+      computeDiagnostics,
+    );
+
+    expect(result.nextWorld.dissolutionJustDetected).toBe(false);
+  });
+
+  it("leaves transient flags unchanged when pausing from running state", () => {
+    const computeDiagnostics = vi.fn(() => ({ energy: 0, momentum: { x: 0, y: 0 } }));
+    const result = buildStartPauseTransition(
+      makeWorld({
+        isRunning: true,
+        ejectedBodyId: "c",
+        dissolutionJustDetected: true,
+      }),
+      makeParams(),
+      computeDiagnostics,
+    );
+
+    expect(result.nextWorld.ejectedBodyId).toBe("c");
+    expect(result.nextWorld.dissolutionJustDetected).toBe(true);
   });
 });
