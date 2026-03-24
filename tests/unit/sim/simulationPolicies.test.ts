@@ -9,6 +9,7 @@ import { pairBindingStateForBodies } from "~/src/sim/diagnosticsSelectors";
 import {
   DISSOLUTION_TIME_THRESHOLD_SECONDS,
   applyDissolutionProgress,
+  adjustedSimulationSpeed,
 } from "~/src/sim/simulationPolicies";
 
 const makeBodies = (): BodyState[] => [
@@ -118,5 +119,33 @@ describe("applyDissolutionProgress", () => {
     );
 
     expect(result.dissolutionCounterSec).toBe(4);
+  });
+});
+
+describe("adjustedSimulationSpeed", () => {
+  it("multiplies by factor and rounds to three decimals", () => {
+    const speed = adjustedSimulationSpeed(1.1111, 1.1111);
+
+    expect(speed).toBe(1.235);
+  });
+
+  it("clamps to the lower bound at 0.01", () => {
+    const speed = adjustedSimulationSpeed(0.02, 0.1);
+
+    expect(speed).toBe(0.01);
+  });
+
+  it("clamps to the upper bound at 30", () => {
+    const speed = adjustedSimulationSpeed(25, 2);
+
+    expect(speed).toBe(30);
+  });
+
+  it("rounds boundary-adjacent values around x.xxx5 deterministically", () => {
+    const belowHalf = adjustedSimulationSpeed(1.23449, 1);
+    const aboveHalf = adjustedSimulationSpeed(1.23451, 1);
+
+    expect(belowHalf).toBe(1.234);
+    expect(aboveHalf).toBe(1.235);
   });
 });
