@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  displayPairStateFromEnergies,
   pairBindingStateForBodies,
   pairEnergiesForBodies,
 } from "~/src/sim/diagnosticsSelectors";
@@ -85,5 +86,39 @@ describe("pairBindingStateForBodies", () => {
     expect(negativePairEnergyCount(threeNegativeBodies, params)).toBe(3);
     expect(twoNegative).toBe("resonant");
     expect(threeNegative).toBe("resonant");
+  });
+});
+
+describe("displayPairStateFromEnergies", () => {
+  it("applies strict energy < -eps threshold to compute nbound", () => {
+    const result = displayPairStateFromEnergies(-0.05, -0.051, -0.2, false);
+
+    expect(result.nbound).toBe(2);
+    expect(result.state).toBe("resonant");
+  });
+
+  it('forces "binary+single" when anyEjected=true and nbound>0', () => {
+    const result = displayPairStateFromEnergies(-1, -1, -1, true);
+
+    expect(result.nbound).toBe(3);
+    expect(result.state).toBe("binary+single");
+  });
+
+  it('maps nbound 0/1/2+ to dissolving/binary+single/resonant without ejection', () => {
+    const noneBound = displayPairStateFromEnergies(0.1, -0.01, -0.02, false);
+    const oneBound = displayPairStateFromEnergies(-0.06, -0.01, -0.02, false);
+    const twoBound = displayPairStateFromEnergies(-0.06, -0.07, -0.01, false);
+
+    expect(noneBound).toEqual({ nbound: 0, state: "dissolving" });
+    expect(oneBound).toEqual({ nbound: 1, state: "binary+single" });
+    expect(twoBound).toEqual({ nbound: 2, state: "resonant" });
+  });
+
+  it("honors custom displayPairEnergyEps", () => {
+    const defaultThreshold = displayPairStateFromEnergies(-0.08, -0.07, 0.1, false);
+    const customThreshold = displayPairStateFromEnergies(-0.08, -0.07, 0.1, false, 0.09);
+
+    expect(defaultThreshold).toEqual({ nbound: 2, state: "resonant" });
+    expect(customThreshold).toEqual({ nbound: 0, state: "dissolving" });
   });
 });
