@@ -2,15 +2,11 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { TrailMap } from "../render/canvasRenderer";
 import { cloneBodies } from "./presets";
 import { generateRandomChaoticBodies, generateRandomStableBodies } from "./randomProfiles";
+import { applyDissolutionProgress, diagnosticsSnapshot } from "./simulationPolicies";
 import {
-  appendTrailPoints,
-  applyDissolutionProgress,
-  diagnosticsSnapshot,
-} from "./simulationPolicies";
-import {
-  buildNewInitialStateTransition,
-  buildSingleStepTransition,
-  buildStartPauseTransition,
+  applyNewInitialStateTransition,
+  runSingleStepTransition,
+  runStartPauseTransition,
 } from "./sessionTransitions";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./types";
 import { useDraftEditPolicy, type DraftEditPolicyHandlers } from "./useDraftEditPolicy";
@@ -71,30 +67,34 @@ export const useSimulationSession = ({
     setBaselineDiagnostics,
   });
 
-  const applyNewInitialStateTransition = (nextBodies: BodyState[], nextParams: SimParams) => {
-    const transition = buildNewInitialStateTransition(nextBodies, nextParams, diagnosticsSnapshot);
-    worldRef.current = transition.nextWorld;
-    setWorld(transition.nextWorld);
-    setBaselineDiagnostics(transition.baselineDiagnostics);
-    trailsRef.current = {};
-    simStepCounterRef.current = 0;
+  const newInitialStateDeps = {
+    worldRef,
+    trailsRef,
+    simStepCounterRef,
+    setWorld,
+    setBaselineDiagnostics,
+  };
+  const startPauseDeps = {
+    worldRef,
+    paramsRef,
+    setWorld,
+    setBaselineDiagnostics,
+  };
+  const singleStepDeps = {
+    worldRef,
+    paramsRef,
+    trailsRef,
+    setWorld,
   };
 
   const applyBodiesAsNewInitialState = (nextBodies: BodyState[]) => {
     setDraftBodies(nextBodies);
-    applyNewInitialStateTransition(nextBodies, paramsRef.current);
+    applyNewInitialStateTransition(newInitialStateDeps, nextBodies, paramsRef.current, diagnosticsSnapshot);
     scheduleFastReframe();
   };
 
   const onStartPause = () => {
-    setWorld((prev) => {
-      const transition = buildStartPauseTransition(prev, paramsRef.current, diagnosticsSnapshot);
-      if (transition.baselineDiagnostics) {
-        setBaselineDiagnostics(transition.baselineDiagnostics);
-      }
-      worldRef.current = transition.nextWorld;
-      return transition.nextWorld;
-    });
+    runStartPauseTransition(startPauseDeps, diagnosticsSnapshot);
   };
 
   const onReset = () => {
@@ -102,18 +102,11 @@ export const useSimulationSession = ({
     lastTimeRef.current = null;
     setManualMode(false);
     scheduleFastReframe();
-    applyNewInitialStateTransition(draftBodies, paramsRef.current);
+    applyNewInitialStateTransition(newInitialStateDeps, draftBodies, paramsRef.current, diagnosticsSnapshot);
   };
 
   const onStep = () => {
-    const nextWorld = buildSingleStepTransition(
-      worldRef.current,
-      paramsRef.current,
-      applyDissolutionProgress,
-    );
-    worldRef.current = nextWorld;
-    setWorld(nextWorld);
-    trailsRef.current = appendTrailPoints(trailsRef.current, nextWorld.bodies);
+    runSingleStepTransition(singleStepDeps, applyDissolutionProgress);
   };
 
   const onApplyPreset = () => {
@@ -127,7 +120,7 @@ export const useSimulationSession = ({
     setDraftBodies(nextBodies);
     setParams(nextParams);
     paramsRef.current = nextParams;
-    applyNewInitialStateTransition(nextBodies, nextParams);
+    applyNewInitialStateTransition(newInitialStateDeps, nextBodies, nextParams, diagnosticsSnapshot);
     scheduleFastReframe();
   };
 

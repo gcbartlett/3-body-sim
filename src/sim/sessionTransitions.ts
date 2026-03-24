@@ -1,5 +1,8 @@
+import type { Dispatch, RefObject, SetStateAction } from "react";
+import type { TrailMap } from "../render/canvasRenderer";
 import { evaluateEjection } from "./ejection";
 import { velocityVerletStep } from "./integrators";
+import { appendTrailPoints } from "./simulationPolicies";
 import type { BodyState, DiagnosticsSnapshot, SimParams, WorldState } from "./types";
 import { createStoppedWorld } from "./worldState";
 
@@ -20,6 +23,28 @@ export const buildNewInitialStateTransition = (
     nextWorld,
     baselineDiagnostics: computeDiagnostics(nextWorld.bodies, nextParams),
   };
+};
+
+export type NewInitialStateTransitionDeps = {
+  worldRef: RefObject<WorldState>;
+  trailsRef: RefObject<TrailMap>;
+  simStepCounterRef: RefObject<number>;
+  setWorld: Dispatch<SetStateAction<WorldState>>;
+  setBaselineDiagnostics: Dispatch<SetStateAction<DiagnosticsSnapshot>>;
+};
+
+export const applyNewInitialStateTransition = (
+  deps: NewInitialStateTransitionDeps,
+  nextBodies: BodyState[],
+  nextParams: SimParams,
+  computeDiagnostics: DiagnosticsComputer,
+): void => {
+  const transition = buildNewInitialStateTransition(nextBodies, nextParams, computeDiagnostics);
+  deps.worldRef.current = transition.nextWorld;
+  deps.setWorld(transition.nextWorld);
+  deps.setBaselineDiagnostics(transition.baselineDiagnostics);
+  deps.trailsRef.current = {};
+  deps.simStepCounterRef.current = 0;
 };
 
 export type StartPauseTransition = {
@@ -48,6 +73,27 @@ export const buildStartPauseTransition = (
   return { nextWorld, baselineDiagnostics };
 };
 
+export type StartPauseTransitionDeps = {
+  worldRef: RefObject<WorldState>;
+  paramsRef: RefObject<SimParams>;
+  setWorld: Dispatch<SetStateAction<WorldState>>;
+  setBaselineDiagnostics: Dispatch<SetStateAction<DiagnosticsSnapshot>>;
+};
+
+export const runStartPauseTransition = (
+  deps: StartPauseTransitionDeps,
+  computeDiagnostics: DiagnosticsComputer,
+): void => {
+  deps.setWorld((prev) => {
+    const transition = buildStartPauseTransition(prev, deps.paramsRef.current, computeDiagnostics);
+    if (transition.baselineDiagnostics) {
+      deps.setBaselineDiagnostics(transition.baselineDiagnostics);
+    }
+    deps.worldRef.current = transition.nextWorld;
+    return transition.nextWorld;
+  });
+};
+
 export const buildSingleStepTransition = (
   currentWorld: WorldState,
   params: SimParams,
@@ -69,4 +115,25 @@ export const buildSingleStepTransition = (
     isRunning: false,
   };
   return applyDissolutionProgress(nextWorld, params, params.dt);
+};
+
+export type SingleStepTransitionDeps = {
+  worldRef: RefObject<WorldState>;
+  paramsRef: RefObject<SimParams>;
+  trailsRef: RefObject<TrailMap>;
+  setWorld: Dispatch<SetStateAction<WorldState>>;
+};
+
+export const runSingleStepTransition = (
+  deps: SingleStepTransitionDeps,
+  applyDissolutionProgress: (world: WorldState, stepParams: SimParams, dt: number) => WorldState,
+): void => {
+  const nextWorld = buildSingleStepTransition(
+    deps.worldRef.current,
+    deps.paramsRef.current,
+    applyDissolutionProgress,
+  );
+  deps.worldRef.current = nextWorld;
+  deps.setWorld(nextWorld);
+  deps.trailsRef.current = appendTrailPoints(deps.trailsRef.current, nextWorld.bodies);
 };
