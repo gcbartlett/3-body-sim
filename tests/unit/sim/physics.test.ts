@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { centerOfMass, computeAccelerations, totalEnergy } from "~/src/sim/physics";
+import {
+  centerOfMass,
+  computeAccelerations,
+  totalEnergy,
+  totalMomentum,
+} from "~/src/sim/physics";
 import type { BodyState, SimParams } from "~/src/sim/types";
 
 const makeParams = (overrides: Partial<SimParams> = {}): SimParams => ({
@@ -196,5 +201,20 @@ describe("centerOfMass", () => {
 
     expect(shiftedCom.x - baseCom.x).toBeCloseTo(shift.x, 12);
     expect(shiftedCom.y - baseCom.y).toBeCloseTo(shift.y, 12);
+  });
+});
+
+describe("totalMomentum", () => {
+  it("returns the mass-weighted sum of velocity vectors", () => {
+    const bodies: BodyState[] = [
+      makeBody("a", 2, { x: 0, y: 0 }, { x: 3, y: -1 }),
+      makeBody("b", 3, { x: 5, y: 2 }, { x: -2, y: 4 }),
+      makeBody("c", 1.5, { x: -4, y: 9 }, { x: 0.5, y: -2 }),
+    ];
+
+    const momentum = totalMomentum(bodies);
+
+    expect(momentum.x).toBeCloseTo(0.75, 12);
+    expect(momentum.y).toBeCloseTo(7, 12);
   });
 });
