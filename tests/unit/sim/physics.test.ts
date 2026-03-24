@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeAccelerations, totalEnergy } from "~/src/sim/physics";
+import { centerOfMass, computeAccelerations, totalEnergy } from "~/src/sim/physics";
 import type { BodyState, SimParams } from "~/src/sim/types";
 
 const makeParams = (overrides: Partial<SimParams> = {}): SimParams => ({
@@ -146,5 +146,55 @@ describe("totalEnergy", () => {
     const energy = totalEnergy(bodies, params);
 
     expect(energy).toBeCloseTo(4, 12);
+  });
+});
+
+describe("centerOfMass", () => {
+  it("computes the weighted average for unequal masses", () => {
+    const bodies: BodyState[] = [
+      makeBody("a", 2, { x: -4, y: 1 }),
+      makeBody("b", 3, { x: 5, y: -2 }),
+      makeBody("c", 5, { x: 1, y: 4 }),
+    ];
+
+    const com = centerOfMass(bodies);
+
+    expect(com.x).toBeCloseTo(1.2, 12);
+    expect(com.y).toBeCloseTo(1.6, 12);
+  });
+
+  it("returns {0,0} when total mass is zero or negative", () => {
+    const zeroTotalMass = centerOfMass([
+      makeBody("a", 2, { x: 10, y: -10 }),
+      makeBody("b", -2, { x: -10, y: 10 }),
+    ]);
+    const negativeTotalMass = centerOfMass([
+      makeBody("a", -1, { x: 3, y: 7 }),
+      makeBody("b", -4, { x: -2, y: -8 }),
+    ]);
+
+    expect(zeroTotalMass).toEqual({ x: 0, y: 0 });
+    expect(negativeTotalMass).toEqual({ x: 0, y: 0 });
+  });
+
+  it("shifts by the same offset when all body positions are translated", () => {
+    const baseBodies: BodyState[] = [
+      makeBody("a", 1.5, { x: -3, y: 2 }),
+      makeBody("b", 2.5, { x: 4, y: -1 }),
+      makeBody("c", 0.75, { x: 1, y: 5 }),
+    ];
+    const shift = { x: 11, y: -9 };
+    const shiftedBodies = baseBodies.map((body) =>
+      makeBody(body.id, body.mass, {
+        x: body.position.x + shift.x,
+        y: body.position.y + shift.y,
+      }),
+    );
+
+    const baseCom = centerOfMass(baseBodies);
+    const shiftedCom = centerOfMass(shiftedBodies);
+
+    expect(shiftedCom.x - baseCom.x).toBeCloseTo(shift.x, 12);
+    expect(shiftedCom.y - baseCom.y).toBeCloseTo(shift.y, 12);
   });
 });
