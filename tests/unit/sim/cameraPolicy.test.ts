@@ -1,0 +1,121 @@
+import { describe, expect, it } from "vitest";
+import { updateCamera } from "~/src/sim/camera";
+import { computeAutoCamera } from "~/src/sim/cameraPolicy";
+import { centerOfMass } from "~/src/sim/physics";
+import type { BodyState, LockMode } from "~/src/sim/types";
+
+const makeBodies = (
+  specs: Array<{ id: string; mass: number; x: number; y: number; vx?: number; vy?: number }>,
+): BodyState[] =>
+  specs.map((body) => ({
+    id: body.id,
+    mass: body.mass,
+    position: { x: body.x, y: body.y },
+    velocity: { x: body.vx ?? 0, y: body.vy ?? 0 },
+    color: "#fff",
+  }));
+
+describe("computeAutoCamera", () => {
+  it('selects center from lock mode: "com", "origin", or tracked center for "none"', () => {
+    const camera = { center: { x: 5, y: -4 }, worldUnitsPerPixel: 2 };
+    const viewport = { width: 100, height: 100 };
+    const bodies = makeBodies([
+      { id: "a", mass: 1, x: -10, y: 0 },
+      { id: "b", mass: 3, x: 14, y: 6 },
+      { id: "c", mass: 2, x: 2, y: -8 },
+    ]);
+    const trackedCenter = updateCamera(camera, bodies, viewport).center;
+    const com = centerOfMass(bodies);
+
+    const noneResult = computeAutoCamera({
+      camera,
+      bodies,
+      viewport,
+      lockMode: "none",
+      forceFastZoomInFrames: 0,
+    });
+    const originResult = computeAutoCamera({
+      camera,
+      bodies,
+      viewport,
+      lockMode: "origin",
+      forceFastZoomInFrames: 0,
+    });
+    const comResult = computeAutoCamera({
+      camera,
+      bodies,
+      viewport,
+      lockMode: "com",
+      forceFastZoomInFrames: 0,
+    });
+
+    expect(noneResult.camera.center).toEqual(trackedCenter);
+    expect(originResult.camera.center).toEqual({ x: 0, y: 0 });
+    expect(comResult.camera.center).toEqual(com);
+  });
+
+  it("uses fast zoom-out damping and increases scale when required scale is larger", () => {
+    const result = computeAutoCamera({
+      camera: { center: { x: 0, y: 0 }, worldUnitsPerPixel: 1 },
+      bodies: makeBodies([
+        { id: "a", mass: 1, x: -100, y: 0 },
+        { id: "b", mass: 1, x: 100, y: 0 },
+        { id: "c", mass: 1, x: 0, y: 0 },
+      ]),
+      viewport: { width: 100, height: 100 },
+      lockMode: "origin",
+      forceFastZoomInFrames: 0,
+    });
+
+    expect(result.camera.worldUnitsPerPixel).toBeCloseTo(1.406060606, 9);
+    expect(result.camera.worldUnitsPerPixel).toBeGreaterThan(1);
+  });
+
+  it("prevents zoom-in jitter when required scale is inside hysteresis band", () => {
+    const currentScale = 2;
+    const result = computeAutoCamera({
+      camera: { center: { x: 0, y: 0 }, worldUnitsPerPixel: currentScale },
+      bodies: makeBodies([
+        { id: "a", mass: 1, x: -62.7, y: 0 },
+        { id: "b", mass: 1, x: 62.7, y: 0 },
+        { id: "c", mass: 1, x: 0, y: 0 },
+      ]),
+      viewport: { width: 100, height: 100 },
+      lockMode: "origin",
+      forceFastZoomInFrames: 0,
+    });
+
+    expect(result.camera.worldUnitsPerPixel).toBe(currentScale);
+  });
+
+  it("decrements forceFastZoomInFrames and uses fast damping while active", () => {
+    const result = computeAutoCamera({
+      camera: { center: { x: 0, y: 0 }, worldUnitsPerPixel: 2 },
+      bodies: makeBodies([
+        { id: "a", mass: 1, x: -33, y: 0 },
+        { id: "b", mass: 1, x: 33, y: 0 },
+        { id: "c", mass: 1, x: 0, y: 0 },
+      ]),
+      viewport: { width: 100, height: 100 },
+      lockMode: "origin",
+      forceFastZoomInFrames: 2,
+    });
+
+    expect(result.camera.worldUnitsPerPixel).toBeCloseTo(1.8, 12);
+    expect(result.nextForceFastZoomInFrames).toBe(1);
+  });
+
+  it("handles empty bodies using minimum required scale fallback", () => {
+    const result = computeAutoCamera({
+      camera: { center: { x: 10, y: -10 }, worldUnitsPerPixel: 1 },
+      bodies: [],
+      viewport: { width: 100, height: 100 },
+      lockMode: "origin" satisfies LockMode,
+      forceFastZoomInFrames: 0,
+    });
+
+    expect(result.camera.center).toEqual({ x: 0, y: 0 });
+    expect(result.camera.worldUnitsPerPixel).toBeCloseTo(0.9975025, 12);
+    expect(Number.isFinite(result.camera.worldUnitsPerPixel)).toBe(true);
+  });
+});
