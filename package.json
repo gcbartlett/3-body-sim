@@ -11,6 +11,7 @@
     "lint:fix": "eslint . --fix",
     "dev": "vite",
     "test": "vitest run",
+    "test:verbose": "vitest run --reporter=verbose",
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "preview": "vite preview"
   },
