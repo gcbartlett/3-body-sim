@@ -1,0 +1,18 @@
+// Test-only TypeScript project for Vitest files under tests/.
+{
+  // Inherit baseline compiler behavior from src config.
+  "extends": "./tsconfig.src.json",
+
+  "compilerOptions": {
+    // Keep "~" usable in tests (e.g., "~/src/sim/physics") for TS/IDE resolution.
+    // Vite/Vitest resolution is configured separately in vite.config.ts.
+    "paths": {
+      "~/*": ["*"]
+    },
+
+    // Provide global test APIs and Node typings in test files.
+    "types": ["vitest/globals", "node"]
+  },
+
+  "include": ["tests"]
+}

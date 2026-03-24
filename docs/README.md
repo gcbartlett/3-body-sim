@@ -56,6 +56,8 @@ Vercel automatically rebuilds and redeploys when the GitHub repository (`https:/
 ### Prerequisites
 
 - Node.js `20.19+` or `22.12+`
+- TypeScript language baseline: `ES2022` (for type-checking/editor support)
+- Modern browsers matching Vite's default build target (`baseline-widely-available`): Chrome `111+`, Edge `111+`, Firefox `114+`, Safari/iOS Safari `16.4+`
 
 ### Install
 

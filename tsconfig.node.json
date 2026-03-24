@@ -1,10 +1,17 @@
+// Node-side TypeScript settings for tooling/config files.
 {
   "compilerOptions": {
-    "skipLibCheck": true,
+    // Keep resolution behavior aligned with Vite's ESM tooling.
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "allowSyntheticDefaultImports": true,
+
+    // Type-checking behavior for config files.
+    "skipLibCheck": true,
+
+    // Type-check config files only; no emitted output.
     "noEmit": true
   },
+
   "include": ["vite.config.ts"]
 }

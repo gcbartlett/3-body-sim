@@ -20,16 +20,20 @@ const gitValue = (command: string) => {
 
 const commitDate = gitValue("git show -s --format=%cd --date=format:%Y.%m.%d HEAD");
 const shortSha = gitValue("git rev-parse --short=7 HEAD");
+
+// Build-time version label shown in the app (falls back to "dev" outside git contexts).
 const appVersion = commitDate && shortSha ? `${commitDate}+g${shortSha}` : "dev";
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      // Resolve "~" from repository root so imports like "~/src/..." work in Vite/Vitest.
       "~": fileURLToPath(new URL(".", import.meta.url)),
     },
   },
   define: {
+    // Inject compile-time app version constant consumed by src/App.tsx.
     __APP_VERSION__: JSON.stringify(appVersion),
   },
 });

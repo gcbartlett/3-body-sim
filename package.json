@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:verbose": "vitest run --reporter=verbose",
-    "build": "tsc --noEmit -p tsconfig.app.json && vite build",
+    "build": "tsc --noEmit -p tsconfig.src.json && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

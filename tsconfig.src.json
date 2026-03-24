@@ -1,0 +1,28 @@
+// Base TypeScript settings for browser app source files in src/.
+{
+  "compilerOptions": {
+    // JavaScript language baseline used for type-checking.
+    "target": "ES2022",
+
+    // Runtime environment libs for browser app code.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+    // Match Vite/esbuild style module resolution.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+
+    // Resolution and file-model options shared by extending configs.
+    "baseUrl": ".",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+
+    // Type-checking behavior; Vite handles transpile/bundle.
+    "skipLibCheck": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noFallthroughCasesInSwitch": true
+  },
+
+  "include": ["src"]
+}

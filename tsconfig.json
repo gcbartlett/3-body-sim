@@ -1,10 +1,22 @@
+// Solution-style root config used by editors and project references.
 {
+  // This file does not type-check source files directly.
   "files": [],
+
+  // Referenced subprojects are type-checked independently.
   "references": [
     {
-      "path": "./tsconfig.app.json"
+      // Browser app source under src/
+      "path": "./tsconfig.src.json"
     },
+
     {
+      // Vitest files under tests/
+      "path": "./tsconfig.tests.json"
+    },
+
+    {
+      // Node-side tooling config (vite.config.ts)
       "path": "./tsconfig.node.json"
     }
   ]
