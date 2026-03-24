@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import "./styles.css";
 import type { TrailMap } from "./render/canvasRenderer";
 import type { Camera } from "./sim/camera";
@@ -393,6 +393,36 @@ function App() {
     bodyColors: BODY_COLORS,
     pairStateLabel: boundPairState,
   });
+  const stageHudProps: ComponentProps<typeof StageHud> = {
+    statusLabel: stageViewModel.statusLabel,
+    ejectedStatusRows: stageViewModel.ejectedStatusRows,
+    elapsedTime: world.elapsedTime,
+    speed: params.speed,
+    panelExpanded,
+    onTogglePanelExpanded,
+  };
+  const stageControlsProps: ComponentProps<typeof StageControls> = {
+    runButtonLabel: stageViewModel.runButtonLabel,
+    runButtonTooltip: stageViewModel.runButtonTooltip,
+    onStartPause,
+    onReset,
+    onStep,
+    ejectedBodyId: world.ejectedBodyId,
+    latestEjectedLabel: stageViewModel.latestEjectedLabel,
+    dissolutionJustDetected: world.dissolutionJustDetected,
+  };
+  const diagnosticsProps: ComponentProps<typeof CanvasDiagnostics> = {
+    pairEnergies: diagnosticsViewModel.pairEnergies,
+    displayPairState: diagnosticsViewModel.displayPairState,
+    dissolutionCounterSec: world.dissolutionCounterSec,
+    dissolutionThresholdSec: DISSOLUTION_TIME_THRESHOLD_SECONDS,
+    dissolutionDetected: world.dissolutionDetected,
+    diagnostics,
+    baselineDiagnostics,
+    bodyVectors: diagnosticsViewModel.bodyVectors,
+    bodyEjectionStatuses: diagnosticsViewModel.bodyEjectionStatuses,
+    onVisibleHeightChange: setDiagnosticsInsetPx,
+  };
   return (
     <div className={`layout${panelExpanded ? "" : " panel-collapsed"}`}>
       <ControlPanel
@@ -425,36 +455,9 @@ function App() {
         onGenerateRandomChaotic={onGenerateRandomChaotic}
       />
       <main className="stage-wrap" ref={containerRef}>
-        <StageHud
-          statusLabel={stageViewModel.statusLabel}
-          ejectedStatusRows={stageViewModel.ejectedStatusRows}
-          elapsedTime={world.elapsedTime}
-          speed={params.speed}
-          panelExpanded={panelExpanded}
-          onTogglePanelExpanded={onTogglePanelExpanded}
-        />
-        <StageControls
-          runButtonLabel={stageViewModel.runButtonLabel}
-          runButtonTooltip={stageViewModel.runButtonTooltip}
-          onStartPause={onStartPause}
-          onReset={onReset}
-          onStep={onStep}
-          ejectedBodyId={world.ejectedBodyId}
-          latestEjectedLabel={stageViewModel.latestEjectedLabel}
-          dissolutionJustDetected={world.dissolutionJustDetected}
-        />
-        <CanvasDiagnostics
-          pairEnergies={diagnosticsViewModel.pairEnergies}
-          displayPairState={diagnosticsViewModel.displayPairState}
-          dissolutionCounterSec={world.dissolutionCounterSec}
-          dissolutionThresholdSec={DISSOLUTION_TIME_THRESHOLD_SECONDS}
-          dissolutionDetected={world.dissolutionDetected}
-          diagnostics={diagnostics}
-          baselineDiagnostics={baselineDiagnostics}
-          bodyVectors={diagnosticsViewModel.bodyVectors}
-          bodyEjectionStatuses={diagnosticsViewModel.bodyEjectionStatuses}
-          onVisibleHeightChange={setDiagnosticsInsetPx}
-        />
+        <StageHud {...stageHudProps} />
+        <StageControls {...stageControlsProps} />
+        <CanvasDiagnostics {...diagnosticsProps} />
         <canvas
           ref={canvasRef}
           className={`stage${manualPanZoom ? " stage-manual" : ""}`}
