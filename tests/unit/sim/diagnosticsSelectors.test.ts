@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  bodyEjectionStatusesForDisplay,
+  bodyVectorsForDisplay,
+  DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
   displayPairStateFromEnergies,
   pairBindingStateForBodies,
   pairEnergiesForBodies,
+  stageDiagnosticsViewModelForWorld,
 } from "~/src/sim/diagnosticsSelectors";
-import type { BodyState, SimParams } from "~/src/sim/types";
+import type { BodyState, SimParams, WorldState } from "~/src/sim/types";
 
 const makeParams = (overrides: Partial<SimParams> = {}): SimParams => ({
   G: 1,
@@ -47,6 +51,19 @@ const negativePairEnergyCount = (bodies: BodyState[], params: SimParams): number
   const { eps12, eps13, eps23 } = pairEnergiesForBodies(bodies, params);
   return [eps12, eps13, eps23].filter((energy) => energy < 0).length;
 };
+
+const makeWorld = (overrides: Partial<WorldState> = {}): WorldState => ({
+  bodies: makeBodies(),
+  elapsedTime: 0,
+  isRunning: false,
+  ejectionCounterById: {},
+  ejectedBodyId: null,
+  ejectedBodyIds: [],
+  dissolutionCounterSec: 0,
+  dissolutionDetected: false,
+  dissolutionJustDetected: false,
+  ...overrides,
+});
 
 describe("pairBindingStateForBodies", () => {
   it('returns "dissolving" when no pair energies are negative', () => {
@@ -166,5 +183,88 @@ describe("pairEnergiesForBodies", () => {
     expect(energies.eps13).toBe(0);
     expect(energies.eps23).toBe(0);
     expect(energies.eps12).not.toBe(0);
+  });
+});
+
+describe("stageDiagnosticsViewModelForWorld", () => {
+  it("returns displayPairState.eps for both default and custom displayPairEnergyEps", () => {
+    const world = makeWorld();
+    const params = makeParams();
+
+    const withDefaultEps = stageDiagnosticsViewModelForWorld({
+      world,
+      params,
+      ejectionThresholdSec: 10,
+    });
+    const withCustomEps = stageDiagnosticsViewModelForWorld({
+      world,
+      params,
+      ejectionThresholdSec: 10,
+      displayPairEnergyEps: 0.09,
+    });
+
+    expect(withDefaultEps.displayPairState.eps).toBe(DEFAULT_DISPLAY_PAIR_ENERGY_EPS);
+    expect(withCustomEps.displayPairState.eps).toBe(0.09);
+  });
+
+  it('forces "binary+single" when any body is ejected and nbound > 0', () => {
+    const params = makeParams({ G: 1 });
+    const worldWithoutEjection = makeWorld();
+    const worldWithEjection = makeWorld({ ejectedBodyIds: ["a"] });
+
+    const withoutEjection = stageDiagnosticsViewModelForWorld({
+      world: worldWithoutEjection,
+      params,
+      ejectionThresholdSec: 10,
+    });
+    const withEjection = stageDiagnosticsViewModelForWorld({
+      world: worldWithEjection,
+      params,
+      ejectionThresholdSec: 10,
+    });
+
+    expect(withoutEjection.displayPairState.nbound).toBeGreaterThan(0);
+    expect(withoutEjection.displayPairState.state).toBe("resonant");
+    expect(withEjection.displayPairState.nbound).toBeGreaterThan(0);
+    expect(withEjection.displayPairState.state).toBe("binary+single");
+  });
+
+  it("wires pair energies, body vectors, and ejection statuses from the same world/params", () => {
+    const world = makeWorld({
+      ejectionCounterById: { a: 2.5, b: 0, c: 0.1 },
+      ejectedBodyIds: ["b"],
+    });
+    const params = makeParams({ G: 1.2, softening: 0.05 });
+    const ejectionThresholdSec = 12;
+
+    const viewModel = stageDiagnosticsViewModelForWorld({
+      world,
+      params,
+      ejectionThresholdSec,
+    });
+
+    expect(viewModel.pairEnergies).toEqual(pairEnergiesForBodies(world.bodies, params));
+    expect(viewModel.bodyVectors).toEqual(bodyVectorsForDisplay(world.bodies, params));
+    expect(viewModel.bodyEjectionStatuses).toEqual(
+      bodyEjectionStatusesForDisplay(world, params, ejectionThresholdSec),
+    );
+  });
+
+  it("produces one body vector and one ejection status per body index", () => {
+    const world = makeWorld();
+    const params = makeParams();
+
+    const viewModel = stageDiagnosticsViewModelForWorld({
+      world,
+      params,
+      ejectionThresholdSec: 10,
+    });
+
+    expect(viewModel.bodyVectors).toHaveLength(world.bodies.length);
+    expect(viewModel.bodyEjectionStatuses).toHaveLength(world.bodies.length);
+    expect(viewModel.bodyVectors.map((entry) => entry.id)).toEqual(world.bodies.map((body) => body.id));
+    expect(viewModel.bodyEjectionStatuses.map((entry) => entry.id)).toEqual(
+      world.bodies.map((body) => body.id),
+    );
   });
 });
