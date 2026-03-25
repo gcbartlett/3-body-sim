@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildSavedPresetFromDraft } from "~/src/sim/profileValidation";
+import {
+  buildSavedPresetFromDraft,
+  validateEditedPresetDraft,
+} from "~/src/sim/profileValidation";
 import type { BodyState, SimParams } from "~/src/sim/types";
 
 const makeBodies = (): BodyState[] => [
@@ -113,5 +116,82 @@ describe("buildSavedPresetFromDraft", () => {
       throw new Error("Expected a successful result");
     }
     expect(result.preset.description).toBe("hello world");
+  });
+});
+
+describe("validateEditedPresetDraft", () => {
+  it("rejects invalid sanitized id with validation message", () => {
+    const result = validateEditedPresetDraft({
+      draft: { originalId: "user-1", id: "!!!", name: "Valid Name", description: "" },
+      existingIds: ["user-1", "user-2"],
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Profile id must include letters, numbers, dots, underscores, or hyphens.",
+    });
+  });
+
+  it("rejects duplicate id after sanitization excluding original id", () => {
+    const result = validateEditedPresetDraft({
+      draft: {
+        originalId: "user-1",
+        id: " already there ",
+        name: "Valid Name",
+        description: "",
+      },
+      existingIds: ["user-1", "already-there"],
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Profile id 'already-there' already exists. Please use a unique id.",
+    });
+  });
+
+  it("allows unchanged id for the edited profile", () => {
+    const result = validateEditedPresetDraft({
+      draft: { originalId: "user-1", id: "user-1", name: "Valid Name", description: "" },
+      existingIds: ["user-1", "user-2"],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error("Expected a successful result");
+    }
+    expect(result.profile.id).toBe("user-1");
+  });
+
+  it("rejects empty sanitized name", () => {
+    const result = validateEditedPresetDraft({
+      draft: { originalId: "user-1", id: "new-id", name: "<>", description: "" },
+      existingIds: ["user-1"],
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Profile name cannot be empty.",
+    });
+  });
+
+  it("returns sanitized id, name, and description on success", () => {
+    const result = validateEditedPresetDraft({
+      draft: {
+        originalId: "user-1",
+        id: " next id ",
+        name: "  Demo   Name ",
+        description: "  hello   world  ",
+      },
+      existingIds: ["user-1", "user-2"],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      profile: {
+        id: "next-id",
+        name: "Demo Name",
+        description: "hello world",
+      },
+    });
   });
 });

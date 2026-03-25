@@ -1,10 +1,5 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
-import {
-  sanitizePresetDescription,
-  sanitizePresetId,
-  sanitizePresetName,
-} from "./presetStorage";
-import { buildSavedPresetFromDraft } from "./profileValidation";
+import { buildSavedPresetFromDraft, validateEditedPresetDraft } from "./profileValidation";
 import type { BodyState, PresetProfile, SimParams } from "./types";
 
 export type SaveProfileDraft = {
@@ -131,33 +126,23 @@ export const useUserPresetCommands = ({
     if (!editProfileDraft) {
       return;
     }
-    const id = sanitizePresetId(editProfileDraft.id);
-    const name = sanitizePresetName(editProfileDraft.name);
-    const description = sanitizePresetDescription(editProfileDraft.description);
-    const existingIds = allPresets
-      .map((preset) => preset.id)
-      .filter((existingId) => existingId !== editProfileDraft.originalId);
-    if (!id) {
-      window.alert("Profile id must include letters, numbers, dots, underscores, or hyphens.");
-      return;
-    }
-    if (existingIds.includes(id)) {
-      window.alert(`Profile id '${id}' already exists. Please use a unique id.`);
-      return;
-    }
-    if (!name) {
-      window.alert("Profile name cannot be empty.");
+    const result = validateEditedPresetDraft({
+      draft: editProfileDraft,
+      existingIds: allPresets.map((preset) => preset.id),
+    });
+    if (!result.ok) {
+      window.alert(result.message);
       return;
     }
     setUserPresets((prev) =>
       prev.map((preset) =>
         preset.id === editProfileDraft.originalId
-          ? { ...preset, id, name, description }
+          ? { ...preset, ...result.profile }
           : preset,
       ),
     );
     if (selectedPresetId === editProfileDraft.originalId) {
-      setSelectedPresetId(id);
+      setSelectedPresetId(result.profile.id);
     }
     setEditProfileDraft(null);
   };
