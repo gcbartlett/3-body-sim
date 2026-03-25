@@ -3,7 +3,7 @@ import {
   PRESET_ID_MAX_LENGTH,
   PRESET_NAME_MAX_LENGTH,
 } from "../sim/presetStorage";
-import type { SaveProfileDraft } from "./useSaveProfileDraft";
+import type { SaveProfileDraft } from "../sim/useUserPresetCommands";
 
 type SaveProfileDialogProps = {
   draft: SaveProfileDraft | null;

@@ -51,6 +51,7 @@ src/                                   # Application source code
     useDraftEditPolicy.ts              # Stopped-world draft edit policy
     useSimulationLoop.ts               # RAF lifecycle and loop orchestration
     useSimulationSession.ts            # Session command handlers (start/reset/step/apply)
+    useUserPresetCommands.ts           # User preset CRUD/edit/save command orchestration
     vector.ts                          # Vector utilities
     worldState.ts                      # Canonical stopped-world constructors
   ui/                                  # UI components, dialogs, and hooks
@@ -77,7 +78,6 @@ src/                                   # Application source code
     useAppPersistence.ts               # App-level persistence side effects
     useCanvasCameraControls.ts         # Pointer/touch/wheel camera interactions
     useHoverTooltipState.ts            # Hover tooltip lifecycle/state hook
-    useSaveProfileDraft.ts             # Save-profile draft state hook
     useSimulationHotkeys.ts            # Keyboard shortcut handling
     useStageViewport.ts                # Canvas container/viewport sizing hook
 tests/                                 # Automated test suites
