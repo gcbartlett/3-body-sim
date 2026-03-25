@@ -11,7 +11,12 @@ vi.mock("~/src/sim/ejection", () => ({
 
 import { evaluateEjection } from "~/src/sim/ejection";
 import { velocityVerletStep } from "~/src/sim/integrators";
-import { buildSingleStepTransition, buildStartPauseTransition } from "~/src/sim/sessionTransitions";
+import {
+  applyNewInitialStateTransition,
+  buildNewInitialStateTransition,
+  buildSingleStepTransition,
+  buildStartPauseTransition,
+} from "~/src/sim/sessionTransitions";
 
 const makeBodies = (): BodyState[] => [
   {
@@ -57,6 +62,106 @@ const makeParams = (overrides: Partial<SimParams> = {}): SimParams => ({
   softening: 0.01,
   trailFade: 0.01,
   ...overrides,
+});
+
+describe("buildNewInitialStateTransition", () => {
+  it("returns stopped world clone with fresh baseline diagnostics", () => {
+    const nextBodies = makeBodies();
+    const nextParams = makeParams({ G: 1.5 });
+    const baseline = { energy: 123, momentum: { x: 2, y: -3 } };
+    const computeDiagnostics = vi.fn(() => baseline);
+
+    const result = buildNewInitialStateTransition(nextBodies, nextParams, computeDiagnostics);
+
+    expect(result.nextWorld.isRunning).toBe(false);
+    expect(result.nextWorld.elapsedTime).toBe(0);
+    expect(result.nextWorld.bodies).toEqual(nextBodies);
+    expect(result.nextWorld.bodies).not.toBe(nextBodies);
+    expect(result.nextWorld.bodies[0]).not.toBe(nextBodies[0]);
+    expect(result.nextWorld.bodies[0].position).not.toBe(nextBodies[0].position);
+    expect(computeDiagnostics).toHaveBeenCalledWith(result.nextWorld.bodies, nextParams);
+    expect(result.baselineDiagnostics).toEqual(baseline);
+  });
+});
+
+describe("applyNewInitialStateTransition", () => {
+  it("updates world ref/state and baseline diagnostics from transition output", () => {
+    const nextBodies = makeBodies();
+    const nextParams = makeParams({ dt: 0.25 });
+    const computeDiagnostics = vi.fn((bodies: BodyState[]) => ({
+      energy: bodies.length,
+      momentum: { x: 0, y: 0 },
+    }));
+
+    const worldRef = { current: makeWorld({ isRunning: true, elapsedTime: 9 }) };
+    const trailsRef = { current: { a: [{ x: 1, y: 2, life: 0.5 }] } };
+    const simStepCounterRef = { current: 99 };
+    const setWorld = vi.fn();
+    const setBaselineDiagnostics = vi.fn();
+
+    applyNewInitialStateTransition(
+      {
+        worldRef: worldRef as never,
+        trailsRef: trailsRef as never,
+        simStepCounterRef: simStepCounterRef as never,
+        setWorld,
+        setBaselineDiagnostics,
+      },
+      nextBodies,
+      nextParams,
+      computeDiagnostics,
+    );
+
+    expect(worldRef.current).toEqual(expect.objectContaining({ isRunning: false, elapsedTime: 0 }));
+    expect(worldRef.current.bodies).toEqual(nextBodies);
+    expect(setWorld).toHaveBeenCalledWith(worldRef.current);
+    expect(setBaselineDiagnostics).toHaveBeenCalledWith({
+      energy: nextBodies.length,
+      momentum: { x: 0, y: 0 },
+    });
+  });
+
+  it("resets trailsRef.current to an empty map", () => {
+    const worldRef = { current: makeWorld() };
+    const trailsRef = { current: { a: [{ x: 1, y: 2, life: 1 }] } };
+    const simStepCounterRef = { current: 12 };
+
+    applyNewInitialStateTransition(
+      {
+        worldRef: worldRef as never,
+        trailsRef: trailsRef as never,
+        simStepCounterRef: simStepCounterRef as never,
+        setWorld: vi.fn(),
+        setBaselineDiagnostics: vi.fn(),
+      },
+      makeBodies(),
+      makeParams(),
+      vi.fn(() => ({ energy: 0, momentum: { x: 0, y: 0 } })),
+    );
+
+    expect(trailsRef.current).toEqual({});
+  });
+
+  it("resets simStepCounterRef.current to 0", () => {
+    const worldRef = { current: makeWorld() };
+    const trailsRef = { current: {} };
+    const simStepCounterRef = { current: 47 };
+
+    applyNewInitialStateTransition(
+      {
+        worldRef: worldRef as never,
+        trailsRef: trailsRef as never,
+        simStepCounterRef: simStepCounterRef as never,
+        setWorld: vi.fn(),
+        setBaselineDiagnostics: vi.fn(),
+      },
+      makeBodies(),
+      makeParams(),
+      vi.fn(() => ({ energy: 0, momentum: { x: 0, y: 0 } })),
+    );
+
+    expect(simStepCounterRef.current).toBe(0);
+  });
 });
 
 describe("buildSingleStepTransition", () => {
