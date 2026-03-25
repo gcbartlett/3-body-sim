@@ -3,6 +3,7 @@ import {
   bodyEjectionStatusesForDisplay,
   bodyVectorsForDisplay,
   DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
+  diagnosticsDriftMetrics,
   displayPairStateFromEnergies,
   pairBindingStateForBodies,
   pairEnergiesForBodies,
@@ -266,5 +267,44 @@ describe("stageDiagnosticsViewModelForWorld", () => {
     expect(viewModel.bodyEjectionStatuses.map((entry) => entry.id)).toEqual(
       world.bodies.map((body) => body.id),
     );
+  });
+});
+
+describe("diagnosticsDriftMetrics", () => {
+  it("computes signed deltaEnergy and non-negative energyDriftPct", () => {
+    const result = diagnosticsDriftMetrics(
+      { energy: 8, momentum: { x: 0, y: 0 } },
+      { energy: 10, momentum: { x: 0, y: 0 } },
+    );
+
+    expect(result.deltaEnergy).toBe(-2);
+    expect(result.energyDriftPct).toBe(20);
+  });
+
+  it("computes deltaMomentumMag from the momentum vector delta norm", () => {
+    const result = diagnosticsDriftMetrics(
+      { energy: 1, momentum: { x: 3, y: 4 } },
+      { energy: 1, momentum: { x: 0, y: 0 } },
+    );
+
+    expect(result.deltaMomentumMag).toBe(5);
+  });
+
+  it("uses the 1e-9 denominator floor when baseline energy is zero", () => {
+    const result = diagnosticsDriftMetrics(
+      { energy: 2, momentum: { x: 0, y: 0 } },
+      { energy: 0, momentum: { x: 0, y: 0 } },
+    );
+
+    expect(result.energyDriftPct).toBeCloseTo(2e11, 4);
+  });
+
+  it("uses the 1e-9 denominator floor when baseline momentum magnitude is zero", () => {
+    const result = diagnosticsDriftMetrics(
+      { energy: 0, momentum: { x: 3, y: 4 } },
+      { energy: 0, momentum: { x: 0, y: 0 } },
+    );
+
+    expect(result.momentumDriftPct).toBeCloseTo(5e11, 4);
   });
 });
