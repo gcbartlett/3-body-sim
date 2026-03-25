@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSavedPresetFromDraft,
+  selectedUserPresetIbcDirty,
   validateEditedPresetDraft,
 } from "~/src/sim/profileValidation";
-import type { BodyState, SimParams } from "~/src/sim/types";
+import type { BodyState, PresetProfile, SimParams } from "~/src/sim/types";
 
 const makeBodies = (): BodyState[] => [
   {
@@ -36,6 +37,16 @@ const makeParams = (): SimParams => ({
   softening: 0.02,
   trailFade: 0.03,
 });
+
+const makeUserPresets = (bodies: BodyState[]): PresetProfile[] => [
+  {
+    id: "user-1",
+    name: "User 1",
+    description: "",
+    bodies,
+    params: makeParams(),
+  },
+];
 
 describe("buildSavedPresetFromDraft", () => {
   it("rejects invalid sanitized id with validation message", () => {
@@ -193,5 +204,61 @@ describe("validateEditedPresetDraft", () => {
         description: "hello world",
       },
     });
+  });
+});
+
+describe("selectedUserPresetIbcDirty", () => {
+  it("returns false when selected preset is not a user preset", () => {
+    const result = selectedUserPresetIbcDirty({
+      selectedPresetId: "figure-8",
+      userPresets: makeUserPresets(makeBodies()),
+      draftBodies: makeBodies(),
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it("returns false when draft bodies match selected user preset", () => {
+    const result = selectedUserPresetIbcDirty({
+      selectedPresetId: "user-1",
+      userPresets: makeUserPresets(makeBodies()),
+      draftBodies: makeBodies(),
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it("returns true when draft bodies differ from selected user preset", () => {
+    const presetBodies = makeBodies();
+    const draftBodies = makeBodies();
+    draftBodies[1] = {
+      ...draftBodies[1],
+      velocity: { ...draftBodies[1].velocity, y: draftBodies[1].velocity.y + 0.5 },
+    };
+
+    const result = selectedUserPresetIbcDirty({
+      selectedPresetId: "user-1",
+      userPresets: makeUserPresets(presetBodies),
+      draftBodies,
+    });
+
+    expect(result).toBe(true);
+  });
+
+  it("treats tiny numeric deltas within epsilon as unchanged", () => {
+    const presetBodies = makeBodies();
+    const draftBodies = makeBodies();
+    draftBodies[0] = {
+      ...draftBodies[0],
+      mass: draftBodies[0].mass + 1e-13,
+    };
+
+    const result = selectedUserPresetIbcDirty({
+      selectedPresetId: "user-1",
+      userPresets: makeUserPresets(presetBodies),
+      draftBodies,
+    });
+
+    expect(result).toBe(false);
   });
 });

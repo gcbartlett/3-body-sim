@@ -34,6 +34,7 @@ import { useSimulationLoop } from "./sim/useSimulationLoop";
 import { useHoverTooltipState } from "./ui/useHoverTooltipState";
 import { useSimulationSession } from "./sim/useSimulationSession";
 import { useUserPresetCommands } from "./sim/useUserPresetCommands";
+import { selectedUserPresetIbcDirty } from "./sim/profileValidation";
 import { useAppPersistence } from "./ui/useAppPersistence";
 import {
   adjustedSimulationSpeed,
@@ -53,25 +54,6 @@ const initialCamera: Camera = {
 const BODY_COLORS = ["#f7b731", "#60a5fa", "#8bd450"];
 const FAST_REFRAME_FRAMES = 60;
 const APP_VERSION = __APP_VERSION__;
-const EPS = 1e-12;
-
-const sameNumber = (a: number, b: number) => Math.abs(a - b) <= EPS;
-
-const sameIbcBodies = (a: BodyState[], b: BodyState[]) =>
-  a.length === b.length &&
-  a.every((body, index) => {
-    const candidate = b[index];
-    if (!candidate) {
-      return false;
-    }
-    return (
-      sameNumber(body.mass, candidate.mass) &&
-      sameNumber(body.position.x, candidate.position.x) &&
-      sameNumber(body.position.y, candidate.position.y) &&
-      sameNumber(body.velocity.x, candidate.velocity.x) &&
-      sameNumber(body.velocity.y, candidate.velocity.y)
-    );
-  });
 
 function App() {
   const [initialUiPrefs] = useState(loadPersistedUiPrefs);
@@ -294,9 +276,11 @@ function App() {
     params,
     ejectionThresholdSec: EJECTION_TIME_THRESHOLD_SECONDS,
   });
-  const selectedUserPreset = userPresets.find((preset) => preset.id === selectedPresetId) ?? null;
-  const selectedUserPresetIbcDirty =
-    selectedUserPreset === null ? false : !sameIbcBodies(selectedUserPreset.bodies, draftBodies);
+  const selectedPresetIbcDirty = selectedUserPresetIbcDirty({
+    selectedPresetId,
+    userPresets,
+    draftBodies,
+  });
   const displayPairState = diagnosticsViewModel.displayPairState;
   const boundPairState = boundPairStateLabel(displayPairState, world.dissolutionDetected);
   const stageViewModel = stageViewModelForWorld({
@@ -345,7 +329,7 @@ function App() {
         presets={allPresets}
         selectedPresetId={selectedPresetId}
         defaultPresetIds={PRESETS.map((preset) => preset.id)}
-        selectedUserPresetIbcDirty={selectedUserPresetIbcDirty}
+        selectedUserPresetIbcDirty={selectedPresetIbcDirty}
         lockMode={lockMode}
         manualPanZoom={manualPanZoom}
         showOriginMarker={showOriginMarker}

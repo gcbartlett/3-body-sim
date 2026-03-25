@@ -51,6 +51,32 @@ type ValidateEditedPresetDraftResult =
       message: string;
     };
 
+type SelectedUserPresetIbcDirtyInput = {
+  selectedPresetId: string;
+  userPresets: PresetProfile[];
+  draftBodies: BodyState[];
+};
+
+const EPS = 1e-12;
+
+const sameNumber = (a: number, b: number) => Math.abs(a - b) <= EPS;
+
+const sameIbcBodies = (a: BodyState[], b: BodyState[]) =>
+  a.length === b.length &&
+  a.every((body, index) => {
+    const candidate = b[index];
+    if (!candidate) {
+      return false;
+    }
+    return (
+      sameNumber(body.mass, candidate.mass) &&
+      sameNumber(body.position.x, candidate.position.x) &&
+      sameNumber(body.position.y, candidate.position.y) &&
+      sameNumber(body.velocity.x, candidate.velocity.x) &&
+      sameNumber(body.velocity.y, candidate.velocity.y)
+    );
+  });
+
 export const buildSavedPresetFromDraft = ({
   draft,
   existingIds,
@@ -117,4 +143,16 @@ export const validateEditedPresetDraft = ({
     ok: true,
     profile: { id, name, description },
   };
+};
+
+export const selectedUserPresetIbcDirty = ({
+  selectedPresetId,
+  userPresets,
+  draftBodies,
+}: SelectedUserPresetIbcDirtyInput): boolean => {
+  const selectedUserPreset = userPresets.find((preset) => preset.id === selectedPresetId) ?? null;
+  if (!selectedUserPreset) {
+    return false;
+  }
+  return !sameIbcBodies(selectedUserPreset.bodies, draftBodies);
 };

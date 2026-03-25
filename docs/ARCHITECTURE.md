@@ -40,7 +40,7 @@ src/                                   # Application source code
     physics.ts                         # Accelerations, COM, energy, momentum
     presetStorage.ts                   # localStorage load/save/sanitize for params/presets/UI prefs
     presets.ts                         # Built-in preset profiles
-    profileValidation.ts               # Saved profile validation and id/name rules
+    profileValidation.ts               # Save/edit validation and selected-preset dirty-state helpers
     randomProfiles.ts                  # Random stable/chaotic body generators
     sessionTransitions.ts              # Runtime world transition helpers
     diagnosticsSelectors.ts            # Diagnostics view-model selectors/helpers
