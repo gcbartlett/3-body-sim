@@ -88,6 +88,7 @@ tests/                                 # Automated test suites
       diagnosticFormatting.test.ts     # Unit tests for diagnostics text formatting
       diagnosticsSelectors.test.ts     # Unit tests for diagnostics selectors
       ejection.test.ts                 # Unit tests for ejection detection logic
+      hoverDiagnostics.test.ts         # Unit tests for hover diagnostics selectors
       integrators.test.ts              # Unit tests for velocity Verlet integration
       physics.test.ts                  # Unit tests for accelerations/energy/momentum
       profileValidation.test.ts        # Unit tests for saved profile validation rules
