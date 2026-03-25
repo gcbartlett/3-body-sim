@@ -97,6 +97,7 @@ tests/                                 # Automated test suites
       simulationTick.test.ts           # Unit tests for per-step simulation updates
       stageSelectors.test.ts           # Unit tests for stage status selector helpers
       vector.test.ts                   # Unit tests for vector utility functions
+      worldState.test.ts               # Unit tests for stopped-world construction helpers
     ui/                                # Unit tests for UI modules
       controlPanel/                    # Unit tests for control-panel helpers
         numberInputPrecision.test.ts   # Unit tests for decimal precision parsing/clamping
