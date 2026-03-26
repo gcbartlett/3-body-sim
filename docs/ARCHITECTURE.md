@@ -38,7 +38,8 @@ src/                                   # Application source code
     hoverDiagnostics.ts                # Hover tooltip diagnostic assembly
     integrators.ts                     # Velocity Verlet stepper
     physics.ts                         # Accelerations, COM, energy, momentum
-    presetStorage.ts                   # localStorage load/save/sanitize for params/presets/UI prefs
+    presetStorage.ts                   # localStorage key IO wrappers for params/presets/UI prefs
+    presetStorageCodecs.ts             # Pure decode/sanitize/defaulting codecs for persisted sim data
     presets.ts                         # Built-in preset profiles
     profileValidation.ts               # Save/edit validation and selected-preset dirty-state helpers
     randomProfiles.ts                  # Random stable/chaotic body generators
