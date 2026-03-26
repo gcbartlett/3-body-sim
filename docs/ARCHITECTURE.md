@@ -28,7 +28,13 @@ src/                                   # Application source code
   styles.css                           # Layout and visual styling
   vite-env.d.ts                        # Vite ambient types and compile-time constants
   render/                              # Canvas rendering utilities
-    canvasRenderer.ts                  # Canvas drawing and trail rendering
+    canvasRenderer.ts                  # Top-level frame orchestration and trail fade/prune helpers
+    layers/                            # Focused canvas draw layers and shared layer types
+      bodyLayer.ts                     # Body radius mapping and body/halo primitive drawing
+      gridLayer.ts                     # Adaptive grid/axis line rendering
+      overlayLayer.ts                  # Origin and center-of-mass overlays
+      trailLayer.ts                    # Body trail point drawing and color alpha handling
+      types.ts                         # Shared render-layer contracts (viewport/options/trails)
   sim/                                 # Simulation domain logic and policies
     camera.ts                          # Camera transforms and tracking helpers
     cameraPolicy.ts                    # Auto-camera framing and lock-mode policy
