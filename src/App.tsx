@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentProps } from "react";
+import { useRef, useState, type ComponentProps } from "react";
 import "./styles.css";
 import type { TrailMap } from "./render/canvasRenderer";
 import type { Camera } from "./sim/camera";
@@ -36,6 +36,7 @@ import { useSimulationSession } from "./sim/useSimulationSession";
 import { useUserPresetCommands } from "./sim/useUserPresetCommands";
 import { selectedUserPresetIbcDirty } from "./sim/profileValidation";
 import { useAppPersistence } from "./ui/useAppPersistence";
+import { useAppRuntimeState } from "./ui/useAppRuntimeState";
 import {
   adjustedSimulationSpeed,
   diagnosticsSnapshot,
@@ -78,13 +79,16 @@ function App() {
   const rafRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number | null>(null);
   const accumulatorRef = useRef(0);
-  const worldRef = useRef(world);
-  const paramsRef = useRef(params);
   const cameraRef = useRef(initialCamera);
   const trailsRef = useRef<TrailMap>({});
   const forceFastZoomInFramesRef = useRef(FAST_REFRAME_FRAMES);
   const simStepCounterRef = useRef(0);
-  const manualPanZoomRef = useRef(manualPanZoom);
+  const { worldRef, paramsRef, manualPanZoomRef, setManualMode } = useAppRuntimeState({
+    world,
+    params,
+    manualPanZoom,
+    setManualPanZoom,
+  });
   const viewport = useStageViewport({ containerRef, canvasRef, diagnosticsInsetPx });
   const {
     hoverBody,
@@ -105,14 +109,6 @@ function App() {
     forceFastZoomInFramesRef.current = FAST_REFRAME_FRAMES;
   };
 
-  useEffect(() => {
-    worldRef.current = world;
-  }, [world]);
-
-  useEffect(() => {
-    paramsRef.current = params;
-  }, [params]);
-
   useAppPersistence({
     params,
     panelExpanded,
@@ -122,15 +118,6 @@ function App() {
     showCenterOfMass,
     userPresets,
   });
-
-  useEffect(() => {
-    manualPanZoomRef.current = manualPanZoom;
-  }, [manualPanZoom]);
-
-  const setManualMode = (enabled: boolean) => {
-    manualPanZoomRef.current = enabled;
-    setManualPanZoom(enabled);
-  };
 
   const {
     onCanvasPointerDown,
