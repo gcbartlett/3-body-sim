@@ -85,6 +85,7 @@ src/                                   # Application source code
       StageHud.tsx                     # Status strip and panel toggle
     uiPrefsStorage.ts                  # UI open-state persistence helpers
     useAppPersistence.ts               # App-level persistence side effects
+    useAppUiPreferences.ts             # App UI preference state initialization and setters
     useAppRuntimeState.ts              # App runtime refs + manual-mode sync glue
     useCanvasCameraControls.ts         # Pointer/touch/wheel camera interactions
     useHoverTooltipState.ts            # Hover tooltip lifecycle/state hook

@@ -8,7 +8,6 @@ import {
 } from "./sim/ejection";
 import {
   loadPersistedParams,
-  loadPersistedUiPrefs,
   loadPersistedUserPresets,
 } from "./sim/presetStorage";
 import { PRESETS } from "./sim/presets";
@@ -37,6 +36,7 @@ import { useUserPresetCommands } from "./sim/useUserPresetCommands";
 import { selectedUserPresetIbcDirty } from "./sim/profileValidation";
 import { useAppPersistence } from "./ui/useAppPersistence";
 import { useAppRuntimeState } from "./ui/useAppRuntimeState";
+import { useAppUiPreferences } from "./ui/useAppUiPreferences";
 import {
   adjustedSimulationSpeed,
   diagnosticsSnapshot,
@@ -57,18 +57,24 @@ const FAST_REFRAME_FRAMES = 60;
 const APP_VERSION = __APP_VERSION__;
 
 function App() {
-  const [initialUiPrefs] = useState(loadPersistedUiPrefs);
   const [params, setParams] = useState<SimParams>(loadPersistedParams);
   const [userPresets, setUserPresets] = useState<PresetProfile[]>(loadPersistedUserPresets);
   const [draftBodies, setDraftBodies] = useState<BodyState[]>(defaultBodies);
   const [world, setWorld] = useState<WorldState>(initialWorld);
   const [selectedPresetId, setSelectedPresetId] = useState<string>(PRESETS[0].id);
-  const [lockMode, setLockMode] = useState<LockMode>(initialUiPrefs.lockMode);
   const [manualPanZoom, setManualPanZoom] = useState<boolean>(false);
-  const [showOriginMarker, setShowOriginMarker] = useState<boolean>(initialUiPrefs.showOriginMarker);
-  const [showGrid, setShowGrid] = useState<boolean>(initialUiPrefs.showGrid);
-  const [showCenterOfMass, setShowCenterOfMass] = useState<boolean>(initialUiPrefs.showCenterOfMass);
-  const [panelExpanded, setPanelExpanded] = useState<boolean>(initialUiPrefs.panelExpanded);
+  const {
+    lockMode,
+    setLockMode,
+    showOriginMarker,
+    setShowOriginMarker,
+    showGrid,
+    setShowGrid,
+    showCenterOfMass,
+    setShowCenterOfMass,
+    panelExpanded,
+    setPanelExpanded,
+  } = useAppUiPreferences();
   const [diagnosticsInsetPx, setDiagnosticsInsetPx] = useState<number>(0);
   const [baselineDiagnostics, setBaselineDiagnostics] = useState<DiagnosticsSnapshot>(() =>
     diagnosticsSnapshot(initialWorld().bodies, defaultParams()),
