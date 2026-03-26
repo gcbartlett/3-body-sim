@@ -50,8 +50,10 @@ src/                                   # Application source code
     types.ts                           # Canonical shared simulation/domain types
     useDraftEditPolicy.ts              # Stopped-world draft edit policy
     useSimulationLoop.ts               # RAF lifecycle and loop orchestration
+    useEditPresetCommands.ts           # User preset edit dialog state and edit-confirm commands
+    useSavePresetCommands.ts           # User preset save dialog state and save-confirm commands
     useSimulationSession.ts            # Session command handlers (start/reset/step/apply)
-    useUserPresetCommands.ts           # User preset CRUD/edit/save command orchestration
+    useUserPresetCommands.ts           # User preset command composition + delete/fallback handling
     vector.ts                          # Vector utilities
     worldState.ts                      # Canonical stopped-world constructors
   ui/                                  # UI components, dialogs, and hooks
