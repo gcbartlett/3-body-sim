@@ -119,6 +119,8 @@ tests/                                 # Automated test suites
     ui/                                # Unit tests for UI modules
       controlPanel/                    # Unit tests for control-panel helpers
         numberInputPrecision.test.ts   # Unit tests for decimal precision parsing/clamping
+      diagnostics/                     # Unit tests for diagnostics UI helpers
+        styles.test.ts                 # Unit tests for diagnostics highlight style selectors
 docs/                                  # Project docs and static doc assets
   3BodySim.png                         # Screenshot image
   README.md                            # Project documentation (this file)
