@@ -1,9 +1,13 @@
+import { useState } from "react";
+import { APP_LINKS } from "../config/appLinks";
 import type { BodyState, PresetProfile, SimParams } from "../sim/types";
 import { BodyConfigurationSection } from "./controlPanel/BodyConfigurationSection";
 import { PresetsSection } from "./controlPanel/PresetsSection";
 import { SimulationParametersSection } from "./controlPanel/SimulationParametersSection";
 import type { BodyConfigField, LockMode } from "./controlPanel/types";
+import { openSponsorPage } from "./sponsorPage";
 import { useControlPanelSections } from "./useControlPanelSections";
+import { loadAppLikedState, saveAppLikedState } from "./uiPrefsStorage";
 
 type Props = {
   bodies: BodyState[];
@@ -65,15 +69,49 @@ export const ControlPanel = ({
   onGenerateRandomChaotic,
 }: Props) => {
   const { sectionState, setSimParamsOpen, setBodyConfigOpen, setPresetsOpen } = useControlPanelSections();
+  const [likedApp, setLikedApp] = useState(loadAppLikedState);
+
+  const onLikeApp = () => {
+    const nextLikedState = !likedApp;
+    setLikedApp(nextLikedState);
+    saveAppLikedState(nextLikedState);
+    if (nextLikedState) {
+      openSponsorPage(window.open);
+    }
+  };
 
   return (
     <aside className="panel">
       <div className="panel-header">
-        <div className="panel-title">
-          <img className="panel-title-icon" src="/favicon.svg" alt="" aria-hidden="true" />
-          <h1>Three-Body Simulator</h1>
+        <div className="panel-header-top">
+          <div className="panel-title">
+            <img className="panel-title-icon" src="/favicon.svg" alt="" aria-hidden="true" />
+            <h1>Three-Body Simulator</h1>
+          </div>
+          <button
+            className={`panel-like-button${likedApp ? " is-liked" : ""}`}
+            type="button"
+            aria-label={likedApp ? "App liked" : "Like this app and sponsor via Buy Me a Coffee"}
+            aria-pressed={likedApp}
+            title={
+              likedApp
+                ? "Thank you for liking this app."
+                : "Love this app? Please consider sponsoring me by buying me a coffee."
+            }
+            onClick={onLikeApp}
+          >
+            <span aria-hidden="true">{likedApp ? "♥" : "♡"}</span>
+          </button>
         </div>
-        <div className="panel-version muted">build {appVersion}</div>
+        <a
+          className="panel-version muted"
+          href={APP_LINKS.repositoryUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open GitHub project repository"
+        >
+          build {appVersion}
+        </a>
       </div>
       <p className="muted">Set initial conditions, then start the simulation.</p>
 
