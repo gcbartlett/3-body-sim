@@ -1,13 +1,8 @@
 import { useEffect, useEffectEvent, type RefObject } from "react";
-import { drawFrame, fadeAndPruneTrails, type TrailMap } from "../render/canvasRenderer";
+import type { TrailMap } from "../render/canvasRenderer";
 import { type Camera } from "./camera";
-import { computeAutoCamera } from "./cameraPolicy";
-import { centerOfMass } from "./physics";
-import { appendTrailPoints, applyDissolutionProgress } from "./simulationPolicies";
-import { advanceRunningWorldStep } from "./simulationTick";
+import { runSimulationFrame } from "./simulationFrame";
 import type { LockMode, SimParams, WorldState } from "./types";
-
-const HOVER_REFRESH_INTERVAL_MS = 1000;
 
 type Viewport = {
   width: number;
@@ -61,9 +56,8 @@ export const useSimulationLoop = ({
   hover: { hoverBodyIdRef, hoverLastUpdateTimeRef, refreshHoverTooltipForBodyId },
   setWorld,
 }: UseSimulationLoopArgs): void => {
-  const onHoverRefreshEvent = useEffectEvent((bodyId: string, time: number) => {
+  const onHoverRefreshEvent = useEffectEvent((bodyId: string) => {
     refreshHoverTooltipForBodyId(bodyId);
-    hoverLastUpdateTimeRef.current = time;
   });
 
   useEffect(() => {
@@ -86,53 +80,42 @@ export const useSimulationLoop = ({
       const dtReal = (time - previous) / 1000;
       lastTimeRef.current = time;
 
-      const stepResult = advanceRunningWorldStep({
-        currentWorld,
-        currentParams,
+      const frameResult = runSimulationFrame({
+        ctx,
+        time,
         dtReal,
-        accumulator: accumulatorRef.current,
-        trails: trailsRef.current,
-        simStepCounter: simStepCounterRef.current,
-        appendTrailPoints,
-        applyDissolutionProgress,
+        viewport,
+        runtime: {
+          lockMode,
+          manualPanZoom,
+          showOriginMarker,
+          showGrid,
+          showCenterOfMass,
+        },
+        frameState: {
+          world: currentWorld,
+          params: currentParams,
+          camera: cameraRef.current,
+          trails: trailsRef.current,
+          accumulator: accumulatorRef.current,
+          simStepCounter: simStepCounterRef.current,
+          forceFastZoomInFrames: forceFastZoomInFramesRef.current,
+        },
+        hover: {
+          hoverBodyId: hoverBodyIdRef.current,
+          hoverLastUpdateTime: hoverLastUpdateTimeRef.current,
+          onHoverRefresh: onHoverRefreshEvent,
+        },
       });
-      accumulatorRef.current = stepResult.nextAccumulator;
-      trailsRef.current = stepResult.nextTrails;
-      simStepCounterRef.current = stepResult.nextSimStepCounter;
-      if (stepResult.worldChanged) {
-        worldRef.current = stepResult.nextWorld;
-        setWorld(stepResult.nextWorld);
-      }
-
-      const com = centerOfMass(worldRef.current.bodies);
-      const cam = manualPanZoom
-        ? cameraRef.current
-        : (() => {
-            const autoCameraResult = computeAutoCamera({
-              camera: cameraRef.current,
-              bodies: worldRef.current.bodies,
-              viewport,
-              lockMode,
-              forceFastZoomInFrames: forceFastZoomInFramesRef.current,
-            });
-            forceFastZoomInFramesRef.current = autoCameraResult.nextForceFastZoomInFrames;
-            return autoCameraResult.camera;
-          })();
-
-      cameraRef.current = cam;
-      trailsRef.current = fadeAndPruneTrails(trailsRef.current, currentParams.trailFade);
-      drawFrame(ctx, trailsRef.current, worldRef.current.bodies, cam, viewport, {
-        showOrigin: showOriginMarker,
-        showGrid,
-        showCenterOfMass,
-        centerOfMass: com,
-      });
-
-      if (
-        hoverBodyIdRef.current &&
-        time - hoverLastUpdateTimeRef.current >= HOVER_REFRESH_INTERVAL_MS
-      ) {
-        onHoverRefreshEvent(hoverBodyIdRef.current, time);
+      accumulatorRef.current = frameResult.nextAccumulator;
+      trailsRef.current = frameResult.nextTrails;
+      simStepCounterRef.current = frameResult.nextSimStepCounter;
+      cameraRef.current = frameResult.nextCamera;
+      forceFastZoomInFramesRef.current = frameResult.nextForceFastZoomInFrames;
+      hoverLastUpdateTimeRef.current = frameResult.nextHoverLastUpdateTime;
+      if (frameResult.worldChanged) {
+        worldRef.current = frameResult.nextWorld;
+        setWorld(frameResult.nextWorld);
       }
 
       rafRef.current = requestAnimationFrame(tick);

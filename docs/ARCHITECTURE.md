@@ -52,6 +52,7 @@ src/                                   # Application source code
     sessionTransitions.ts              # Runtime world transition helpers
     diagnosticsSelectors.ts            # Diagnostics view-model selectors/helpers
     simulationPolicies.ts              # Shared runtime policy constants/helpers
+    simulationFrame.ts                 # Per-frame simulation pipeline (step/camera/render/hover gating)
     stageSelectors.ts                  # Stage status/bound-pair labeling selectors
     simulationTick.ts                  # Per-frame stepping transition logic
     types.ts                           # Canonical shared simulation/domain types
