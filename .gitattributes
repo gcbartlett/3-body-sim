@@ -1,0 +1,11 @@
+# Normalize text files to LF in the repository and working tree.
+* text=auto eol=lf
+
+# Common binary assets.
+*.png -text
+*.jpg -text
+*.jpeg -text
+*.gif -text
+*.ico -text
+*.pdf -text
+*.zip -text
