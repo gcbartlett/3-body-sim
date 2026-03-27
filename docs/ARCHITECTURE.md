@@ -87,6 +87,7 @@ src/                                   # Application source code
     useAppPersistence.ts               # App-level persistence side effects
     useAppUiPreferences.ts             # App UI preference state initialization and setters
     useAppRuntimeState.ts              # App runtime refs + manual-mode sync glue
+    useAppViewModels.ts                # Stage/diagnostics view-model and prop assembly
     useCanvasCameraControls.ts         # Pointer/touch/wheel camera interactions
     useHoverTooltipState.ts            # Hover tooltip lifecycle/state hook
     useSimulationHotkeys.ts            # Keyboard shortcut handling

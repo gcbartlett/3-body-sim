@@ -1,11 +1,8 @@
-import { useRef, useState, type ComponentProps } from "react";
+import { useRef, useState } from "react";
 import "./styles.css";
 import type { TrailMap } from "./render/canvasRenderer";
 import type { Camera } from "./sim/camera";
 import { defaultBodies, defaultParams, initialWorld } from "./sim/defaults";
-import {
-  EJECTION_TIME_THRESHOLD_SECONDS,
-} from "./sim/ejection";
 import {
   loadPersistedParams,
   loadPersistedUserPresets,
@@ -37,15 +34,11 @@ import { selectedUserPresetIbcDirty } from "./sim/profileValidation";
 import { useAppPersistence } from "./ui/useAppPersistence";
 import { useAppRuntimeState } from "./ui/useAppRuntimeState";
 import { useAppUiPreferences } from "./ui/useAppUiPreferences";
+import { useAppViewModels } from "./ui/useAppViewModels";
 import {
   adjustedSimulationSpeed,
   diagnosticsSnapshot,
-  DISSOLUTION_TIME_THRESHOLD_SECONDS,
 } from "./sim/simulationPolicies";
-import {
-  stageDiagnosticsViewModelForWorld,
-} from "./sim/diagnosticsSelectors";
-import { boundPairStateLabel, stageViewModelForWorld } from "./sim/stageSelectors";
 
 const initialCamera: Camera = {
   center: { x: 0, y: 0 },
@@ -264,55 +257,30 @@ function App() {
   };
 
   const diagnostics = diagnosticsSnapshot(world.bodies, params);
-  const diagnosticsViewModel = stageDiagnosticsViewModelForWorld({
+  const {
+    stageHudProps,
+    stageControlsProps,
+    diagnosticsProps,
+  } = useAppViewModels({
     world,
     params,
-    ejectionThresholdSec: EJECTION_TIME_THRESHOLD_SECONDS,
+    panelExpanded,
+    lockMode,
+    manualPanZoom,
+    bodyColors: BODY_COLORS,
+    baselineDiagnostics,
+    diagnostics,
+    onStartPause,
+    onReset,
+    onStep,
+    onTogglePanelExpanded,
+    onVisibleHeightChange: setDiagnosticsInsetPx,
   });
   const selectedPresetIbcDirty = selectedUserPresetIbcDirty({
     selectedPresetId,
     userPresets,
     draftBodies,
   });
-  const displayPairState = diagnosticsViewModel.displayPairState;
-  const boundPairState = boundPairStateLabel(displayPairState, world.dissolutionDetected);
-  const stageViewModel = stageViewModelForWorld({
-    world,
-    lockMode,
-    manualPanZoom,
-    bodyColors: BODY_COLORS,
-    pairStateLabel: boundPairState,
-  });
-  const stageHudProps: ComponentProps<typeof StageHud> = {
-    statusLabel: stageViewModel.statusLabel,
-    ejectedStatusRows: stageViewModel.ejectedStatusRows,
-    elapsedTime: world.elapsedTime,
-    speed: params.speed,
-    panelExpanded,
-    onTogglePanelExpanded,
-  };
-  const stageControlsProps: ComponentProps<typeof StageControls> = {
-    runButtonLabel: stageViewModel.runButtonLabel,
-    runButtonTooltip: stageViewModel.runButtonTooltip,
-    onStartPause,
-    onReset,
-    onStep,
-    ejectedBodyId: world.ejectedBodyId,
-    latestEjectedLabel: stageViewModel.latestEjectedLabel,
-    dissolutionJustDetected: world.dissolutionJustDetected,
-  };
-  const diagnosticsProps: ComponentProps<typeof CanvasDiagnostics> = {
-    pairEnergies: diagnosticsViewModel.pairEnergies,
-    displayPairState: diagnosticsViewModel.displayPairState,
-    dissolutionCounterSec: world.dissolutionCounterSec,
-    dissolutionThresholdSec: DISSOLUTION_TIME_THRESHOLD_SECONDS,
-    dissolutionDetected: world.dissolutionDetected,
-    diagnostics,
-    baselineDiagnostics,
-    bodyVectors: diagnosticsViewModel.bodyVectors,
-    bodyEjectionStatuses: diagnosticsViewModel.bodyEjectionStatuses,
-    onVisibleHeightChange: setDiagnosticsInsetPx,
-  };
   return (
     <div className={`layout${panelExpanded ? "" : " panel-collapsed"}`}>
       <ControlPanel
