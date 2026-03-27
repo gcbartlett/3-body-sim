@@ -57,11 +57,93 @@ body,
   max-width: 100%;
 }
 
+.panel-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
 .panel-version {
   align-self: flex-end;
   font-family: Consolas, "Courier New", monospace;
   font-size: 0.77rem;
   line-height: 1.05;
+  text-decoration: none;
+}
+
+.panel-version:hover {
+  color: #cbd5e1;
+}
+
+.panel-like-button {
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #0b0f14;
+  color: #d1d5db;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 0.95rem;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.panel-like-button > span {
+  display: inline-block;
+  transition: opacity 180ms ease;
+}
+
+.panel-like-button:hover {
+  background: #111827;
+}
+
+.panel-like-button:not(.is-liked):hover {
+  color: #f28b8b;
+}
+
+.panel-like-button:hover > span {
+  animation: heart-beat 1.5s linear infinite;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.panel-like-button.is-liked {
+  color: #f87171;
+  border-color: transparent;
+}
+
+@keyframes heart-beat {
+  0%,
+  50%,
+  100% {
+    transform: scale(1.00);
+    opacity: 1;
+  }
+
+  15% {
+    transform: scale(1.50);
+    opacity: 0.9;
+  }
+
+  25% {
+    transform: scale(1.10);
+    opacity: 0.98;
+  }
+
+  37% {
+    transform: scale(1.75);
+    opacity: 0.86;
+  }
+
+  45% {
+    transform: scale(1.15);
+    opacity: 0.95;
+  }
 }
 
 .panel > p.muted {

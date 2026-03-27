@@ -150,4 +150,180 @@ describe("runSimulationFrame", () => {
     expect(onHoverRefresh).not.toHaveBeenCalled();
     expect(result.nextHoverLastUpdateTime).toBe(3501);
   });
+
+  it("refreshes hover exactly at the interval boundary", () => {
+    const onHoverRefresh = vi.fn();
+    const result = runSimulationFrame({
+      ctx: {} as CanvasRenderingContext2D,
+      time: 4500,
+      dtReal: 0.1,
+      viewport: { width: 1000, height: 800 },
+      runtime: {
+        lockMode: "none",
+        manualPanZoom: false,
+        showOriginMarker: false,
+        showGrid: false,
+        showCenterOfMass: false,
+      },
+      frameState: {
+        world: makeWorld(),
+        params,
+        camera,
+        trails: {},
+        accumulator: 0.2,
+        simStepCounter: 1,
+        forceFastZoomInFrames: 5,
+      },
+      hover: {
+        hoverBodyId: "body-3",
+        hoverLastUpdateTime: 3500,
+        onHoverRefresh,
+      },
+    });
+
+    expect(onHoverRefresh).toHaveBeenCalledWith("body-3", 4500);
+    expect(result.nextHoverLastUpdateTime).toBe(4500);
+  });
+
+  it("does not refresh hover when hoverBodyId is null even after interval", () => {
+    const onHoverRefresh = vi.fn();
+    const result = runSimulationFrame({
+      ctx: {} as CanvasRenderingContext2D,
+      time: 10000,
+      dtReal: 0.1,
+      viewport: { width: 1000, height: 800 },
+      runtime: {
+        lockMode: "none",
+        manualPanZoom: false,
+        showOriginMarker: false,
+        showGrid: false,
+        showCenterOfMass: false,
+      },
+      frameState: {
+        world: makeWorld(),
+        params,
+        camera,
+        trails: {},
+        accumulator: 0.2,
+        simStepCounter: 1,
+        forceFastZoomInFrames: 5,
+      },
+      hover: {
+        hoverBodyId: null,
+        hoverLastUpdateTime: 0,
+        onHoverRefresh,
+      },
+    });
+
+    expect(onHoverRefresh).not.toHaveBeenCalled();
+    expect(result.nextHoverLastUpdateTime).toBe(0);
+  });
+
+  it("propagates unchanged step outputs including worldChanged=false", () => {
+    const steppedWorld = makeWorld({ elapsedTime: 2, isRunning: false });
+    vi.mocked(advanceRunningWorldStep).mockReturnValue({
+      nextWorld: steppedWorld,
+      nextAccumulator: 0.75,
+      nextTrails: { "body-1": [{ x: 1, y: 2, life: 0.5 }] },
+      nextSimStepCounter: 42,
+      worldChanged: false,
+    });
+
+    const result = runSimulationFrame({
+      ctx: {} as CanvasRenderingContext2D,
+      time: 2000,
+      dtReal: 0.1,
+      viewport: { width: 1000, height: 800 },
+      runtime: {
+        lockMode: "origin",
+        manualPanZoom: true,
+        showOriginMarker: false,
+        showGrid: false,
+        showCenterOfMass: false,
+      },
+      frameState: {
+        world: makeWorld(),
+        params,
+        camera,
+        trails: {},
+        accumulator: 0.01,
+        simStepCounter: 7,
+        forceFastZoomInFrames: 0,
+      },
+      hover: {
+        hoverBodyId: null,
+        hoverLastUpdateTime: 0,
+        onHoverRefresh: vi.fn(),
+      },
+    });
+
+    expect(result.nextWorld).toBe(steppedWorld);
+    expect(result.nextAccumulator).toBe(0.75);
+    expect(result.nextSimStepCounter).toBe(42);
+    expect(result.worldChanged).toBe(false);
+  });
+
+  it("passes post-step COM and runtime flags to drawFrame", () => {
+    const steppedBodies = [
+      {
+        id: "body-1",
+        mass: 1,
+        color: "#fff",
+        position: { x: 3, y: 4 },
+        velocity: { x: 0, y: 0 },
+      },
+    ];
+    const com = { x: 9, y: -2 };
+    vi.mocked(advanceRunningWorldStep).mockReturnValue({
+      nextWorld: makeWorld({ bodies: steppedBodies }),
+      nextAccumulator: 0.3,
+      nextTrails: {},
+      nextSimStepCounter: 8,
+      worldChanged: true,
+    });
+    vi.mocked(centerOfMass).mockReturnValue(com);
+
+    runSimulationFrame({
+      ctx: {} as CanvasRenderingContext2D,
+      time: 3000,
+      dtReal: 0.1,
+      viewport: { width: 640, height: 480 },
+      runtime: {
+        lockMode: "none",
+        manualPanZoom: true,
+        showOriginMarker: true,
+        showGrid: false,
+        showCenterOfMass: true,
+      },
+      frameState: {
+        world: makeWorld(),
+        params,
+        camera,
+        trails: {},
+        accumulator: 0.2,
+        simStepCounter: 2,
+        forceFastZoomInFrames: 1,
+      },
+      hover: {
+        hoverBodyId: null,
+        hoverLastUpdateTime: 0,
+        onHoverRefresh: vi.fn(),
+      },
+    });
+
+    expect(centerOfMass).toHaveBeenCalledWith(steppedBodies);
+    expect(drawFrame).toHaveBeenCalledWith(
+      expect.anything(),
+      {},
+      steppedBodies,
+      camera,
+      { width: 640, height: 480 },
+      {
+        showOrigin: true,
+        showGrid: false,
+        showCenterOfMass: true,
+        centerOfMass: com,
+      },
+    );
+  });
 });

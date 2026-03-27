@@ -9,13 +9,20 @@ vi.mock("~/src/sim/ejection", () => ({
   evaluateEjection: vi.fn(),
 }));
 
+vi.mock("~/src/sim/simulationPolicies", () => ({
+  appendTrailPoints: vi.fn(),
+}));
+
 import { evaluateEjection } from "~/src/sim/ejection";
 import { velocityVerletStep } from "~/src/sim/integrators";
+import { appendTrailPoints } from "~/src/sim/simulationPolicies";
 import {
   applyNewInitialStateTransition,
   buildNewInitialStateTransition,
   buildSingleStepTransition,
   buildStartPauseTransition,
+  runSingleStepTransition,
+  runStartPauseTransition,
 } from "~/src/sim/sessionTransitions";
 
 const makeBodies = (): BodyState[] => [
@@ -322,5 +329,151 @@ describe("buildStartPauseTransition", () => {
 
     expect(result.nextWorld.ejectedBodyId).toBe("c");
     expect(result.nextWorld.dissolutionJustDetected).toBe(true);
+  });
+});
+
+describe("runStartPauseTransition", () => {
+  it("uses a functional setWorld updater, returns next world, and syncs refs/diagnostics when present", () => {
+    const baseline = { energy: 7, momentum: { x: 2, y: -1 } };
+    const computeDiagnostics = vi.fn(() => baseline);
+    const setBaselineDiagnostics = vi.fn();
+    const worldRef = { current: makeWorld({ isRunning: true }) };
+    const paramsRef = { current: makeParams({ dt: 0.25 }) };
+
+    let updater: ((prev: WorldState) => WorldState) | null = null;
+    const setWorld = vi.fn((next: ((prev: WorldState) => WorldState) | WorldState) => {
+      if (typeof next === "function") updater = next;
+    });
+
+    runStartPauseTransition(
+      {
+        worldRef: worldRef as never,
+        paramsRef: paramsRef as never,
+        setWorld,
+        setBaselineDiagnostics,
+      },
+      computeDiagnostics,
+    );
+
+    expect(setWorld).toHaveBeenCalledTimes(1);
+    expect(typeof setWorld.mock.calls[0][0]).toBe("function");
+
+    const prev = makeWorld({ isRunning: false, elapsedTime: 0 });
+    const next = updater!(prev);
+
+    expect(next.isRunning).toBe(true);
+    expect(worldRef.current).toBe(next);
+    expect(computeDiagnostics).toHaveBeenCalledWith(prev.bodies, paramsRef.current);
+    expect(setBaselineDiagnostics).toHaveBeenCalledWith(baseline);
+  });
+
+  it("does not set baseline diagnostics when transition baseline is null", () => {
+    const computeDiagnostics = vi.fn(() => ({ energy: 1, momentum: { x: 0, y: 0 } }));
+    const setBaselineDiagnostics = vi.fn();
+    const worldRef = { current: makeWorld({ isRunning: true }) };
+    const paramsRef = { current: makeParams() };
+
+    let updater: ((prev: WorldState) => WorldState) | null = null;
+    const setWorld = vi.fn((next: ((prev: WorldState) => WorldState) | WorldState) => {
+      if (typeof next === "function") updater = next;
+    });
+
+    runStartPauseTransition(
+      {
+        worldRef: worldRef as never,
+        paramsRef: paramsRef as never,
+        setWorld,
+        setBaselineDiagnostics,
+      },
+      computeDiagnostics,
+    );
+
+    updater!(makeWorld({ isRunning: false, elapsedTime: 2 }));
+
+    expect(setBaselineDiagnostics).not.toHaveBeenCalled();
+  });
+});
+
+describe("runSingleStepTransition", () => {
+  it("uses current refs as transition inputs and writes resulting world to ref/state", () => {
+    const initialWorld = makeWorld({ elapsedTime: 5, isRunning: true });
+    const initialParams = makeParams({ dt: 0.2 });
+    const initialTrails = { a: [{ x: 1, y: 2, life: 0.6 }] };
+    const worldRef = { current: initialWorld };
+    const paramsRef = { current: initialParams };
+    const trailsRef = { current: initialTrails };
+    const setWorld = vi.fn();
+    const applyDissolutionProgress = vi.fn((world: WorldState) => ({
+      ...world,
+      dissolutionDetected: true,
+    }));
+
+    const steppedBodies = makeBodies().map((body) => ({
+      ...body,
+      position: { x: body.position.x + 1, y: body.position.y + 1 },
+    }));
+    vi.mocked(velocityVerletStep).mockReturnValue(steppedBodies);
+    vi.mocked(evaluateEjection).mockReturnValue({
+      ejectionCounterById: { a: 1 },
+      ejectedBodyId: "a",
+      ejectedBodyIds: ["a"],
+      isRunning: false,
+    });
+    const updatedTrails = { a: [{ x: 3, y: 4, life: 1 }] };
+    vi.mocked(appendTrailPoints).mockReturnValue(updatedTrails);
+
+    runSingleStepTransition(
+      {
+        worldRef: worldRef as never,
+        paramsRef: paramsRef as never,
+        trailsRef: trailsRef as never,
+        setWorld,
+      },
+      applyDissolutionProgress,
+    );
+
+    expect(velocityVerletStep).toHaveBeenCalledWith(initialWorld.bodies, initialParams);
+    expect(applyDissolutionProgress).toHaveBeenCalledWith(expect.any(Object), initialParams, 0.2);
+    expect(setWorld).toHaveBeenCalledWith(worldRef.current);
+    expect(worldRef.current.isRunning).toBe(false);
+    expect(worldRef.current.ejectedBodyId).toBe("a");
+    expect(worldRef.current.ejectedBodyIds).toEqual(["a"]);
+    expect(trailsRef.current).toBe(updatedTrails);
+    expect(appendTrailPoints).toHaveBeenCalledWith(
+      initialTrails,
+      worldRef.current.bodies,
+    );
+  });
+
+  it("preserves wrapper behavior when transition returns stopped world with ejection updates", () => {
+    const worldRef = { current: makeWorld({ isRunning: true }) };
+    const paramsRef = { current: makeParams({ dt: 0.1 }) };
+    const trailsRef = { current: {} };
+    const setWorld = vi.fn();
+
+    vi.mocked(velocityVerletStep).mockReturnValue(makeBodies());
+    vi.mocked(evaluateEjection).mockReturnValue({
+      ejectionCounterById: { b: 3 },
+      ejectedBodyId: "b",
+      ejectedBodyIds: ["b", "c"],
+      isRunning: false,
+    });
+    vi.mocked(appendTrailPoints).mockReturnValue({});
+
+    runSingleStepTransition(
+      {
+        worldRef: worldRef as never,
+        paramsRef: paramsRef as never,
+        trailsRef: trailsRef as never,
+        setWorld,
+      },
+      (world) => world,
+    );
+
+    expect(worldRef.current.isRunning).toBe(false);
+    expect(worldRef.current.ejectionCounterById).toEqual({ b: 3 });
+    expect(worldRef.current.ejectedBodyId).toBe("b");
+    expect(worldRef.current.ejectedBodyIds).toEqual(["b", "c"]);
+    expect(setWorld).toHaveBeenCalledWith(worldRef.current);
   });
 });

@@ -267,4 +267,52 @@ describe("evaluateEjection", () => {
     expect(negativeDtResult.ejectionCounterById.a).toBe(3);
     expect(zeroDtResult.ejectionCounterById.a).toBe(3);
   });
+
+  it("keeps isRunning=false when world is already not running and no new ejection occurs", () => {
+    const result = evaluateEjection(
+      makeWorld({
+        isRunning: false,
+        ejectedBodyIds: ["c"],
+        ejectedBodyId: "c",
+        bodies: makeBodies([{ position: { x: 2, y: 0 }, velocity: { x: 0, y: 0 } }]),
+      }),
+      makeParams({ dt: 1 }),
+    );
+
+    expect(result.isRunning).toBe(false);
+    expect(result.ejectedBodyId).toBeNull();
+    expect(result.ejectedBodyIds).toEqual(["c"]);
+  });
+
+  it("keeps ejectedBodyId null and isRunning true when counters stay below threshold", () => {
+    const result = evaluateEjection(
+      makeWorld({
+        isRunning: true,
+        ejectionCounterById: { a: EJECTION_TIME_THRESHOLD_SECONDS - 0.01 },
+      }),
+      makeParams({ dt: 0.005 }),
+    );
+
+    expect(result.ejectedBodyId).toBeNull();
+    expect(result.isRunning).toBe(true);
+    expect(result.ejectedBodyIds).toEqual([]);
+  });
+
+  it("keeps world-body ordering when qualifying bodies are already known ejected", () => {
+    const result = evaluateEjection(
+      makeWorld({
+        ejectedBodyIds: ["b"],
+        ejectionCounterById: { b: EJECTION_TIME_THRESHOLD_SECONDS - 0.1 },
+        bodies: makeBodies([
+          { position: { x: 2, y: 0 }, velocity: { x: 0, y: 0 } },
+          { position: { x: 12, y: 0 }, velocity: { x: 1, y: 0 } },
+          { position: { x: 0.5, y: 0 }, velocity: { x: 0, y: 0 } },
+        ]),
+      }),
+      makeParams({ dt: 0.2 }),
+    );
+
+    expect(result.ejectedBodyId).toBeNull();
+    expect(result.ejectedBodyIds).toEqual(["b"]);
+  });
 });
