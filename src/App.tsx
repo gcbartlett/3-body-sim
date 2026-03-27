@@ -183,6 +183,8 @@ function App() {
     onIncreaseRate: () => adjustRateByFactor(1.1),
     onDecreaseRate: () => adjustRateByFactor(1 / 1.1),
     onCycleLockMode,
+    onTogglePause: onStartPause,
+    onStepForward: () => (worldRef.current.isRunning ? onStartPause() : onStep()),
   });
 
   useSimulationLoop({
