@@ -5,6 +5,8 @@ type UseSimulationHotkeysParams = {
   onIncreaseRate: () => void;
   onDecreaseRate: () => void;
   onCycleLockMode: () => void;
+  onTogglePause: () => void;
+  onStepForward: () => void;
 };
 
 export const useSimulationHotkeys = ({
@@ -12,15 +14,24 @@ export const useSimulationHotkeys = ({
   onIncreaseRate,
   onDecreaseRate,
   onCycleLockMode,
+  onTogglePause,
+  onStepForward,
 }: UseSimulationHotkeysParams) => {
   const onKeyDownEvent = useEffectEvent((e: KeyboardEvent) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) {
+      return;
+    }
+
     const target = e.target as HTMLElement | null;
     const isEditable =
       target instanceof HTMLInputElement ||
       target instanceof HTMLTextAreaElement ||
       target instanceof HTMLSelectElement ||
       Boolean(target?.isContentEditable);
-    if (isEditable) {
+    const isInteractive = Boolean(
+      target?.closest("button, a[href], [role='button'], [role='link']"),
+    );
+    if (isEditable || isInteractive) {
       return;
     }
 
@@ -41,6 +52,16 @@ export const useSimulationHotkeys = ({
     if (e.key === "l" || e.key === "L") {
       e.preventDefault();
       onCycleLockMode();
+      return;
+    }
+    if (e.code === "Space") {
+      e.preventDefault();
+      onTogglePause();
+      return;
+    }
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      onStepForward();
     }
   });
 

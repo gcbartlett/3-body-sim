@@ -37,7 +37,7 @@ export const StageHud = ({
     <div className="top-right-tools">
       <div
         className="hud"
-        title="Elapsed simulation time and current simulation rate. Hotkeys: '+' faster, '-' slower."
+        title="Elapsed simulation time and current simulation rate. Hotkeys: Space pause/resume, Right Arrow step (or pause if running), '+' faster, '-' slower, 'L' cycle lock mode."
       >
         <div>t = {elapsedTime.toFixed(3)}</div>
         <div>rate = {speed.toFixed(2)}x</div>
