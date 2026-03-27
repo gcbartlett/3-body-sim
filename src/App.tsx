@@ -178,15 +178,6 @@ function App() {
     setParams(next);
   };
 
-  useSimulationHotkeys({
-    onEscape: () => setManualMode(false),
-    onIncreaseRate: () => adjustRateByFactor(1.1),
-    onDecreaseRate: () => adjustRateByFactor(1 / 1.1),
-    onCycleLockMode,
-    onTogglePause: onStartPause,
-    onStepForward: () => (worldRef.current.isRunning ? onStartPause() : onStep()),
-  });
-
   useSimulationLoop({
     canvasRef,
     viewport,
@@ -251,6 +242,15 @@ function App() {
       setManualMode,
       scheduleFastReframe,
     },
+  });
+
+  useSimulationHotkeys({
+    onEscape: () => setManualMode(false),
+    onIncreaseRate: () => adjustRateByFactor(1.1),
+    onDecreaseRate: () => adjustRateByFactor(1 / 1.1),
+    onCycleLockMode,
+    onTogglePause: onStartPause,
+    onStepForward: () => (worldRef.current.isRunning ? onStartPause() : onStep()),
   });
 
   const onTogglePanelExpanded = () => {
