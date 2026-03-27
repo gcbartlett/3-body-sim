@@ -112,6 +112,7 @@ tests/                                 # Automated test suites
       simulationPolicies.test.ts       # Unit tests for simulation policy helpers
       simulationTick.test.ts           # Unit tests for per-step simulation updates
       stageSelectors.test.ts           # Unit tests for stage status selector helpers
+      types.test.ts                    # Unit tests for lock-mode type-guard validation
       vector.test.ts                   # Unit tests for vector utility functions
       worldState.test.ts               # Unit tests for stopped-world construction helpers
     ui/                                # Unit tests for UI modules
