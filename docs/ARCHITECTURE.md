@@ -100,22 +100,28 @@ tests/                                 # Automated test suites
     sim/                               # Unit tests for simulation modules
       camera.test.ts                   # Unit tests for camera transforms and updates
       cameraPolicy.test.ts             # Unit tests for auto-camera policy behavior
+      defaults.test.ts                 # Unit tests for default bodies/params/world factories
       diagnosticFormatting.test.ts     # Unit tests for diagnostics text formatting
       diagnosticsSelectors.test.ts     # Unit tests for diagnostics selectors
       ejection.test.ts                 # Unit tests for ejection detection logic
       hoverDiagnostics.test.ts         # Unit tests for hover diagnostics selectors
       integrators.test.ts              # Unit tests for velocity Verlet integration
       physics.test.ts                  # Unit tests for accelerations/energy/momentum
+      presetStorage.test.ts            # Unit tests for storage wrapper load/save behavior
+      presets.test.ts                  # Unit tests for body clone helper behavior
       profileValidation.test.ts        # Unit tests for saved profile validation rules
       sessionTransitions.test.ts       # Unit tests for runtime transition helpers
       simulationPolicies.test.ts       # Unit tests for simulation policy helpers
       simulationTick.test.ts           # Unit tests for per-step simulation updates
       stageSelectors.test.ts           # Unit tests for stage status selector helpers
+      types.test.ts                    # Unit tests for lock-mode type-guard validation
       vector.test.ts                   # Unit tests for vector utility functions
       worldState.test.ts               # Unit tests for stopped-world construction helpers
     ui/                                # Unit tests for UI modules
       controlPanel/                    # Unit tests for control-panel helpers
         numberInputPrecision.test.ts   # Unit tests for decimal precision parsing/clamping
+      diagnostics/                     # Unit tests for diagnostics UI helpers
+        styles.test.ts                 # Unit tests for diagnostics highlight style selectors
 docs/                                  # Project docs and static doc assets
   3BodySim.png                         # Screenshot image
   README.md                            # Project documentation (this file)
