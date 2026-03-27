@@ -107,6 +107,7 @@ tests/                                 # Automated test suites
       hoverDiagnostics.test.ts         # Unit tests for hover diagnostics selectors
       integrators.test.ts              # Unit tests for velocity Verlet integration
       physics.test.ts                  # Unit tests for accelerations/energy/momentum
+      presetStorage.test.ts            # Unit tests for storage wrapper load/save behavior
       presets.test.ts                  # Unit tests for body clone helper behavior
       profileValidation.test.ts        # Unit tests for saved profile validation rules
       sessionTransitions.test.ts       # Unit tests for runtime transition helpers

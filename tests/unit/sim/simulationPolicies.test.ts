@@ -5,13 +5,20 @@ vi.mock("~/src/sim/diagnosticsSelectors", () => ({
   pairBindingStateForBodies: vi.fn(),
 }));
 
+vi.mock("~/src/sim/physics", () => ({
+  totalEnergy: vi.fn(),
+  totalMomentum: vi.fn(),
+}));
+
 import { pairBindingStateForBodies } from "~/src/sim/diagnosticsSelectors";
+import { totalEnergy, totalMomentum } from "~/src/sim/physics";
 import {
   DISSOLUTION_TIME_THRESHOLD_SECONDS,
   applyBodyField,
   applyDissolutionProgress,
   appendTrailPoints,
   adjustedSimulationSpeed,
+  diagnosticsSnapshot,
 } from "~/src/sim/simulationPolicies";
 
 const makeBodies = (): BodyState[] => [
@@ -264,5 +271,40 @@ describe("adjustedSimulationSpeed", () => {
 
     expect(belowHalf).toBe(1.234);
     expect(aboveHalf).toBe(1.235);
+  });
+});
+
+describe("diagnosticsSnapshot", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns energy and momentum exactly from totalEnergy/totalMomentum", () => {
+    const bodies = makeBodies();
+    const params = makeParams({ G: 2, dt: 0.25 });
+    const momentum = { x: 7, y: -4 };
+    vi.mocked(totalEnergy).mockReturnValue(123.456);
+    vi.mocked(totalMomentum).mockReturnValue(momentum);
+
+    const snapshot = diagnosticsSnapshot(bodies, params);
+
+    expect(snapshot).toEqual({
+      energy: 123.456,
+      momentum,
+    });
+  });
+
+  it("calls totalEnergy and totalMomentum with one consistent bodies/params snapshot", () => {
+    const bodies = makeBodies();
+    const params = makeParams({ speed: 3 });
+    vi.mocked(totalEnergy).mockReturnValue(1);
+    vi.mocked(totalMomentum).mockReturnValue({ x: 0, y: 0 });
+
+    diagnosticsSnapshot(bodies, params);
+
+    expect(totalEnergy).toHaveBeenCalledWith(bodies, params);
+    expect(totalMomentum).toHaveBeenCalledWith(bodies);
+    expect(totalEnergy).toHaveBeenCalledTimes(1);
+    expect(totalMomentum).toHaveBeenCalledTimes(1);
   });
 });

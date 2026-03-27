@@ -83,6 +83,64 @@ describe("decodePersistedUiPrefs", () => {
       showCenterOfMass: true,
     });
   });
+
+  it('treats non-"1" non-null boolean payloads as false', () => {
+    expect(
+      decodePersistedUiPrefs({
+        panelExpanded: "true",
+        lockMode: "origin",
+        showOriginMarker: "yes",
+        showGrid: "2",
+        showCenterOfMass: "",
+      }),
+    ).toEqual({
+      panelExpanded: false,
+      lockMode: "origin",
+      showOriginMarker: false,
+      showGrid: false,
+      showCenterOfMass: false,
+    });
+  });
+
+  it("uses fallback defaults only for null keys in mixed payloads", () => {
+    expect(
+      decodePersistedUiPrefs({
+        panelExpanded: null,
+        lockMode: "origin",
+        showOriginMarker: "0",
+        showGrid: null,
+        showCenterOfMass: "1",
+      }),
+    ).toEqual({
+      panelExpanded: true,
+      lockMode: "origin",
+      showOriginMarker: false,
+      showGrid: true,
+      showCenterOfMass: true,
+    });
+  });
+
+  it('accepts "none" and "com" lock modes', () => {
+    expect(
+      decodePersistedUiPrefs({
+        panelExpanded: "1",
+        lockMode: "none",
+        showOriginMarker: "1",
+        showGrid: "1",
+        showCenterOfMass: "1",
+      }).lockMode,
+    ).toBe("none");
+
+    expect(
+      decodePersistedUiPrefs({
+        panelExpanded: "1",
+        lockMode: "com",
+        showOriginMarker: "1",
+        showGrid: "1",
+        showCenterOfMass: "1",
+      }).lockMode,
+    ).toBe("com");
+  });
 });
 
 describe("decodePersistedUserPresets", () => {
