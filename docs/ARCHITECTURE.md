@@ -59,7 +59,8 @@ src/                                   # Application source code
     useSimulationLoop.ts               # RAF lifecycle and loop orchestration
     useEditPresetCommands.ts           # User preset edit dialog state and edit-confirm commands
     useSavePresetCommands.ts           # User preset save dialog state and save-confirm commands
-    useSimulationSession.ts            # Session command handlers (start/reset/step/apply)
+    useSessionPresetCommands.ts        # Session preset/random apply command policy
+    useSimulationSession.ts            # Session command orchestration (start/reset/step + draft edits)
     useUserPresetCommands.ts           # User preset command composition + delete/fallback handling
     vector.ts                          # Vector utilities
     worldState.ts                      # Canonical stopped-world constructors

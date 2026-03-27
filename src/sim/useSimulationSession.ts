@@ -1,7 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { TrailMap } from "../render/canvasRenderer";
-import { cloneBodies } from "./presets";
-import { generateRandomChaoticBodies, generateRandomStableBodies } from "./randomProfiles";
 import { applyDissolutionProgress, diagnosticsSnapshot } from "./simulationPolicies";
 import {
   applyNewInitialStateTransition,
@@ -10,6 +8,7 @@ import {
 } from "./sessionTransitions";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./types";
 import { useDraftEditPolicy, type DraftEditPolicyHandlers } from "./useDraftEditPolicy";
+import { useSessionPresetCommands } from "./useSessionPresetCommands";
 
 type UseSimulationSessionArgs = {
   session: {
@@ -87,12 +86,6 @@ export const useSimulationSession = ({
     setWorld,
   };
 
-  const applyBodiesAsNewInitialState = (nextBodies: BodyState[]) => {
-    setDraftBodies(nextBodies);
-    applyNewInitialStateTransition(newInitialStateDeps, nextBodies, paramsRef.current, diagnosticsSnapshot);
-    scheduleFastReframe();
-  };
-
   const onStartPause = () => {
     runStartPauseTransition(startPauseDeps, diagnosticsSnapshot);
   };
@@ -108,37 +101,25 @@ export const useSimulationSession = ({
   const onStep = () => {
     runSingleStepTransition(singleStepDeps, applyDissolutionProgress);
   };
-
-  const onApplyPreset = () => {
-    const preset = allPresets.find((candidate) => candidate.id === selectedPresetId);
-    if (!preset) {
-      return;
-    }
-
-    const nextBodies = cloneBodies(preset.bodies);
-    const nextParams = { ...paramsRef.current, ...preset.params };
-    setDraftBodies(nextBodies);
-    setParams(nextParams);
-    paramsRef.current = nextParams;
-    applyNewInitialStateTransition(newInitialStateDeps, nextBodies, nextParams, diagnosticsSnapshot);
-    scheduleFastReframe();
-  };
-
-  const onGenerateRandomStable = () => {
-    const nextBodies = generateRandomStableBodies([...bodyColors]);
-    const nextParams = { ...paramsRef.current, G: 1, dt: 0.0045, speed: 1 };
-    paramsRef.current = nextParams;
-    setParams(nextParams);
-    applyBodiesAsNewInitialState(nextBodies);
-  };
-
-  const onGenerateRandomChaotic = () => {
-    const nextBodies = generateRandomChaoticBodies([...bodyColors]);
-    const nextParams = { ...paramsRef.current, G: 1.1, dt: 0.005, speed: 1.3 };
-    paramsRef.current = nextParams;
-    setParams(nextParams);
-    applyBodiesAsNewInitialState(nextBodies);
-  };
+  const { onApplyPreset, onGenerateRandomStable, onGenerateRandomChaotic } =
+    useSessionPresetCommands({
+      session: {
+        allPresets,
+        selectedPresetId,
+        bodyColors,
+      },
+      refs: {
+        paramsRef,
+      },
+      stateSetters: {
+        setParams,
+        setDraftBodies,
+      },
+      transitions: {
+        newInitialStateDeps,
+        scheduleFastReframe,
+      },
+    });
 
   return {
     onBodyChange,
