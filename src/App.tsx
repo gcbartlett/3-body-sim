@@ -250,6 +250,9 @@ function App() {
     onDecreaseRate: () => adjustRateByFactor(1 / 1.1),
     onCycleLockMode,
     onTogglePause: onStartPause,
+    onToggleGrid: () => setShowGrid((prev) => !prev),
+    onToggleCenterOfMass: () => setShowCenterOfMass((prev) => !prev),
+    onToggleOriginMarker: () => setShowOriginMarker((prev) => !prev),
     onStepForward: () => (worldRef.current.isRunning ? onStartPause() : onStep()),
   });
 
