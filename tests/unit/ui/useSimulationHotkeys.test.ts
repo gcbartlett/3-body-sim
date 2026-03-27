@@ -11,19 +11,25 @@ import {
 } from "~/src/ui/useSimulationHotkeys";
 
 describe("useSimulationHotkeys predicates", () => {
-  it("treats Space/L/G/C/O as non-repeating hotkeys", () => {
-    const nonRepeating = [
-      { fn: shouldTogglePauseFromHotkey, code: "Space" },
-      { fn: shouldCycleLockModeFromHotkey, code: "KeyL" },
-      { fn: shouldToggleGridFromHotkey, code: "KeyG" },
-      { fn: shouldToggleCenterOfMassFromHotkey, code: "KeyC" },
-      { fn: shouldToggleOriginMarkerFromHotkey, code: "KeyO" },
-    ] as const;
+  it("treats Space and letter toggles as non-repeating hotkeys", () => {
+    expect(shouldTogglePauseFromHotkey({ code: "Space", repeat: false })).toBe(true);
+    expect(shouldTogglePauseFromHotkey({ code: "Space", repeat: true })).toBe(false);
 
-    for (const { fn, code } of nonRepeating) {
-      expect(fn({ code, repeat: false })).toBe(true);
-      expect(fn({ code, repeat: true })).toBe(false);
-    }
+    expect(shouldCycleLockModeFromHotkey({ key: "l", repeat: false })).toBe(true);
+    expect(shouldCycleLockModeFromHotkey({ key: "L", repeat: false })).toBe(true);
+    expect(shouldCycleLockModeFromHotkey({ key: "l", repeat: true })).toBe(false);
+
+    expect(shouldToggleGridFromHotkey({ key: "g", repeat: false })).toBe(true);
+    expect(shouldToggleGridFromHotkey({ key: "G", repeat: false })).toBe(true);
+    expect(shouldToggleGridFromHotkey({ key: "g", repeat: true })).toBe(false);
+
+    expect(shouldToggleCenterOfMassFromHotkey({ key: "c", repeat: false })).toBe(true);
+    expect(shouldToggleCenterOfMassFromHotkey({ key: "C", repeat: false })).toBe(true);
+    expect(shouldToggleCenterOfMassFromHotkey({ key: "c", repeat: true })).toBe(false);
+
+    expect(shouldToggleOriginMarkerFromHotkey({ key: "o", repeat: false })).toBe(true);
+    expect(shouldToggleOriginMarkerFromHotkey({ key: "O", repeat: false })).toBe(true);
+    expect(shouldToggleOriginMarkerFromHotkey({ key: "o", repeat: true })).toBe(false);
   });
 
   it("allows repeat for +, -, and Right Arrow hotkeys", () => {
