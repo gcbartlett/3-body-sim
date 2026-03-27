@@ -16,6 +16,7 @@ import {
   buildNewInitialStateTransition,
   buildSingleStepTransition,
   buildStartPauseTransition,
+  runStartPauseTransition,
 } from "~/src/sim/sessionTransitions";
 
 const makeBodies = (): BodyState[] => [
@@ -322,5 +323,67 @@ describe("buildStartPauseTransition", () => {
 
     expect(result.nextWorld.ejectedBodyId).toBe("c");
     expect(result.nextWorld.dissolutionJustDetected).toBe(true);
+  });
+});
+
+describe("runStartPauseTransition", () => {
+  it("uses a functional setWorld updater, returns next world, and syncs refs/diagnostics when present", () => {
+    const baseline = { energy: 7, momentum: { x: 2, y: -1 } };
+    const computeDiagnostics = vi.fn(() => baseline);
+    const setBaselineDiagnostics = vi.fn();
+    const worldRef = { current: makeWorld({ isRunning: true }) };
+    const paramsRef = { current: makeParams({ dt: 0.25 }) };
+
+    let updater: ((prev: WorldState) => WorldState) | null = null;
+    const setWorld = vi.fn((next: ((prev: WorldState) => WorldState) | WorldState) => {
+      if (typeof next === "function") updater = next;
+    });
+
+    runStartPauseTransition(
+      {
+        worldRef: worldRef as never,
+        paramsRef: paramsRef as never,
+        setWorld,
+        setBaselineDiagnostics,
+      },
+      computeDiagnostics,
+    );
+
+    expect(setWorld).toHaveBeenCalledTimes(1);
+    expect(typeof setWorld.mock.calls[0][0]).toBe("function");
+
+    const prev = makeWorld({ isRunning: false, elapsedTime: 0 });
+    const next = updater!(prev);
+
+    expect(next.isRunning).toBe(true);
+    expect(worldRef.current).toBe(next);
+    expect(computeDiagnostics).toHaveBeenCalledWith(prev.bodies, paramsRef.current);
+    expect(setBaselineDiagnostics).toHaveBeenCalledWith(baseline);
+  });
+
+  it("does not set baseline diagnostics when transition baseline is null", () => {
+    const computeDiagnostics = vi.fn(() => ({ energy: 1, momentum: { x: 0, y: 0 } }));
+    const setBaselineDiagnostics = vi.fn();
+    const worldRef = { current: makeWorld({ isRunning: true }) };
+    const paramsRef = { current: makeParams() };
+
+    let updater: ((prev: WorldState) => WorldState) | null = null;
+    const setWorld = vi.fn((next: ((prev: WorldState) => WorldState) | WorldState) => {
+      if (typeof next === "function") updater = next;
+    });
+
+    runStartPauseTransition(
+      {
+        worldRef: worldRef as never,
+        paramsRef: paramsRef as never,
+        setWorld,
+        setBaselineDiagnostics,
+      },
+      computeDiagnostics,
+    );
+
+    updater!(makeWorld({ isRunning: false, elapsedTime: 2 }));
+
+    expect(setBaselineDiagnostics).not.toHaveBeenCalled();
   });
 });
