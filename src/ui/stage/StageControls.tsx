@@ -27,7 +27,7 @@ export const StageControls = ({
       <button onClick={onReset} title="Reset to current initial conditions and clear trails.">
         Reset
       </button>
-      <button onClick={onStep} title="Advance simulation by one integration step.">
+      <button onClick={onStep} title="Advance simulation by one integration step. Hotkey: Right Arrow.">
         Step
       </button>
     </div>
