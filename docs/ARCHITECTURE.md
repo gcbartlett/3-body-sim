@@ -100,6 +100,7 @@ tests/                                 # Automated test suites
     sim/                               # Unit tests for simulation modules
       camera.test.ts                   # Unit tests for camera transforms and updates
       cameraPolicy.test.ts             # Unit tests for auto-camera policy behavior
+      defaults.test.ts                 # Unit tests for default bodies/params/world factories
       diagnosticFormatting.test.ts     # Unit tests for diagnostics text formatting
       diagnosticsSelectors.test.ts     # Unit tests for diagnostics selectors
       ejection.test.ts                 # Unit tests for ejection detection logic
