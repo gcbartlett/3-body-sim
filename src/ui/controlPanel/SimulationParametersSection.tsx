@@ -55,7 +55,12 @@ export const SimulationParametersSection = ({
           onChange={(e) => onParamChange("G", number(e.target.valueAsNumber))}
         />
       </label>
-      <label title="Unified simulation rate control. Higher values prioritize throughput over precision using adaptive high-speed integration.">
+      <label
+        title={
+          "Unified simulation rate control. Higher values prioritize throughput over precision using adaptive high-speed integration.\n" +
+          "Hotkeys: '+' faster, '-' slower."
+        }
+      >
         Rate {params.speed.toFixed(2)}x
         <input
           type="range"
