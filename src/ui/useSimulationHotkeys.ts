@@ -19,25 +19,30 @@ const isNonRepeatingCodeHotkey = (
   code: KeyboardEvent["code"],
 ): boolean => e.code === code && !e.repeat;
 
+const isNonRepeatingLetterHotkey = (
+  e: Pick<KeyboardEvent, "key" | "repeat">,
+  letter: string,
+): boolean => e.key.toLowerCase() === letter && !e.repeat;
+
 export const shouldTogglePauseFromHotkey = (
   e: Pick<KeyboardEvent, "code" | "repeat">,
 ): boolean => isNonRepeatingCodeHotkey(e, "Space");
 
 export const shouldCycleLockModeFromHotkey = (
-  e: Pick<KeyboardEvent, "code" | "repeat">,
-): boolean => isNonRepeatingCodeHotkey(e, "KeyL");
+  e: Pick<KeyboardEvent, "key" | "repeat">,
+): boolean => isNonRepeatingLetterHotkey(e, "l");
 
 export const shouldToggleGridFromHotkey = (
-  e: Pick<KeyboardEvent, "code" | "repeat">,
-): boolean => isNonRepeatingCodeHotkey(e, "KeyG");
+  e: Pick<KeyboardEvent, "key" | "repeat">,
+): boolean => isNonRepeatingLetterHotkey(e, "g");
 
 export const shouldToggleCenterOfMassFromHotkey = (
-  e: Pick<KeyboardEvent, "code" | "repeat">,
-): boolean => isNonRepeatingCodeHotkey(e, "KeyC");
+  e: Pick<KeyboardEvent, "key" | "repeat">,
+): boolean => isNonRepeatingLetterHotkey(e, "c");
 
 export const shouldToggleOriginMarkerFromHotkey = (
-  e: Pick<KeyboardEvent, "code" | "repeat">,
-): boolean => isNonRepeatingCodeHotkey(e, "KeyO");
+  e: Pick<KeyboardEvent, "key" | "repeat">,
+): boolean => isNonRepeatingLetterHotkey(e, "o");
 
 export const shouldIncreaseRateFromHotkey = (e: KeyboardHotkeyEvent): boolean =>
   e.key === "+" || e.key === "=" || e.code === "NumpadAdd";
