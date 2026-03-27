@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
 import type { BodyState, PresetProfile, SimParams } from "../sim/types";
-import { loadSectionOpenState, saveSectionOpenState, type SectionOpenState } from "./uiPrefsStorage";
 import { BodyConfigurationSection } from "./controlPanel/BodyConfigurationSection";
 import { PresetsSection } from "./controlPanel/PresetsSection";
 import { SimulationParametersSection } from "./controlPanel/SimulationParametersSection";
 import type { BodyConfigField, LockMode } from "./controlPanel/types";
+import { useControlPanelSections } from "./useControlPanelSections";
 
 type Props = {
   bodies: BodyState[];
@@ -65,11 +64,7 @@ export const ControlPanel = ({
   onGenerateRandomStable,
   onGenerateRandomChaotic,
 }: Props) => {
-  const [sectionState, setSectionState] = useState<SectionOpenState>(loadSectionOpenState);
-
-  useEffect(() => {
-    saveSectionOpenState(sectionState);
-  }, [sectionState]);
+  const { sectionState, setSimParamsOpen, setBodyConfigOpen, setPresetsOpen } = useControlPanelSections();
 
   return (
     <aside className="panel">
@@ -90,9 +85,7 @@ export const ControlPanel = ({
         showGrid={showGrid}
         showCenterOfMass={showCenterOfMass}
         open={sectionState.simParamsOpen}
-        onOpenChange={(open) => {
-          setSectionState((prev) => ({ ...prev, simParamsOpen: open }));
-        }}
+        onOpenChange={setSimParamsOpen}
         onParamChange={onParamChange}
         onLockModeChange={onLockModeChange}
         onToggleManualPanZoom={onToggleManualPanZoom}
@@ -104,9 +97,7 @@ export const ControlPanel = ({
       <BodyConfigurationSection
         bodies={bodies}
         open={sectionState.bodyConfigOpen}
-        onOpenChange={(open) => {
-          setSectionState((prev) => ({ ...prev, bodyConfigOpen: open }));
-        }}
+        onOpenChange={setBodyConfigOpen}
         onBodyChange={onBodyChange}
       />
       <PresetsSection
@@ -115,9 +106,7 @@ export const ControlPanel = ({
         defaultPresetIds={defaultPresetIds}
         selectedUserPresetIbcDirty={selectedUserPresetIbcDirty}
         open={sectionState.presetsOpen}
-        onOpenChange={(open) => {
-          setSectionState((prev) => ({ ...prev, presetsOpen: open }));
-        }}
+        onOpenChange={setPresetsOpen}
         onPresetSelect={onPresetSelect}
         onEditUserPreset={onEditUserPreset}
         onDeleteUserPreset={onDeleteUserPreset}

@@ -91,6 +91,7 @@ src/                                   # Application source code
     useAppRuntimeState.ts              # App runtime refs + manual-mode sync glue
     useAppViewModels.ts                # Stage/diagnostics view-model and prop assembly
     useCanvasCameraControls.ts         # Pointer/touch/wheel camera interactions
+    useControlPanelSections.ts         # Control-panel section open-state ownership + persistence
     useHoverTooltipState.ts            # Hover tooltip lifecycle/state hook
     useSimulationHotkeys.ts            # Keyboard shortcut handling
     useStageViewport.ts                # Canvas container/viewport sizing hook
