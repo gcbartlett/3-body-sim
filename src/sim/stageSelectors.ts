@@ -83,18 +83,18 @@ const runButtonCopyForWorld = (
   if (world.isRunning) {
     return {
       runButtonLabel: "Pause",
-      runButtonTooltip: "Pause simulation time progression. Hotkey: Space.",
+      runButtonTooltip: "Pause simulation time progression.\nHotkey: Space.",
     };
   }
   if (world.elapsedTime > 0) {
     return {
       runButtonLabel: "Resume",
-      runButtonTooltip: "Resume running the simulation. Hotkey: Space.",
+      runButtonTooltip: "Resume running the simulation.\nHotkey: Space.",
     };
   }
   return {
     runButtonLabel: "Start",
-    runButtonTooltip: "Start running the simulation. Hotkey: Space.",
+    runButtonTooltip: "Start running the simulation.\nHotkey: Space.",
   };
 };
 

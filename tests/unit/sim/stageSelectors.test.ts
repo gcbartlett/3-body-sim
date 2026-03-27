@@ -130,11 +130,11 @@ describe("stageViewModelForWorld", () => {
     });
 
     expect(startView.runButtonLabel).toBe("Start");
-    expect(startView.runButtonTooltip).toBe("Start running the simulation. Hotkey: Space.");
+    expect(startView.runButtonTooltip).toBe("Start running the simulation.\nHotkey: Space.");
     expect(resumeView.runButtonLabel).toBe("Resume");
-    expect(resumeView.runButtonTooltip).toBe("Resume running the simulation. Hotkey: Space.");
+    expect(resumeView.runButtonTooltip).toBe("Resume running the simulation.\nHotkey: Space.");
     expect(pauseView.runButtonLabel).toBe("Pause");
-    expect(pauseView.runButtonTooltip).toBe("Pause simulation time progression. Hotkey: Space.");
+    expect(pauseView.runButtonTooltip).toBe("Pause simulation time progression.\nHotkey: Space.");
   });
 
   it('uses "Manual" status segment when manualPanZoom=true', () => {

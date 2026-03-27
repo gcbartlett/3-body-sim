@@ -6,8 +6,47 @@ type UseSimulationHotkeysParams = {
   onDecreaseRate: () => void;
   onCycleLockMode: () => void;
   onTogglePause: () => void;
+  onToggleGrid: () => void;
+  onToggleCenterOfMass: () => void;
+  onToggleOriginMarker: () => void;
   onStepForward: () => void;
 };
+
+type KeyboardHotkeyEvent = Pick<KeyboardEvent, "key" | "code" | "repeat">;
+
+const isNonRepeatingCodeHotkey = (
+  e: Pick<KeyboardEvent, "code" | "repeat">,
+  code: KeyboardEvent["code"],
+): boolean => e.code === code && !e.repeat;
+
+export const shouldTogglePauseFromHotkey = (
+  e: Pick<KeyboardEvent, "code" | "repeat">,
+): boolean => isNonRepeatingCodeHotkey(e, "Space");
+
+export const shouldCycleLockModeFromHotkey = (
+  e: Pick<KeyboardEvent, "code" | "repeat">,
+): boolean => isNonRepeatingCodeHotkey(e, "KeyL");
+
+export const shouldToggleGridFromHotkey = (
+  e: Pick<KeyboardEvent, "code" | "repeat">,
+): boolean => isNonRepeatingCodeHotkey(e, "KeyG");
+
+export const shouldToggleCenterOfMassFromHotkey = (
+  e: Pick<KeyboardEvent, "code" | "repeat">,
+): boolean => isNonRepeatingCodeHotkey(e, "KeyC");
+
+export const shouldToggleOriginMarkerFromHotkey = (
+  e: Pick<KeyboardEvent, "code" | "repeat">,
+): boolean => isNonRepeatingCodeHotkey(e, "KeyO");
+
+export const shouldIncreaseRateFromHotkey = (e: KeyboardHotkeyEvent): boolean =>
+  e.key === "+" || e.key === "=" || e.code === "NumpadAdd";
+
+export const shouldDecreaseRateFromHotkey = (e: KeyboardHotkeyEvent): boolean =>
+  e.key === "-" || e.key === "_" || e.code === "NumpadSubtract";
+
+export const shouldStepForwardFromHotkey = (e: KeyboardHotkeyEvent): boolean =>
+  e.key === "ArrowRight";
 
 export const useSimulationHotkeys = ({
   onEscape,
@@ -15,6 +54,9 @@ export const useSimulationHotkeys = ({
   onDecreaseRate,
   onCycleLockMode,
   onTogglePause,
+  onToggleGrid,
+  onToggleCenterOfMass,
+  onToggleOriginMarker,
   onStepForward,
 }: UseSimulationHotkeysParams) => {
   const onKeyDownEvent = useEffectEvent((e: KeyboardEvent) => {
@@ -39,27 +81,42 @@ export const useSimulationHotkeys = ({
       onEscape();
       return;
     }
-    if (e.key === "+" || e.key === "=" || e.code === "NumpadAdd") {
+    if (shouldIncreaseRateFromHotkey(e)) {
       e.preventDefault();
       onIncreaseRate();
       return;
     }
-    if (e.key === "-" || e.key === "_" || e.code === "NumpadSubtract") {
+    if (shouldDecreaseRateFromHotkey(e)) {
       e.preventDefault();
       onDecreaseRate();
       return;
     }
-    if (e.key === "l" || e.key === "L") {
+    if (shouldCycleLockModeFromHotkey(e)) {
       e.preventDefault();
       onCycleLockMode();
       return;
     }
-    if (e.code === "Space") {
+    if (shouldTogglePauseFromHotkey(e)) {
       e.preventDefault();
       onTogglePause();
       return;
     }
-    if (e.key === "ArrowRight") {
+    if (shouldToggleGridFromHotkey(e)) {
+      e.preventDefault();
+      onToggleGrid();
+      return;
+    }
+    if (shouldToggleCenterOfMassFromHotkey(e)) {
+      e.preventDefault();
+      onToggleCenterOfMass();
+      return;
+    }
+    if (shouldToggleOriginMarkerFromHotkey(e)) {
+      e.preventDefault();
+      onToggleOriginMarker();
+      return;
+    }
+    if (shouldStepForwardFromHotkey(e)) {
       e.preventDefault();
       onStepForward();
     }

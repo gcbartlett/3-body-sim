@@ -94,11 +94,17 @@ export const SimulationParametersSection = ({
         />
       </label>
       <div className="control-matrix">
-        <span className="control-matrix-label" title="Select which reference point is kept at the viewport center.">
+        <span
+          className="control-matrix-label"
+          title={"Select which reference point is kept at the viewport center.\n" + "Hotkey: L (cycle)."}
+        >
           Lock:
         </span>
         <div className="control-options-grid">
-          <label className="lock-option" title="No lock. Camera tracks body bounds naturally.">
+          <label
+            className="lock-option"
+            title={"No lock. Camera tracks body bounds naturally.\n" + "Hotkey: L (cycle modes)."}
+          >
             None
             <input
               type="radio"
@@ -107,7 +113,13 @@ export const SimulationParametersSection = ({
               onChange={() => onLockModeChange("none")}
             />
           </label>
-          <label className="lock-option" title="Lock viewport center to the instantaneous center of mass.">
+          <label
+            className="lock-option"
+            title={
+              "Lock viewport center to the instantaneous center of mass.\n" +
+              "Hotkey: L (cycle modes)."
+            }
+          >
             COM
             <input
               type="radio"
@@ -116,7 +128,10 @@ export const SimulationParametersSection = ({
               onChange={() => onLockModeChange("com")}
             />
           </label>
-          <label className="lock-option" title="Lock viewport center to world origin (0,0).">
+          <label
+            className="lock-option"
+            title={"Lock viewport center to world origin (0,0).\n" + "Hotkey: L (cycle modes)."}
+          >
             Origin
             <input
               type="radio"
@@ -127,19 +142,24 @@ export const SimulationParametersSection = ({
           </label>
         </div>
 
-        <span className="control-matrix-label" title="Toggle visual overlays in the canvas.">
+        <span
+          className="control-matrix-label"
+          title={
+            "Toggle visual overlays in the canvas.\n" + "Hotkeys: G (grid), C (COM), O (origin)."
+          }
+        >
           Show:
         </span>
         <div className="control-options-grid">
-          <label className="show-option" title="Display the background coordinate grid.">
+          <label className="show-option" title={"Display the background coordinate grid.\n" + "Hotkey: G."}>
             Grid
             <input type="checkbox" checked={showGrid} onChange={(e) => onToggleShowGrid(e.target.checked)} />
           </label>
-          <label className="show-option" title="Display the center-of-mass marker.">
+          <label className="show-option" title={"Display the center-of-mass marker.\n" + "Hotkey: C."}>
             COM
             <input type="checkbox" checked={showCenterOfMass} onChange={(e) => onToggleShowCenterOfMass(e.target.checked)} />
           </label>
-          <label className="show-option" title="Display the world origin marker at (0,0).">
+          <label className="show-option" title={"Display the world origin marker at (0,0).\n" + "Hotkey: O."}>
             Origin
             <input type="checkbox" checked={showOriginMarker} onChange={(e) => onToggleShowOriginMarker(e.target.checked)} />
           </label>
