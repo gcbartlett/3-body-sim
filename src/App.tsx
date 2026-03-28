@@ -35,11 +35,18 @@ import { useAppPersistence } from "./ui/useAppPersistence";
 import { useAppRuntimeState } from "./ui/useAppRuntimeState";
 import { useAppUiPreferences } from "./ui/useAppUiPreferences";
 import { useAppViewModels } from "./ui/useAppViewModels";
+import { IDLE_STEP_ACCELERATION, type StepAccelerationState } from "./ui/stepAcceleration";
 import {
   adjustedSimulationSpeed,
   diagnosticsSnapshot,
 } from "./sim/simulationPolicies";
-import type { SimulationHistory } from "./sim/simulationHistory";
+import {
+  clampHistoryMaxSteps,
+  getSimulationHistoryMetrics,
+  setHistoryMaxSteps,
+  type SimulationHistory,
+  type SimulationHistoryMetrics,
+} from "./sim/simulationHistory";
 
 const initialCamera: Camera = {
   center: { x: 0, y: 0 },
@@ -49,6 +56,8 @@ const initialCamera: Camera = {
 const BODY_COLORS = ["#f7b731", "#60a5fa", "#8bd450"];
 const FAST_REFRAME_FRAMES = 60;
 const MAX_HISTORY_STEPS = 300;
+const HISTORY_DEPTH_INPUT_MIN = 50;
+const HISTORY_DEPTH_INPUT_MAX = 2000;
 const APP_VERSION = __APP_VERSION__;
 
 function App() {
@@ -58,7 +67,14 @@ function App() {
   const [world, setWorld] = useState<WorldState>(initialWorld);
   const [selectedPresetId, setSelectedPresetId] = useState<string>(PRESETS[0].id);
   const [manualPanZoom, setManualPanZoom] = useState<boolean>(false);
-  const [historyDepth, setHistoryDepth] = useState(0);
+  const [historyMetrics, setHistoryMetrics] = useState<SimulationHistoryMetrics>({
+    count: 0,
+    maxSteps: MAX_HISTORY_STEPS,
+    estimatedBytes: 0,
+  });
+  const [stepAcceleration, setStepAcceleration] = useState<StepAccelerationState>(
+    IDLE_STEP_ACCELERATION,
+  );
   const {
     lockMode,
     setLockMode,
@@ -114,8 +130,17 @@ function App() {
     cameraRef.current = { ...initialCamera };
     forceFastZoomInFramesRef.current = FAST_REFRAME_FRAMES;
   };
-  const syncHistoryDepth = () => {
-    setHistoryDepth(historyRef.current.snapshots.length);
+  const syncHistoryMetrics = (nextCount?: number) => {
+    const metrics = getSimulationHistoryMetrics(historyRef.current);
+    setHistoryMetrics({
+      count: nextCount ?? metrics.count,
+      maxSteps: metrics.maxSteps,
+      estimatedBytes: metrics.estimatedBytes,
+    });
+  };
+  const onHistoryMaxStepsChange = (nextMaxSteps: number) => {
+    setHistoryMaxSteps(historyRef, clampHistoryMaxSteps(nextMaxSteps));
+    syncHistoryMetrics();
   };
 
   useAppPersistence({
@@ -209,7 +234,7 @@ function App() {
       forceFastZoomInFramesRef,
       simStepCounterRef,
       historyRef,
-      onHistoryChanged: syncHistoryDepth,
+      onHistoryChanged: syncHistoryMetrics,
     },
     hover: {
       hoverBodyIdRef,
@@ -257,10 +282,10 @@ function App() {
     controls: {
       setManualMode,
       scheduleFastReframe,
-      onHistoryChanged: syncHistoryDepth,
+      onHistoryChanged: syncHistoryMetrics,
     },
   });
-  const canStepBack = historyDepth > 0;
+  const canStepBack = historyMetrics.count > 0;
 
   useSimulationHotkeys({
     onEscape: () => setManualMode(false),
@@ -271,9 +296,10 @@ function App() {
     onToggleGrid: () => setShowGrid((prev) => !prev),
     onToggleCenterOfMass: () => setShowCenterOfMass((prev) => !prev),
     onToggleOriginMarker: () => setShowOriginMarker((prev) => !prev),
-    onStepForward: () => (worldRef.current.isRunning ? onStartPause() : onStep()),
+    onStepForward: onStep,
     onStepBack,
     canStepBack,
+    onStepAccelerationChange: setStepAcceleration,
   });
 
   const onTogglePanelExpanded = () => {
@@ -282,6 +308,11 @@ function App() {
   };
 
   const diagnostics = diagnosticsSnapshot(world.bodies, params);
+  const accelerationActive = stepAcceleration.active;
+  const accelerationBurst = stepAcceleration.active ? stepAcceleration.burst : 1;
+  const accelerationDirection = stepAcceleration.active ? stepAcceleration.direction : null;
+  const hudAccelerationBurst = canStepBack ? accelerationBurst : 1;
+  const hudAccelerationDirection = canStepBack ? accelerationDirection : null;
   const {
     stageHudProps,
     stageControlsProps,
@@ -300,6 +331,16 @@ function App() {
     onStep,
     onStepBack,
     canStepBack,
+    accelerationActive,
+    accelerationBurst: hudAccelerationBurst,
+    accelerationDirection: hudAccelerationDirection,
+    historySnapshotCount: historyMetrics.count,
+    historyMaxSteps: historyMetrics.maxSteps,
+    historyEstimatedBytes: historyMetrics.estimatedBytes,
+    onHistoryMaxStepsChange,
+    historyDepthInputMin: HISTORY_DEPTH_INPUT_MIN,
+    historyDepthInputMax: HISTORY_DEPTH_INPUT_MAX,
+    onStepAccelerationChange: setStepAcceleration,
     onTogglePanelExpanded,
     onVisibleHeightChange: setDiagnosticsInsetPx,
   });

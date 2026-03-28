@@ -1,4 +1,11 @@
-import { useEffect, useEffectEvent } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
+import {
+  HOLD_ACCELERATION_TICK_MS,
+  IDLE_STEP_ACCELERATION,
+  burstCountForHoldDuration,
+  type StepAccelerationDirection,
+  type StepAccelerationState,
+} from "./stepAcceleration";
 
 type UseSimulationHotkeysParams = {
   onEscape: () => void;
@@ -12,6 +19,7 @@ type UseSimulationHotkeysParams = {
   onStepForward: () => void;
   onStepBack: () => void;
   canStepBack: boolean;
+  onStepAccelerationChange?: (next: StepAccelerationState) => void;
 };
 
 type KeyboardHotkeyEvent = Pick<KeyboardEvent, "key" | "code" | "repeat">;
@@ -60,10 +68,28 @@ export const shouldStepBackFromHotkey = (e: KeyboardHotkeyEvent): boolean =>
 
 type HotkeyHandlers = Omit<UseSimulationHotkeysParams, "canStepBack">;
 
+type StepBackBurstInput = {
+  repeat: boolean;
+  holdDurationMs: number;
+};
+
+export const stepBackBurstForHold = ({ repeat, holdDurationMs }: StepBackBurstInput): number => {
+  if (!repeat) {
+    return 1;
+  }
+  return burstCountForHoldDuration(holdDurationMs);
+};
+
+type DispatchSimulationHotkeyOptions = {
+  canStepBack: boolean;
+  stepForwardBurst?: number;
+  stepBackBurst?: number;
+};
+
 export const dispatchSimulationHotkeyAction = (
   e: Pick<KeyboardEvent, "key" | "code" | "repeat" | "preventDefault">,
   handlers: HotkeyHandlers,
-  canStepBack: boolean,
+  { canStepBack, stepForwardBurst = 1, stepBackBurst = 1 }: DispatchSimulationHotkeyOptions,
 ): void => {
   if (shouldIncreaseRateFromHotkey(e)) {
     e.preventDefault();
@@ -102,12 +128,16 @@ export const dispatchSimulationHotkeyAction = (
   }
   if (shouldStepForwardFromHotkey(e)) {
     e.preventDefault();
-    handlers.onStepForward();
+    for (let i = 0; i < stepForwardBurst; i += 1) {
+      handlers.onStepForward();
+    }
     return;
   }
   if (canStepBack && shouldStepBackFromHotkey(e)) {
     e.preventDefault();
-    handlers.onStepBack();
+    for (let i = 0; i < stepBackBurst; i += 1) {
+      handlers.onStepBack();
+    }
   }
 };
 
@@ -123,7 +153,77 @@ export const useSimulationHotkeys = ({
   onStepForward,
   onStepBack,
   canStepBack,
+  onStepAccelerationChange,
 }: UseSimulationHotkeysParams) => {
+  const holdStartedAtRef = useRef<number | null>(null);
+  const holdIntervalIdRef = useRef<number | null>(null);
+  const activeDirectionRef = useRef<StepAccelerationDirection | null>(null);
+
+  const runBurstStep = useEffectEvent((direction: StepAccelerationDirection, burst: number) => {
+    if (direction === "forward") {
+      for (let i = 0; i < burst; i += 1) {
+        onStepForward();
+      }
+      return;
+    }
+    for (let i = 0; i < burst; i += 1) {
+      onStepBack();
+    }
+  });
+
+  const emitAcceleration = useEffectEvent((next: StepAccelerationState) => {
+    onStepAccelerationChange?.(next);
+  });
+
+  const stopStepHold = useEffectEvent(() => {
+    if (holdIntervalIdRef.current !== null) {
+      window.clearInterval(holdIntervalIdRef.current);
+      holdIntervalIdRef.current = null;
+    }
+    holdStartedAtRef.current = null;
+    activeDirectionRef.current = null;
+    emitAcceleration(IDLE_STEP_ACCELERATION);
+  });
+
+  const startStepHold = useEffectEvent((direction: StepAccelerationDirection) => {
+    if (direction === "backward" && !canStepBack) {
+      return;
+    }
+    if (activeDirectionRef.current === direction) {
+      return;
+    }
+
+    stopStepHold();
+    activeDirectionRef.current = direction;
+    holdStartedAtRef.current = performance.now();
+    runBurstStep(direction, 1);
+    emitAcceleration({
+      source: "keyboard",
+      direction,
+      burst: 1,
+      active: true,
+    });
+
+    holdIntervalIdRef.current = window.setInterval(() => {
+      if (activeDirectionRef.current !== direction || holdStartedAtRef.current === null) {
+        return;
+      }
+      if (direction === "backward" && !canStepBack) {
+        stopStepHold();
+        return;
+      }
+      const holdDurationMs = Math.max(0, performance.now() - holdStartedAtRef.current);
+      const burst = burstCountForHoldDuration(holdDurationMs);
+      runBurstStep(direction, burst);
+      emitAcceleration({
+        source: "keyboard",
+        direction,
+        burst,
+        active: true,
+      });
+    }, HOLD_ACCELERATION_TICK_MS);
+  });
+
   const onKeyDownEvent = useEffectEvent((e: KeyboardEvent) => {
     if (e.metaKey || e.ctrlKey || e.altKey) {
       return;
@@ -143,9 +243,22 @@ export const useSimulationHotkeys = ({
     }
 
     if (e.key === "Escape") {
+      stopStepHold();
       onEscape();
       return;
     }
+    if (shouldStepForwardFromHotkey(e)) {
+      e.preventDefault();
+      startStepHold("forward");
+      return;
+    }
+
+    if (shouldStepBackFromHotkey(e)) {
+      e.preventDefault();
+      startStepHold("backward");
+      return;
+    }
+
     dispatchSimulationHotkeyAction(
       e,
       {
@@ -160,13 +273,31 @@ export const useSimulationHotkeys = ({
         onStepForward,
         onStepBack,
       },
-      canStepBack,
+      {
+        canStepBack,
+      },
     );
   });
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => onKeyDownEvent(e);
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight" && activeDirectionRef.current === "forward") {
+        stopStepHold();
+      }
+      if (e.key === "ArrowLeft" && activeDirectionRef.current === "backward") {
+        stopStepHold();
+      }
+    };
+    const onWindowBlur = () => stopStepHold();
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onWindowBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onWindowBlur);
+      stopStepHold();
+    };
   }, []);
 };

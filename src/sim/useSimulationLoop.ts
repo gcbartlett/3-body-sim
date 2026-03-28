@@ -83,6 +83,7 @@ export const applySimulationFrameResult = ({
       historyRef,
       captureSnapshot({
         world: currentWorld,
+        trails: trailsRef.current,
         accumulator: accumulatorRef.current,
         simStepCounter: simStepCounterRef.current,
         forceFastZoomInFrames: forceFastZoomInFramesRef.current,
@@ -184,9 +185,9 @@ export const useSimulationLoop = ({
           forceFastZoomInFramesRef,
           hoverLastUpdateTimeRef,
           worldRef,
-    historyRef,
-    onHistoryChanged,
-  },
+          historyRef,
+          onHistoryChanged,
+        },
         setWorld,
       });
 

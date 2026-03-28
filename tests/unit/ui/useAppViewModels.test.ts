@@ -60,12 +60,23 @@ describe("useAppViewModels", () => {
       onStep: vi.fn(),
       onStepBack,
       canStepBack: true,
+      accelerationActive: false,
+      accelerationBurst: 1,
+      accelerationDirection: null,
+      historySnapshotCount: 3,
+      historyMaxSteps: 300,
+      historyEstimatedBytes: 12345,
+      onHistoryMaxStepsChange: vi.fn(),
+      historyDepthInputMin: 50,
+      historyDepthInputMax: 2000,
       onTogglePanelExpanded: vi.fn(),
       onVisibleHeightChange: vi.fn(),
     });
 
     expect(result.stageControlsProps.onStepBack).toBe(onStepBack);
     expect(result.stageControlsProps.canStepBack).toBe(true);
+    expect(result.stageHudProps.accelerationBurst).toBe(1);
+    expect(result.stageHudProps.accelerationDirection).toBeNull();
   });
 
   it("forwards disabled Back-control state when canStepBack is false", () => {
@@ -84,6 +95,15 @@ describe("useAppViewModels", () => {
       onStep: vi.fn(),
       onStepBack,
       canStepBack: false,
+      accelerationActive: false,
+      accelerationBurst: 1,
+      accelerationDirection: null,
+      historySnapshotCount: 0,
+      historyMaxSteps: 300,
+      historyEstimatedBytes: 0,
+      onHistoryMaxStepsChange: vi.fn(),
+      historyDepthInputMin: 50,
+      historyDepthInputMax: 2000,
       onTogglePanelExpanded: vi.fn(),
       onVisibleHeightChange: vi.fn(),
     });

@@ -167,6 +167,7 @@ export const runSingleStepWithHistoryTransition = (
     deps.historyRef,
     captureSnapshot({
       world: deps.worldRef.current,
+      trails: deps.trailsRef.current,
       accumulator: deps.accumulatorRef.current,
       simStepCounter: deps.simStepCounterRef.current,
       forceFastZoomInFrames: deps.forceFastZoomInFramesRef.current,
@@ -201,7 +202,7 @@ export const runStepBackTransition = (deps: StepBackTransitionDeps): boolean => 
   deps.accumulatorRef.current = restored.accumulator;
   deps.simStepCounterRef.current = restored.simStepCounter;
   deps.forceFastZoomInFramesRef.current = restored.forceFastZoomInFrames;
-  deps.trailsRef.current = {};
+  deps.trailsRef.current = restored.trails;
   deps.lastTimeRef.current = null;
   deps.hoverLastUpdateTimeRef.current = 0;
   deps.setWorld(restored.world);

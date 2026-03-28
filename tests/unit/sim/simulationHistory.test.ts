@@ -1,15 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_HISTORY_STEPS,
+  MIN_HISTORY_STEPS,
+  clampHistoryMaxSteps,
   captureSnapshot,
   clearHistory,
   cloneWorldState,
+  getSimulationHistoryMetrics,
   popSnapshot,
   pushSnapshot,
   restoreSnapshot,
+  setHistoryMaxSteps,
   type SimulationHistory,
   type SimulationSnapshot,
 } from "~/src/sim/simulationHistory";
 import type { WorldState } from "~/src/sim/types";
+import type { TrailMap } from "~/src/render/canvasRenderer";
 
 const makeWorld = (): WorldState => ({
   bodies: [
@@ -38,6 +44,14 @@ const makeWorld = (): WorldState => ({
   dissolutionJustDetected: false,
 });
 
+const makeTrails = (): TrailMap => ({
+  a: [
+    { x: 1, y: 2, life: 0.9 },
+    { x: 2, y: 3, life: 0.5 },
+  ],
+  b: [{ x: -1, y: -2, life: 0.6 }],
+});
+
 const makeSnapshot = (id: string): SimulationSnapshot =>
   captureSnapshot({
     world: {
@@ -45,6 +59,7 @@ const makeSnapshot = (id: string): SimulationSnapshot =>
       ejectedBodyId: id,
       ejectedBodyIds: [id],
     },
+    trails: makeTrails(),
     accumulator: id.length,
     simStepCounter: id.length * 10,
     forceFastZoomInFrames: id.length * 2,
@@ -79,6 +94,7 @@ describe("captureSnapshot", () => {
     const world = makeWorld();
     const snapshot = captureSnapshot({
       world,
+      trails: makeTrails(),
       accumulator: 0.75,
       simStepCounter: 25,
       forceFastZoomInFrames: 8,
@@ -89,9 +105,12 @@ describe("captureSnapshot", () => {
     expect(snapshot.accumulator).toBe(0.75);
     expect(snapshot.simStepCounter).toBe(25);
     expect(snapshot.forceFastZoomInFrames).toBe(8);
+    expect(snapshot.trails).toEqual(makeTrails());
 
     world.bodies[0].velocity.y = 123;
+    snapshot.trails.a[0].x = 123;
     expect(snapshot.world.bodies[0].velocity.y).toBe(4);
+    expect(makeTrails().a[0].x).toBe(1);
   });
 });
 
@@ -145,6 +164,7 @@ describe("restoreSnapshot", () => {
         ...makeWorld(),
         isRunning: true,
       },
+      trails: makeTrails(),
       accumulator: 1.25,
       simStepCounter: 40,
       forceFastZoomInFrames: 7,
@@ -158,6 +178,7 @@ describe("restoreSnapshot", () => {
     expect(restored.accumulator).toBe(1.25);
     expect(restored.simStepCounter).toBe(40);
     expect(restored.forceFastZoomInFrames).toBe(7);
+    expect(restored.trails).toEqual(makeTrails());
   });
 
   it("does not alias restored world to the stored snapshot and keeps snapshot unchanged", () => {
@@ -172,7 +193,48 @@ describe("restoreSnapshot", () => {
     expect(restored.world.bodies[0]).not.toBe(snapshot.world.bodies[0]);
 
     restored.world.bodies[0].position.x = 1234;
+    restored.trails.a[0].x = 4321;
     expect(snapshot.world.bodies[0].position.x).toBe(1);
     expect(snapshot.world).toEqual(originalSnapshotWorld);
+    expect(snapshot.trails.a[0].x).toBe(1);
+  });
+});
+
+describe("history depth configuration and metrics", () => {
+  it("clamps history depth to supported range", () => {
+    expect(clampHistoryMaxSteps(-5)).toBe(MIN_HISTORY_STEPS);
+    expect(clampHistoryMaxSteps(10_000)).toBe(MAX_HISTORY_STEPS);
+    expect(clampHistoryMaxSteps(300)).toBe(300);
+  });
+
+  it("applies max-step changes immediately and trims oldest snapshots on shrink", () => {
+    const snapshots = Array.from({ length: 80 }, (_, index) => makeSnapshot(`s${index}`));
+    const expectedFirstRetainedId = snapshots[30].world.ejectedBodyId;
+    const historyRef: { current: SimulationHistory } = {
+      current: {
+        snapshots,
+        maxSteps: 300,
+      },
+    };
+
+    setHistoryMaxSteps(historyRef, 50);
+    expect(historyRef.current.maxSteps).toBe(50);
+    expect(historyRef.current.snapshots).toHaveLength(50);
+    expect(historyRef.current.snapshots[0].world.ejectedBodyId).toBe(expectedFirstRetainedId);
+
+    setHistoryMaxSteps(historyRef, 2_000);
+    expect(historyRef.current.maxSteps).toBe(2000);
+    expect(historyRef.current.snapshots).toHaveLength(50);
+  });
+
+  it("reports bounded history metrics with estimated bytes", () => {
+    const metrics = getSimulationHistoryMetrics({
+      snapshots: [makeSnapshot("alpha"), makeSnapshot("beta")],
+      maxSteps: 300,
+    });
+
+    expect(metrics.count).toBe(2);
+    expect(metrics.maxSteps).toBe(300);
+    expect(metrics.estimatedBytes).toBeGreaterThan(0);
   });
 });

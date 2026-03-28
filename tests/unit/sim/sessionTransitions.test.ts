@@ -121,6 +121,7 @@ describe("applyNewInitialStateTransition", () => {
     const historyRef = makeHistoryRef([
       {
         world: makeWorld(),
+        trails: {},
         accumulator: 1,
         simStepCounter: 2,
         forceFastZoomInFrames: 3,
@@ -241,6 +242,7 @@ describe("runSingleStepWithHistoryTransition", () => {
     expect(historyRef.current.snapshots).toHaveLength(1);
     expect(historyRef.current.snapshots[0]).toEqual({
       world: makeWorld({ elapsedTime: 2 }),
+      trails: {},
       accumulator: 0.33,
       simStepCounter: 9,
       forceFastZoomInFrames: 7,
@@ -600,6 +602,7 @@ describe("runStepBackTransition", () => {
     const historyRef = makeHistoryRef([
       {
         world: snapshotWorld,
+        trails: { a: [{ x: 10, y: 11, life: 0.75 }] },
         accumulator: 0.75,
         simStepCounter: 21,
         forceFastZoomInFrames: 11,
@@ -633,7 +636,7 @@ describe("runStepBackTransition", () => {
     expect(accumulatorRef.current).toBe(0.75);
     expect(simStepCounterRef.current).toBe(21);
     expect(forceFastZoomInFramesRef.current).toBe(11);
-    expect(trailsRef.current).toEqual({});
+    expect(trailsRef.current).toEqual({ a: [{ x: 10, y: 11, life: 0.75 }] });
     expect(lastTimeRef.current).toBeNull();
     expect(hoverLastUpdateTimeRef.current).toBe(0);
     expect(setWorld).toHaveBeenCalledWith(worldRef.current);
@@ -653,13 +656,14 @@ describe("runStepBackTransition", () => {
       ejectedBodyIds: world.ejectedBodyIds,
       isRunning: false,
     }));
-    vi.mocked(appendTrailPoints).mockReturnValue({});
-    vi.mocked(fadeAndPruneTrails).mockReturnValue({});
+    vi.mocked(appendTrailPoints).mockReturnValue({ a: [{ x: 10, y: 10, life: 1 }] });
+    vi.mocked(fadeAndPruneTrails).mockReturnValue({ a: [{ x: 10, y: 10, life: 0.8 }] });
 
     const startingWorld = makeWorld({ elapsedTime: 3, isRunning: false });
+    const startingTrails = { a: [{ x: 2, y: 2, life: 0.95 }] };
     const worldRef = { current: startingWorld };
     const paramsRef = { current: makeParams({ dt: 0.2 }) };
-    const trailsRef = { current: {} };
+    const trailsRef = { current: startingTrails };
     const accumulatorRef = { current: 0.4 };
     const simStepCounterRef = { current: 10 };
     const forceFastZoomInFramesRef = { current: 5 };
@@ -697,5 +701,6 @@ describe("runStepBackTransition", () => {
     expect(accumulatorRef.current).toBe(0.4);
     expect(simStepCounterRef.current).toBe(10);
     expect(forceFastZoomInFramesRef.current).toBe(5);
+    expect(trailsRef.current).toEqual(startingTrails);
   });
 });

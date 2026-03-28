@@ -6,6 +6,11 @@ type StageHudProps = {
   elapsedTime: number;
   speed: number;
   dt: number;
+  accelerationActive: boolean;
+  accelerationBurst: number;
+  accelerationDirection: "forward" | "backward" | null;
+  isRunning: boolean;
+  canStepBack: boolean;
   panelExpanded: boolean;
   onTogglePanelExpanded: () => void;
 };
@@ -16,10 +21,22 @@ export const StageHud = ({
   elapsedTime,
   speed,
   dt,
+  accelerationActive,
+  accelerationBurst,
+  accelerationDirection,
+  isRunning,
+  canStepBack,
   panelExpanded,
   onTogglePanelExpanded,
-}: StageHudProps) => (
-  <>
+}: StageHudProps) => {
+  const showPaused =
+    (!isRunning && !accelerationActive) ||
+    (accelerationDirection === "backward" && !canStepBack && !accelerationActive);
+  const signedRate =
+    accelerationDirection === "backward" ? `-${Math.abs(speed).toFixed(2)}x` : `+${Math.abs(speed).toFixed(2)}x`;
+
+  return (
+    <>
     <div className="canvas-status" title="Simulation status and active camera mode.">
       <span>{statusLabel}</span>
       {ejectedStatusRows.length > 0 ? (
@@ -46,7 +63,12 @@ export const StageHud = ({
         }
       >
         <div>t = {elapsedTime.toFixed(3)}</div>
-        <div>rate = {speed.toFixed(2)}x</div>
+        <div>
+          rate = {showPaused ? "paused" : signedRate}{" "}
+          {!showPaused && accelerationBurst > 1 ? (
+            <span className="hud-accent">x{accelerationBurst}</span>
+          ) : null}
+        </div>
       </div>
       <button
         className="panel-toggle-icon"
@@ -72,5 +94,6 @@ export const StageHud = ({
         )}
       </button>
     </div>
-  </>
-);
+    </>
+  );
+};

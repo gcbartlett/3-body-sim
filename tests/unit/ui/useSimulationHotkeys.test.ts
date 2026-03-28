@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   dispatchSimulationHotkeyAction,
+  stepBackBurstForHold,
   shouldDecreaseRateFromHotkey,
   shouldCycleLockModeFromHotkey,
   shouldIncreaseRateFromHotkey,
@@ -73,7 +74,7 @@ describe("dispatchSimulationHotkeyAction", () => {
     dispatchSimulationHotkeyAction(
       { key: "ArrowLeft", code: "ArrowLeft", repeat: false, preventDefault },
       handlers,
-      true,
+      { canStepBack: true, stepBackBurst: 1 },
     );
 
     expect(preventDefault).toHaveBeenCalledTimes(1);
@@ -88,7 +89,7 @@ describe("dispatchSimulationHotkeyAction", () => {
     dispatchSimulationHotkeyAction(
       { key: "ArrowLeft", code: "ArrowLeft", repeat: false, preventDefault },
       handlers,
-      false,
+      { canStepBack: false, stepBackBurst: 1 },
     );
 
     expect(preventDefault).not.toHaveBeenCalled();
@@ -103,10 +104,38 @@ describe("dispatchSimulationHotkeyAction", () => {
     dispatchSimulationHotkeyAction(
       { key: "ArrowLeft", code: "ArrowLeft", repeat: true, preventDefault },
       handlers,
-      true,
+      { canStepBack: true, stepBackBurst: 4 },
     );
 
-    expect(handlers.onStepBack).toHaveBeenCalledTimes(1);
+    expect(handlers.onStepBack).toHaveBeenCalledTimes(4);
     expect(handlers.onTogglePause).not.toHaveBeenCalled();
+  });
+
+  it("dispatches ArrowRight burst count using the same acceleration profile", () => {
+    const handlers = createHandlers();
+    const preventDefault = vi.fn();
+
+    dispatchSimulationHotkeyAction(
+      { key: "ArrowRight", code: "ArrowRight", repeat: true, preventDefault },
+      handlers,
+      { canStepBack: true, stepForwardBurst: 4, stepBackBurst: 1 },
+    );
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(handlers.onStepForward).toHaveBeenCalledTimes(4);
+    expect(handlers.onStepBack).not.toHaveBeenCalled();
+  });
+});
+
+describe("stepBackBurstForHold", () => {
+  it("escalates burst size as hold duration increases", () => {
+    expect(stepBackBurstForHold({ repeat: false, holdDurationMs: 0 })).toBe(1);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 100 })).toBe(1);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 500 })).toBe(1);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 1200 })).toBe(2);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 2000 })).toBe(4);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 3000 })).toBe(8);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 4200 })).toBe(16);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 5200 })).toBe(32);
   });
 });

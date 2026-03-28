@@ -76,6 +76,7 @@ describe("applySimulationFrameResult", () => {
     expect(historyRef.current.snapshots).toHaveLength(1);
     expect(historyRef.current.snapshots[0]).toEqual({
       world: currentWorld,
+      trails: { a: [{ x: 1, y: 2, life: 0.9 }] },
       accumulator: 0.2,
       simStepCounter: 8,
       forceFastZoomInFrames: 6,

@@ -1,7 +1,12 @@
+import type { TrailMap } from "../render/canvasRenderer";
 import type { WorldState } from "./types";
+
+export const MIN_HISTORY_STEPS = 50;
+export const MAX_HISTORY_STEPS = 2000;
 
 export type SimulationSnapshot = {
   world: WorldState;
+  trails: TrailMap;
   accumulator: number;
   simStepCounter: number;
   forceFastZoomInFrames: number;
@@ -14,6 +19,7 @@ export type SimulationHistory = {
 
 type CaptureSnapshotArgs = {
   world: WorldState;
+  trails: TrailMap;
   accumulator: number;
   simStepCounter: number;
   forceFastZoomInFrames: number;
@@ -29,9 +35,16 @@ type RestoreSnapshotArgs = {
 
 export type RestoredSimulationState = {
   world: WorldState;
+  trails: TrailMap;
   accumulator: number;
   simStepCounter: number;
   forceFastZoomInFrames: number;
+};
+
+export type SimulationHistoryMetrics = {
+  count: number;
+  maxSteps: number;
+  estimatedBytes: number;
 };
 
 const cloneBodies = (bodies: WorldState["bodies"]): WorldState["bodies"] =>
@@ -40,6 +53,19 @@ const cloneBodies = (bodies: WorldState["bodies"]): WorldState["bodies"] =>
     position: { ...body.position },
     velocity: { ...body.velocity },
   }));
+
+const cloneTrailMap = (trails: TrailMap): TrailMap => {
+  const cloned: TrailMap = {};
+  for (const [id, points] of Object.entries(trails)) {
+    cloned[id] = points.map((point) => ({ ...point }));
+  }
+  return cloned;
+};
+
+export const clampHistoryMaxSteps = (value: number): number => {
+  const rounded = Math.round(value);
+  return Math.min(MAX_HISTORY_STEPS, Math.max(MIN_HISTORY_STEPS, rounded));
+};
 
 export const cloneWorldState = (world: WorldState): WorldState => ({
   ...world,
@@ -50,11 +76,13 @@ export const cloneWorldState = (world: WorldState): WorldState => ({
 
 export const captureSnapshot = ({
   world,
+  trails,
   accumulator,
   simStepCounter,
   forceFastZoomInFrames,
 }: CaptureSnapshotArgs): SimulationSnapshot => ({
   world: cloneWorldState(world),
+  trails: cloneTrailMap(trails),
   accumulator,
   simStepCounter,
   forceFastZoomInFrames,
@@ -77,10 +105,33 @@ export const clearHistory = (historyRef: HistoryRef): void => {
   historyRef.current.snapshots = [];
 };
 
+export const setHistoryMaxSteps = (historyRef: HistoryRef, nextMaxSteps: number): void => {
+  historyRef.current.maxSteps = clampHistoryMaxSteps(nextMaxSteps);
+  if (historyRef.current.snapshots.length > historyRef.current.maxSteps) {
+    historyRef.current.snapshots.splice(
+      0,
+      historyRef.current.snapshots.length - historyRef.current.maxSteps,
+    );
+  }
+};
+
+const estimateSnapshotBytes = (snapshot: SimulationSnapshot): number => {
+  const bodyCount = snapshot.world.bodies.length;
+  const trailPoints = Object.values(snapshot.trails).reduce((acc, points) => acc + points.length, 0);
+  return bodyCount * 160 + trailPoints * 32 + 64;
+};
+
+export const getSimulationHistoryMetrics = (history: SimulationHistory): SimulationHistoryMetrics => ({
+  count: history.snapshots.length,
+  maxSteps: history.maxSteps,
+  estimatedBytes: history.snapshots.reduce((acc, snapshot) => acc + estimateSnapshotBytes(snapshot), 0),
+});
+
 export const restoreSnapshot = ({
   snapshot,
 }: RestoreSnapshotArgs): RestoredSimulationState => ({
   world: { ...cloneWorldState(snapshot.world), isRunning: false },
+  trails: cloneTrailMap(snapshot.trails),
   accumulator: snapshot.accumulator,
   simStepCounter: snapshot.simStepCounter,
   forceFastZoomInFrames: snapshot.forceFastZoomInFrames,

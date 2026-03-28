@@ -1,3 +1,12 @@
+import { useEffect, useRef, type PointerEvent } from "react";
+import {
+  HOLD_ACCELERATION_TICK_MS,
+  IDLE_STEP_ACCELERATION,
+  burstCountForHoldDuration,
+  type StepAccelerationDirection,
+  type StepAccelerationState,
+} from "../stepAcceleration";
+
 type StageControlsProps = {
   runButtonLabel: string;
   runButtonTooltip: string;
@@ -6,9 +15,39 @@ type StageControlsProps = {
   onStep: () => void;
   onStepBack: () => void;
   canStepBack: boolean;
+  historySnapshotCount: number;
+  historyMaxSteps: number;
+  historyEstimatedBytes: number;
+  onHistoryMaxStepsChange: (nextMaxSteps: number) => void;
+  historyDepthInputMin: number;
+  historyDepthInputMax: number;
+  onStepAccelerationChange?: (next: StepAccelerationState) => void;
   ejectedBodyId: string | null;
   latestEjectedLabel: string | null;
   dissolutionJustDetected: boolean;
+};
+
+type HoldStopReason = "pointer-up" | "pointer-leave" | "pointer-cancel" | "cleanup";
+
+const BACK_BUTTON_TOOLTIP =
+  "Move simulation back by one frame.\n" + "Hold to accelerate.\n" + "Hotkey: Left Arrow.";
+const STEP_BUTTON_TOOLTIP =
+  "Move simulation forward by one frame.\n" + "Hold to accelerate.\n" + "Hotkey: Right Arrow.";
+
+export const burstCountForPointerHold = (holdDurationMs: number): number =>
+  burstCountForHoldDuration(holdDurationMs);
+
+export const shouldKeepClickSuppressionAfterStop = (reason: HoldStopReason): boolean =>
+  reason === "pointer-up";
+
+const formatEstimatedMemory = (bytes: number): string => {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 };
 
 const BackIcon = () => (
@@ -67,20 +106,149 @@ export const StageControls = ({
   onStep,
   onStepBack,
   canStepBack,
+  historySnapshotCount,
+  historyMaxSteps,
+  historyEstimatedBytes,
+  onHistoryMaxStepsChange,
+  historyDepthInputMin,
+  historyDepthInputMax,
+  onStepAccelerationChange,
   ejectedBodyId,
   latestEjectedLabel,
   dissolutionJustDetected,
 }: StageControlsProps) => {
+  const holdIntervalIdRef = useRef<number | null>(null);
+  const holdStartedAtRef = useRef<number | null>(null);
+  const holdActionRef = useRef<(() => void) | null>(null);
+  const holdRequiresBackGuardRef = useRef(false);
+  const suppressNextClickRef = useRef(false);
+  const canStepBackRef = useRef(canStepBack);
+
+  useEffect(() => {
+    canStepBackRef.current = canStepBack;
+  }, [canStepBack]);
+
+  const stopHold = (reason: HoldStopReason) => {
+    if (holdIntervalIdRef.current !== null) {
+      window.clearInterval(holdIntervalIdRef.current);
+      holdIntervalIdRef.current = null;
+    }
+    holdStartedAtRef.current = null;
+    holdActionRef.current = null;
+    holdRequiresBackGuardRef.current = false;
+    if (!shouldKeepClickSuppressionAfterStop(reason)) {
+      suppressNextClickRef.current = false;
+    }
+    onStepAccelerationChange?.(IDLE_STEP_ACCELERATION);
+  };
+
+  useEffect(
+    () => () => {
+      if (holdIntervalIdRef.current !== null) {
+        window.clearInterval(holdIntervalIdRef.current);
+        holdIntervalIdRef.current = null;
+      }
+      holdStartedAtRef.current = null;
+      holdActionRef.current = null;
+      holdRequiresBackGuardRef.current = false;
+      suppressNextClickRef.current = false;
+      onStepAccelerationChange?.(IDLE_STEP_ACCELERATION);
+    },
+    [onStepAccelerationChange],
+  );
+
+  const runBurstAction = (action: () => void, burstCount: number) => {
+    for (let i = 0; i < burstCount; i += 1) {
+      action();
+    }
+  };
+
+  const startHold = (action: () => void, direction: StepAccelerationDirection) => {
+    const requiresBackGuard = direction === "backward";
+    if (requiresBackGuard && !canStepBackRef.current) {
+      return;
+    }
+
+    stopHold("cleanup");
+    suppressNextClickRef.current = true;
+    holdStartedAtRef.current = performance.now();
+    holdActionRef.current = action;
+    holdRequiresBackGuardRef.current = requiresBackGuard;
+    runBurstAction(action, 1);
+    onStepAccelerationChange?.({
+      source: "pointer",
+      direction,
+      burst: 1,
+      active: true,
+    });
+
+    holdIntervalIdRef.current = window.setInterval(() => {
+      const activeAction = holdActionRef.current;
+      if (!activeAction || holdStartedAtRef.current === null) {
+        return;
+      }
+      if (holdRequiresBackGuardRef.current && !canStepBackRef.current) {
+        stopHold("cleanup");
+        return;
+      }
+      const holdDurationMs = Math.max(0, performance.now() - holdStartedAtRef.current);
+      runBurstAction(activeAction, burstCountForPointerHold(holdDurationMs));
+      onStepAccelerationChange?.({
+        source: "pointer",
+        direction,
+        burst: burstCountForPointerHold(holdDurationMs),
+        active: true,
+      });
+    }, HOLD_ACCELERATION_TICK_MS);
+  };
+
+  const handleStepBackClick = () => {
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      return;
+    }
+    onStepBack();
+  };
+
+  const handleStepClick = () => {
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      return;
+    }
+    onStep();
+  };
+
+  const handlePointerDownBack = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+    startHold(onStepBack, "backward");
+  };
+
+  const handlePointerDownStep = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+    startHold(onStep, "forward");
+  };
+
   const runIcon = runButtonLabel === "Pause" ? <PauseIcon /> : <PlayIcon />;
   const runLabel = runButtonLabel.toUpperCase();
+  const historyFillRatio =
+    historyMaxSteps > 0 ? Math.max(0, Math.min(1, historySnapshotCount / historyMaxSteps)) : 0;
+  const historyFillPercent = `${historyFillRatio * 100}%`;
 
   return (
     <div className="stage-controls">
       <div className="button-row">
         <button
-          onClick={onStepBack}
+          onClick={handleStepBackClick}
+          onPointerDown={handlePointerDownBack}
+          onPointerUp={() => stopHold("pointer-up")}
+          onPointerLeave={() => stopHold("pointer-leave")}
+          onPointerCancel={() => stopHold("pointer-cancel")}
           disabled={!canStepBack}
-          title={"Move simulation back by one frame.\n" + "Hotkey: Left Arrow."}
+          title={BACK_BUTTON_TOOLTIP}
         >
           <span className="stage-control-icon">
             <BackIcon />
@@ -91,7 +259,14 @@ export const StageControls = ({
           <span className="stage-control-icon">{runIcon}</span>
           <span className="stage-control-label">{runLabel}</span>
         </button>
-        <button onClick={onStep} title={"Move simulation forward by one frame.\n" + "Hotkey: Right Arrow."}>
+        <button
+          onClick={handleStepClick}
+          onPointerDown={handlePointerDownStep}
+          onPointerUp={() => stopHold("pointer-up")}
+          onPointerLeave={() => stopHold("pointer-leave")}
+          onPointerCancel={() => stopHold("pointer-cancel")}
+          title={STEP_BUTTON_TOOLTIP}
+        >
           <span className="stage-control-icon">
             <StepIcon />
           </span>
@@ -103,6 +278,34 @@ export const StageControls = ({
           </span>
           <span className="stage-control-label">RESET</span>
         </button>
+      </div>
+      <div className="stage-history-controls">
+        <div
+          className="stage-history-buffer"
+          title={`History buffer usage: ${historySnapshotCount}/${historyMaxSteps} snapshots`}
+        >
+          <div className="stage-history-buffer-fill" style={{ width: historyFillPercent }} />
+        </div>
+        <label htmlFor="history-depth-input">
+          History depth
+          <input
+            id="history-depth-input"
+            type="number"
+            min={historyDepthInputMin}
+            max={historyDepthInputMax}
+            step={10}
+            value={historyMaxSteps}
+            onChange={(event) => {
+              const parsed = Number.parseInt(event.target.value, 10);
+              if (Number.isFinite(parsed)) {
+                onHistoryMaxStepsChange(parsed);
+              }
+            }}
+          />
+        </label>
+        <p className="stage-history-metrics">
+          {historySnapshotCount}/{historyMaxSteps} snapshots, ~{formatEstimatedMemory(historyEstimatedBytes)}
+        </p>
       </div>
       {ejectedBodyId && (
         <p className="warning">

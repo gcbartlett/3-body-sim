@@ -23,6 +23,16 @@ type UseAppViewModelsInput = {
   onStep: () => void;
   onStepBack: () => void;
   canStepBack: boolean;
+  accelerationActive: boolean;
+  accelerationBurst: number;
+  accelerationDirection: "forward" | "backward" | null;
+  historySnapshotCount: number;
+  historyMaxSteps: number;
+  historyEstimatedBytes: number;
+  onHistoryMaxStepsChange: (nextMaxSteps: number) => void;
+  historyDepthInputMin: number;
+  historyDepthInputMax: number;
+  onStepAccelerationChange?: ComponentProps<typeof StageControls>["onStepAccelerationChange"];
   onTogglePanelExpanded: () => void;
   onVisibleHeightChange: (height: number) => void;
 };
@@ -47,6 +57,16 @@ export const useAppViewModels = ({
   onStep,
   onStepBack,
   canStepBack,
+  accelerationActive,
+  accelerationBurst,
+  accelerationDirection,
+  historySnapshotCount,
+  historyMaxSteps,
+  historyEstimatedBytes,
+  onHistoryMaxStepsChange,
+  historyDepthInputMin,
+  historyDepthInputMax,
+  onStepAccelerationChange,
   onTogglePanelExpanded,
   onVisibleHeightChange,
 }: UseAppViewModelsInput): UseAppViewModelsResult => {
@@ -74,6 +94,11 @@ export const useAppViewModels = ({
       elapsedTime: world.elapsedTime,
       speed: params.speed,
       dt: effectiveSimulationDt(params),
+      accelerationActive,
+      accelerationBurst,
+      accelerationDirection,
+      isRunning: world.isRunning,
+      canStepBack,
       panelExpanded,
       onTogglePanelExpanded,
     },
@@ -85,6 +110,13 @@ export const useAppViewModels = ({
       onStep,
       onStepBack,
       canStepBack,
+      historySnapshotCount,
+      historyMaxSteps,
+      historyEstimatedBytes,
+      onHistoryMaxStepsChange,
+      historyDepthInputMin,
+      historyDepthInputMax,
+      onStepAccelerationChange,
       ejectedBodyId: world.ejectedBodyId,
       latestEjectedLabel: stageViewModel.latestEjectedLabel,
       dissolutionJustDetected: world.dissolutionJustDetected,
