@@ -8,6 +8,8 @@ This document contains the detailed project structure map.
 - Integrator is Velocity Verlet (`src/sim/integrators.ts`).
 - Ejection logic requires sustained strong-escape conditions before flagging a body as ejected.
 - Dissolution is detected when no pair remains bound long enough, then the simulation pauses.
+- Rewind is snapshot-backed: each simulation step can be restored from history with a configurable buffer depth.
+- Step forward/back supports hold acceleration from both keyboard hotkeys and pointer press-and-hold.
 
 ## Persistence
 
@@ -24,6 +26,8 @@ The app stores UI and user data in browser `localStorage`, including:
 ```text
 src/                                   # Application source code
   App.tsx                              # Composition root and high-level wiring
+  config/                              # App-level constants and external links
+    appLinks.ts                        # External destination links used by UI actions
   main.tsx                             # React entry point
   styles.css                           # Layout and visual styling
   vite-env.d.ts                        # Vite ambient types and compile-time constants
@@ -53,6 +57,7 @@ src/                                   # Application source code
     diagnosticsSelectors.ts            # Diagnostics view-model selectors/helpers
     simulationPolicies.ts              # Shared runtime policy constants/helpers
     simulationFrame.ts                 # Per-frame simulation pipeline (step/camera/render/hover gating)
+    simulationHistory.ts               # Snapshot history push/pop/restore and history metrics helpers
     stageSelectors.ts                  # Stage status/bound-pair labeling selectors
     simulationTick.ts                  # Per-frame stepping transition logic
     types.ts                           # Canonical shared simulation/domain types
@@ -70,6 +75,8 @@ src/                                   # Application source code
     ControlPanel.tsx                   # Control panel composition
     EditProfileDialog.tsx              # Edit-profile modal
     SaveProfileDialog.tsx              # Save-profile modal
+    sponsorPage.ts                     # Sponsor link opener with window-target policy
+    stepAcceleration.ts                # Shared hold-to-accelerate burst thresholds and state
     controlPanel/                      # Control panel sections and shared inputs
       BodyConfigurationSection.tsx     # Body mass/position/velocity editors
       PresetsSection.tsx               # Preset selection/apply/random/save controls
@@ -97,6 +104,8 @@ src/                                   # Application source code
     useStageViewport.ts                # Canvas container/viewport sizing hook
 tests/                                 # Automated test suites
   unit/                                # Unit tests by feature area
+    render/                            # Unit tests for rendering modules
+      canvasRenderer.test.ts           # Unit tests for render orchestration and trail behavior
     sim/                               # Unit tests for simulation modules
       camera.test.ts                   # Unit tests for camera transforms and updates
       cameraPolicy.test.ts             # Unit tests for auto-camera policy behavior
@@ -108,16 +117,27 @@ tests/                                 # Automated test suites
       integrators.test.ts              # Unit tests for velocity Verlet integration
       physics.test.ts                  # Unit tests for accelerations/energy/momentum
       presetStorage.test.ts            # Unit tests for storage wrapper load/save behavior
+      presetStorageCodecs.test.ts      # Unit tests for persisted-data decoding/sanitization codecs
       presets.test.ts                  # Unit tests for body clone helper behavior
       profileValidation.test.ts        # Unit tests for saved profile validation rules
+      randomProfiles.test.ts           # Unit tests for random profile generation invariants
       sessionTransitions.test.ts       # Unit tests for runtime transition helpers
+      simulationFrame.test.ts          # Unit tests for per-frame simulation/render coordination
+      simulationHistory.test.ts        # Unit tests for snapshot history clamp/push/pop/restore behavior
       simulationPolicies.test.ts       # Unit tests for simulation policy helpers
       simulationTick.test.ts           # Unit tests for per-step simulation updates
       stageSelectors.test.ts           # Unit tests for stage status selector helpers
       types.test.ts                    # Unit tests for lock-mode type-guard validation
+      useDraftEditPolicy.test.ts       # Unit tests for stopped-world edit policy and history clearing
+      useSimulationLoop.test.ts        # Unit tests for RAF loop orchestration and lifecycle behavior
       vector.test.ts                   # Unit tests for vector utility functions
       worldState.test.ts               # Unit tests for stopped-world construction helpers
     ui/                                # Unit tests for UI modules
+      sponsorPage.test.ts              # Unit tests for sponsor window-opening behavior
+      stageControls.test.tsx           # Unit tests for stage controls hold acceleration/disabled back state
+      uiPrefsStorage.test.ts           # Unit tests for UI preference persistence helpers
+      useAppViewModels.test.ts         # Unit tests for app-level stage/diagnostic view-model assembly
+      useSimulationHotkeys.test.ts     # Unit tests for hotkey dispatch and hold acceleration behavior
       controlPanel/                    # Unit tests for control-panel helpers
         numberInputPrecision.test.ts   # Unit tests for decimal precision parsing/clamping
       diagnostics/                     # Unit tests for diagnostics UI helpers

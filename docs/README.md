@@ -19,6 +19,8 @@ The app renders three gravitating bodies on a canvas with trails, diagnostics, p
 - Ejection detection and dissolution detection with auto-pause
 - Diagnostics for energy/momentum drift, pair energies, and per-body kinematics
 - Camera lock modes (`None`, `COM`, `Origin`) plus manual pan/zoom
+- Snapshot-backed rewind (`Back`) with configurable history depth and usage metrics
+- Hold-to-accelerate stepping for both forward and backward step controls
 
 ## Tech Stack
 
@@ -86,14 +88,22 @@ Tests may import app modules via the `~` alias (for example `~/src/sim/physics`)
 ### Simulation
 
 - `Start / Pause / Resume` to control time evolution
+- `Back` to rewind one captured simulation frame
 - `Step` to advance one integration step
 - `Reset` to reset to current initial conditions
+- `History depth` input to set rewind buffer size (with live snapshot/memory usage feedback)
 
 ### Keyboard shortcuts
 
+- `Space`: start / pause / resume
 - `+` or `=` or numpad `+`: increase simulation rate
 - `-` or `_` or numpad `-`: decrease simulation rate
+- `Right Arrow`: step forward (hold to accelerate burst stepping)
+- `Left Arrow`: step backward when history exists (hold to accelerate burst stepping)
 - `L`: cycle lock mode (`None -> COM -> Origin`)
+- `G`: toggle grid
+- `C`: toggle center-of-mass marker
+- `O`: toggle origin marker
 - `Esc`: exit manual pan/zoom mode
 
 ### Canvas interaction
