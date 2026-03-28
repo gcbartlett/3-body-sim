@@ -25,7 +25,7 @@ It renders:
 
 ### 2) Simulation loop and frame pipeline
 
-`useSimulationLoop` runs `requestAnimationFrame`, computes `dtReal`, calls `runSimulationFrame`, then writes back next refs/state.
+`useSimulationLoop` runs `requestAnimationFrame`, computes `dtReal`, calls `runSimulationFrame`, captures snapshots when steps advance, then writes back next refs/state.
 
 `runSimulationFrame` does the per-frame engine work:
 
@@ -42,13 +42,23 @@ It renders:
 
 `useSimulationSession` collects handlers for Start/Pause/Reset/Step/Preset actions and delegates transition logic to pure helpers. This keeps UI event handlers clean.
 
-`sessionTransitions.ts` contains deterministic transition builders for reset/start-pause/single-step, including baseline diagnostics reset and world replacement.
+`sessionTransitions.ts` contains deterministic transition builders for reset/start-pause/single-step/step-back, including baseline diagnostics reset, snapshot restore, and world replacement.
 
-### 5) Rendering layer
+### 5) History and rewind state
+
+`simulationHistory.ts` is the canonical rewind storage module. It owns snapshot capture/restore shapes, history depth clamping, and usage metrics for UI display.
+
+### 6) Rendering layer
 
 `canvasRenderer.ts` is simple and layered: grid → trails → bodies → overlay, plus trail fade/prune logic. Good place to start for visual changes.
 
-### 6) Persistence and sanitization
+### 7) Stage controls and hotkeys
+
+`StageControls.tsx` and `useSimulationHotkeys.ts` implement transport controls (`Back`, `Start/Pause`, `Step`, `Reset`) including hold-to-accelerate stepping behavior.
+
+`stepAcceleration.ts` centralizes hold acceleration thresholds and burst policy shared by keyboard and pointer interactions.
+
+### 8) Persistence and sanitization
 
 Persistence writes to `localStorage` with versioned keys for params, presets, and UI prefs.
 
@@ -59,6 +69,8 @@ Persistence writes to `localStorage` with versioned keys for params, presets, an
 - Canonical domain types live in `src/sim/types.ts` (`SimParams`, `WorldState`, `BodyState`, `LockMode`). Understand these first; they define what state means everywhere else.
 - The app assumes exactly three bodies (defaults, presets, sanitization, and UI all reinforce this).
 - Defaults are centralized in `src/sim/defaults.ts`, so starting conditions and baseline params are easy to find/change.
+- Snapshot-backed rewind is part of normal runtime behavior; history depth and memory usage are surfaced in stage controls.
+- Step controls and Arrow Left/Right both use hold acceleration with shared thresholds (`src/ui/stepAcceleration.ts`).
 - `main.tsx` includes Vercel analytics/speed insights in the render tree, so production telemetry is part of startup.
 - Tooling/scripts are straightforward: `dev`, `build`, `test`, `lint`, etc., with modern Node/TS/Vite versions.
 
@@ -68,7 +80,7 @@ If I were onboarding, I’d do this in order:
 
 1. Read `src/sim/types.ts` and `src/sim/defaults.ts` to internalize the data model and default world.
 2. Trace runtime from `App.tsx` → `useSimulationLoop.ts` → `simulationFrame.ts` → `simulationTick.ts` to understand the full execution pipeline.
-3. Read `sessionTransitions.ts` + `useSimulationSession.ts` to learn how user actions map to deterministic world changes.
+3. Read `sessionTransitions.ts` + `useSimulationSession.ts` + `simulationHistory.ts` to learn how user actions map to deterministic world changes and rewind snapshot behavior.
 4. Read `canvasRenderer.ts` + `render/layers/*` to learn visual composition boundaries.
 5. Study tests in `tests/unit/sim/` (especially `simulationTick.test.ts`) to see expected behavior and edge cases (caps, sampling cadence, pause behavior).
 
@@ -102,7 +114,7 @@ Use this as a timed, practical walkthrough. Open each file, answer the listed qu
     2. Where does initial world creation happen?
     3. If you changed defaults, what downstream UI/simulation behavior would change first?
 
-### 25-45 min: top-level wiring and user intent flow
+### 25-40 min: top-level wiring and user intent flow
 
 - File: `src/App.tsx`
   - Questions:
@@ -115,13 +127,13 @@ Use this as a timed, practical walkthrough. Open each file, answer the listed qu
     2. Which transitions are delegated to pure helper modules?
     3. What responsibilities stay here vs. in UI components?
 
-### 45-65 min: simulation frame pipeline
+### 40-60 min: simulation frame pipeline + rewind history
 
 - File: `src/sim/useSimulationLoop.ts`
   - Questions:
     1. How is `requestAnimationFrame` lifecycle managed?
     2. How is real-time delta (`dtReal`) computed?
-    3. Under what condition does `setWorld` fire?
+    3. Under what condition are history snapshots captured vs. `setWorld` updates applied?
 - File: `src/sim/simulationFrame.ts`
   - Questions:
     1. In what exact order are stepping, camera updates, and drawing executed?
@@ -132,8 +144,31 @@ Use this as a timed, practical walkthrough. Open each file, answer the listed qu
     1. How does `speed` alter effective dt and max steps per frame?
     2. Where are ejection and dissolution checks applied in the step loop?
     3. How is backlog clamped to avoid runaway catch-up?
+- File: `src/sim/simulationHistory.ts`
+  - Questions:
+    1. Which runtime fields are included in each snapshot (world, trails, accumulator, counters)?
+    2. How are history depth and retained snapshots clamped/pruned?
+    3. How is estimated history memory usage derived?
 
-### 65-80 min: rendering and persistence safety
+### 60-75 min: controls and hold acceleration
+
+- File: `src/ui/stepAcceleration.ts`
+  - Questions:
+    1. What hold durations map to burst sizes?
+    2. Which constants are shared between keyboard and pointer acceleration?
+    3. If acceleration feels too aggressive, which thresholds would you tune first?
+- File: `src/ui/stage/StageControls.tsx`
+  - Questions:
+    1. How is hold state started/stopped for `Back` and `Step`?
+    2. How is accidental post-hold click suppression handled?
+    3. Where are history depth controls and usage metrics rendered?
+- File: `src/ui/useSimulationHotkeys.ts`
+  - Questions:
+    1. Which guards prevent hotkeys from firing in inputs/interactive elements?
+    2. How are hold intervals started/stopped for Arrow Left/Right?
+    3. How is acceleration state emitted to the HUD layer?
+
+### 75-85 min: rendering and persistence safety
 
 - File: `src/render/canvasRenderer.ts`
   - Questions:
@@ -151,7 +186,7 @@ Use this as a timed, practical walkthrough. Open each file, answer the listed qu
     2. How are malformed/duplicate user presets handled?
     3. Why is body-array validation strict about length?
 
-### 80-90 min: invariants through tests
+### 85-90 min: invariants through tests
 
 - File: `tests/unit/sim/simulationTick.test.ts`
   - Questions:
