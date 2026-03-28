@@ -88,7 +88,10 @@ export const runSimulationFrame = ({
     nextForceFastZoomInFrames = autoCamera.nextForceFastZoomInFrames;
   }
 
-  const nextTrails = fadeAndPruneTrails(stepResult.nextTrails, frameState.params.trailFade);
+  const nextTrails =
+    stepResult.stepsAdvanced > 0
+      ? fadeAndPruneTrails(stepResult.nextTrails, frameState.params.trailFade)
+      : stepResult.nextTrails;
   drawFrame(ctx, nextTrails, worldAfterStep.bodies, nextCamera, viewport, {
     showOrigin: runtime.showOriginMarker,
     showGrid: runtime.showGrid,

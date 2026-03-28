@@ -1,5 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
-import type { TrailMap } from "../render/canvasRenderer";
+import { fadeAndPruneTrails, type TrailMap } from "../render/canvasRenderer";
 import { evaluateEjection } from "./ejection";
 import { velocityVerletStep } from "./integrators";
 import { appendTrailPoints } from "./simulationPolicies";
@@ -135,5 +135,6 @@ export const runSingleStepTransition = (
   );
   deps.worldRef.current = nextWorld;
   deps.setWorld(nextWorld);
-  deps.trailsRef.current = appendTrailPoints(deps.trailsRef.current, nextWorld.bodies);
+  const sampledTrails = appendTrailPoints(deps.trailsRef.current, nextWorld.bodies);
+  deps.trailsRef.current = fadeAndPruneTrails(sampledTrails, deps.paramsRef.current.trailFade);
 };

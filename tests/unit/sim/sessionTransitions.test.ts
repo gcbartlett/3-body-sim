@@ -13,7 +13,12 @@ vi.mock("~/src/sim/simulationPolicies", () => ({
   appendTrailPoints: vi.fn(),
 }));
 
+vi.mock("~/src/render/canvasRenderer", () => ({
+  fadeAndPruneTrails: vi.fn((trails) => trails),
+}));
+
 import { evaluateEjection } from "~/src/sim/ejection";
+import { fadeAndPruneTrails } from "~/src/render/canvasRenderer";
 import { velocityVerletStep } from "~/src/sim/integrators";
 import { appendTrailPoints } from "~/src/sim/simulationPolicies";
 import {
@@ -421,6 +426,8 @@ describe("runSingleStepTransition", () => {
     });
     const updatedTrails = { a: [{ x: 3, y: 4, life: 1 }] };
     vi.mocked(appendTrailPoints).mockReturnValue(updatedTrails);
+    const decayedTrails = { a: [{ x: 3, y: 4, life: 0.99 }] };
+    vi.mocked(fadeAndPruneTrails).mockReturnValue(decayedTrails);
 
     runSingleStepTransition(
       {
@@ -438,11 +445,12 @@ describe("runSingleStepTransition", () => {
     expect(worldRef.current.isRunning).toBe(false);
     expect(worldRef.current.ejectedBodyId).toBe("a");
     expect(worldRef.current.ejectedBodyIds).toEqual(["a"]);
-    expect(trailsRef.current).toBe(updatedTrails);
+    expect(trailsRef.current).toBe(decayedTrails);
     expect(appendTrailPoints).toHaveBeenCalledWith(
       initialTrails,
       worldRef.current.bodies,
     );
+    expect(fadeAndPruneTrails).toHaveBeenCalledWith(updatedTrails, initialParams.trailFade);
   });
 
   it("preserves wrapper behavior when transition returns stopped world with ejection updates", () => {
@@ -459,6 +467,7 @@ describe("runSingleStepTransition", () => {
       isRunning: false,
     });
     vi.mocked(appendTrailPoints).mockReturnValue({});
+    vi.mocked(fadeAndPruneTrails).mockReturnValue({});
 
     runSingleStepTransition(
       {

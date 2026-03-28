@@ -26,6 +26,7 @@ export type AdvanceWorldStepResult = {
   nextAccumulator: number;
   nextTrails: TrailMap;
   nextSimStepCounter: number;
+  stepsAdvanced: number;
   worldChanged: boolean;
 };
 
@@ -66,6 +67,7 @@ export const advanceRunningWorldStep = ({
       nextAccumulator: accumulator,
       nextTrails: trails,
       nextSimStepCounter: simStepCounter,
+      stepsAdvanced: 0,
       worldChanged: false,
     };
   }
@@ -117,6 +119,7 @@ export const advanceRunningWorldStep = ({
     nextAccumulator,
     nextTrails,
     nextSimStepCounter,
+    stepsAdvanced: stepCount,
     worldChanged: nextWorld !== currentWorld,
   };
 };

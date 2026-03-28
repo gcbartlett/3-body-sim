@@ -60,6 +60,7 @@ describe("runSimulationFrame", () => {
       nextAccumulator: 0.25,
       nextTrails: {},
       nextSimStepCounter: 3,
+      stepsAdvanced: 1,
       worldChanged: true,
     });
     vi.mocked(computeAutoCamera).mockReturnValue({
@@ -226,6 +227,7 @@ describe("runSimulationFrame", () => {
       nextAccumulator: 0.75,
       nextTrails: { "body-1": [{ x: 1, y: 2, life: 0.5 }] },
       nextSimStepCounter: 42,
+      stepsAdvanced: 0,
       worldChanged: false,
     });
 
@@ -259,6 +261,7 @@ describe("runSimulationFrame", () => {
 
     expect(result.nextWorld).toBe(steppedWorld);
     expect(result.nextAccumulator).toBe(0.75);
+    expect(fadeAndPruneTrails).not.toHaveBeenCalled();
     expect(result.nextSimStepCounter).toBe(42);
     expect(result.worldChanged).toBe(false);
   });
@@ -279,6 +282,7 @@ describe("runSimulationFrame", () => {
       nextAccumulator: 0.3,
       nextTrails: {},
       nextSimStepCounter: 8,
+      stepsAdvanced: 1,
       worldChanged: true,
     });
     vi.mocked(centerOfMass).mockReturnValue(com);
