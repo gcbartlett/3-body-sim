@@ -38,6 +38,7 @@ export type NewInitialStateTransitionDeps = {
   trailsRef: RefObject<TrailMap>;
   simStepCounterRef: RefObject<number>;
   historyRef: RefObject<SimulationHistory>;
+  onHistoryChanged?: (depth: number) => void;
   setWorld: Dispatch<SetStateAction<WorldState>>;
   setBaselineDiagnostics: Dispatch<SetStateAction<DiagnosticsSnapshot>>;
 };
@@ -55,6 +56,7 @@ export const applyNewInitialStateTransition = (
   deps.trailsRef.current = {};
   deps.simStepCounterRef.current = 0;
   clearHistory(deps.historyRef);
+  deps.onHistoryChanged?.(deps.historyRef.current.snapshots.length);
 };
 
 export type StartPauseTransition = {
@@ -154,6 +156,7 @@ export type SingleStepWithHistoryTransitionDeps = SingleStepTransitionDeps & {
   simStepCounterRef: RefObject<number>;
   forceFastZoomInFramesRef: RefObject<number>;
   historyRef: RefObject<SimulationHistory>;
+  onHistoryChanged?: (depth: number) => void;
 };
 
 export const runSingleStepWithHistoryTransition = (
@@ -169,6 +172,7 @@ export const runSingleStepWithHistoryTransition = (
       forceFastZoomInFrames: deps.forceFastZoomInFramesRef.current,
     }),
   );
+  deps.onHistoryChanged?.(deps.historyRef.current.snapshots.length);
   runSingleStepTransition(deps, applyDissolutionProgress);
 };
 
@@ -181,6 +185,7 @@ export type StepBackTransitionDeps = {
   lastTimeRef: RefObject<number | null>;
   hoverLastUpdateTimeRef: RefObject<number>;
   historyRef: RefObject<SimulationHistory>;
+  onHistoryChanged?: (depth: number) => void;
   setWorld: Dispatch<SetStateAction<WorldState>>;
 };
 
@@ -189,6 +194,7 @@ export const runStepBackTransition = (deps: StepBackTransitionDeps): boolean => 
   if (!snapshot) {
     return false;
   }
+  deps.onHistoryChanged?.(deps.historyRef.current.snapshots.length);
 
   const restored = restoreSnapshot({ snapshot });
   deps.worldRef.current = restored.world;

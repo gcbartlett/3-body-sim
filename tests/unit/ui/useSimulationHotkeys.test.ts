@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  dispatchSimulationHotkeyAction,
   shouldDecreaseRateFromHotkey,
   shouldCycleLockModeFromHotkey,
   shouldIncreaseRateFromHotkey,
+  shouldStepBackFromHotkey,
   shouldStepForwardFromHotkey,
   shouldToggleCenterOfMassFromHotkey,
   shouldToggleGridFromHotkey,
@@ -32,7 +34,7 @@ describe("useSimulationHotkeys predicates", () => {
     expect(shouldToggleOriginMarkerFromHotkey({ key: "o", repeat: true })).toBe(false);
   });
 
-  it("allows repeat for +, -, and Right Arrow hotkeys", () => {
+  it("allows repeat for +, -, and arrow-step hotkeys", () => {
     expect(shouldIncreaseRateFromHotkey({ key: "+", code: "Equal", repeat: false })).toBe(true);
     expect(shouldIncreaseRateFromHotkey({ key: "+", code: "Equal", repeat: true })).toBe(true);
     expect(shouldIncreaseRateFromHotkey({ key: "=", code: "Equal", repeat: true })).toBe(true);
@@ -45,5 +47,66 @@ describe("useSimulationHotkeys predicates", () => {
 
     expect(shouldStepForwardFromHotkey({ key: "ArrowRight", code: "ArrowRight", repeat: false })).toBe(true);
     expect(shouldStepForwardFromHotkey({ key: "ArrowRight", code: "ArrowRight", repeat: true })).toBe(true);
+    expect(shouldStepBackFromHotkey({ key: "ArrowLeft", code: "ArrowLeft", repeat: false })).toBe(true);
+    expect(shouldStepBackFromHotkey({ key: "ArrowLeft", code: "ArrowLeft", repeat: true })).toBe(true);
+  });
+});
+
+describe("dispatchSimulationHotkeyAction", () => {
+  const createHandlers = () => ({
+    onEscape: vi.fn(),
+    onIncreaseRate: vi.fn(),
+    onDecreaseRate: vi.fn(),
+    onCycleLockMode: vi.fn(),
+    onTogglePause: vi.fn(),
+    onToggleGrid: vi.fn(),
+    onToggleCenterOfMass: vi.fn(),
+    onToggleOriginMarker: vi.fn(),
+    onStepForward: vi.fn(),
+    onStepBack: vi.fn(),
+  });
+
+  it("dispatches ArrowLeft to onStepBack when canStepBack is true", () => {
+    const handlers = createHandlers();
+    const preventDefault = vi.fn();
+
+    dispatchSimulationHotkeyAction(
+      { key: "ArrowLeft", code: "ArrowLeft", repeat: false, preventDefault },
+      handlers,
+      true,
+    );
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(handlers.onStepBack).toHaveBeenCalledTimes(1);
+    expect(handlers.onTogglePause).not.toHaveBeenCalled();
+  });
+
+  it("does not dispatch ArrowLeft when canStepBack is false", () => {
+    const handlers = createHandlers();
+    const preventDefault = vi.fn();
+
+    dispatchSimulationHotkeyAction(
+      { key: "ArrowLeft", code: "ArrowLeft", repeat: false, preventDefault },
+      handlers,
+      false,
+    );
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(handlers.onStepBack).not.toHaveBeenCalled();
+    expect(handlers.onTogglePause).not.toHaveBeenCalled();
+  });
+
+  it("keeps running-state hotkey path atomic by invoking step-back, not pause", () => {
+    const handlers = createHandlers();
+    const preventDefault = vi.fn();
+
+    dispatchSimulationHotkeyAction(
+      { key: "ArrowLeft", code: "ArrowLeft", repeat: true, preventDefault },
+      handlers,
+      true,
+    );
+
+    expect(handlers.onStepBack).toHaveBeenCalledTimes(1);
+    expect(handlers.onTogglePause).not.toHaveBeenCalled();
   });
 });

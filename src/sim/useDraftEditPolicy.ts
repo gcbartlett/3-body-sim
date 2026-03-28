@@ -13,6 +13,7 @@ type UseDraftEditPolicyArgs = {
   worldRef: RefObject<WorldState>;
   paramsRef: RefObject<SimParams>;
   historyRef: RefObject<SimulationHistory>;
+  onHistoryChanged?: (depth: number) => void;
   setWorld: Dispatch<SetStateAction<WorldState>>;
   setParams: Dispatch<SetStateAction<SimParams>>;
   setDraftBodies: Dispatch<SetStateAction<BodyState[]>>;
@@ -29,6 +30,7 @@ export const useDraftEditPolicy = ({
   worldRef,
   paramsRef,
   historyRef,
+  onHistoryChanged,
   setWorld,
   setParams,
   setDraftBodies,
@@ -43,6 +45,7 @@ export const useDraftEditPolicy = ({
     setWorld(synced);
     setBaselineDiagnostics(diagnosticsSnapshot(synced.bodies, nextParams));
     clearHistory(historyRef);
+    onHistoryChanged?.(historyRef.current.snapshots.length);
   };
 
   const onBodyChange = (index: number, field: BodyEditField, value: number) => {
@@ -65,6 +68,7 @@ export const useDraftEditPolicy = ({
     if (shouldSyncDraftEditsToStoppedWorld(worldRef.current)) {
       setBaselineDiagnostics(diagnosticsSnapshot(worldRef.current.bodies, next));
       clearHistory(historyRef);
+      onHistoryChanged?.(historyRef.current.snapshots.length);
     }
   };
 
@@ -75,6 +79,7 @@ export const useDraftEditPolicy = ({
     if (shouldSyncDraftEditsToStoppedWorld(worldRef.current)) {
       setBaselineDiagnostics(diagnosticsSnapshot(worldRef.current.bodies, next));
       clearHistory(historyRef);
+      onHistoryChanged?.(historyRef.current.snapshots.length);
     }
   };
 

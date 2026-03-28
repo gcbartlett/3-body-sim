@@ -10,7 +10,8 @@ type UseSimulationHotkeysParams = {
   onToggleCenterOfMass: () => void;
   onToggleOriginMarker: () => void;
   onStepForward: () => void;
-  onStepBack?: () => void;
+  onStepBack: () => void;
+  canStepBack: boolean;
 };
 
 type KeyboardHotkeyEvent = Pick<KeyboardEvent, "key" | "code" | "repeat">;
@@ -54,6 +55,62 @@ export const shouldDecreaseRateFromHotkey = (e: KeyboardHotkeyEvent): boolean =>
 export const shouldStepForwardFromHotkey = (e: KeyboardHotkeyEvent): boolean =>
   e.key === "ArrowRight";
 
+export const shouldStepBackFromHotkey = (e: KeyboardHotkeyEvent): boolean =>
+  e.key === "ArrowLeft";
+
+type HotkeyHandlers = Omit<UseSimulationHotkeysParams, "canStepBack">;
+
+export const dispatchSimulationHotkeyAction = (
+  e: Pick<KeyboardEvent, "key" | "code" | "repeat" | "preventDefault">,
+  handlers: HotkeyHandlers,
+  canStepBack: boolean,
+): void => {
+  if (shouldIncreaseRateFromHotkey(e)) {
+    e.preventDefault();
+    handlers.onIncreaseRate();
+    return;
+  }
+  if (shouldDecreaseRateFromHotkey(e)) {
+    e.preventDefault();
+    handlers.onDecreaseRate();
+    return;
+  }
+  if (shouldCycleLockModeFromHotkey(e)) {
+    e.preventDefault();
+    handlers.onCycleLockMode();
+    return;
+  }
+  if (shouldTogglePauseFromHotkey(e)) {
+    e.preventDefault();
+    handlers.onTogglePause();
+    return;
+  }
+  if (shouldToggleGridFromHotkey(e)) {
+    e.preventDefault();
+    handlers.onToggleGrid();
+    return;
+  }
+  if (shouldToggleCenterOfMassFromHotkey(e)) {
+    e.preventDefault();
+    handlers.onToggleCenterOfMass();
+    return;
+  }
+  if (shouldToggleOriginMarkerFromHotkey(e)) {
+    e.preventDefault();
+    handlers.onToggleOriginMarker();
+    return;
+  }
+  if (shouldStepForwardFromHotkey(e)) {
+    e.preventDefault();
+    handlers.onStepForward();
+    return;
+  }
+  if (canStepBack && shouldStepBackFromHotkey(e)) {
+    e.preventDefault();
+    handlers.onStepBack();
+  }
+};
+
 export const useSimulationHotkeys = ({
   onEscape,
   onIncreaseRate,
@@ -64,9 +121,9 @@ export const useSimulationHotkeys = ({
   onToggleCenterOfMass,
   onToggleOriginMarker,
   onStepForward,
-  onStepBack: _onStepBack,
+  onStepBack,
+  canStepBack,
 }: UseSimulationHotkeysParams) => {
-  void _onStepBack;
   const onKeyDownEvent = useEffectEvent((e: KeyboardEvent) => {
     if (e.metaKey || e.ctrlKey || e.altKey) {
       return;
@@ -89,45 +146,22 @@ export const useSimulationHotkeys = ({
       onEscape();
       return;
     }
-    if (shouldIncreaseRateFromHotkey(e)) {
-      e.preventDefault();
-      onIncreaseRate();
-      return;
-    }
-    if (shouldDecreaseRateFromHotkey(e)) {
-      e.preventDefault();
-      onDecreaseRate();
-      return;
-    }
-    if (shouldCycleLockModeFromHotkey(e)) {
-      e.preventDefault();
-      onCycleLockMode();
-      return;
-    }
-    if (shouldTogglePauseFromHotkey(e)) {
-      e.preventDefault();
-      onTogglePause();
-      return;
-    }
-    if (shouldToggleGridFromHotkey(e)) {
-      e.preventDefault();
-      onToggleGrid();
-      return;
-    }
-    if (shouldToggleCenterOfMassFromHotkey(e)) {
-      e.preventDefault();
-      onToggleCenterOfMass();
-      return;
-    }
-    if (shouldToggleOriginMarkerFromHotkey(e)) {
-      e.preventDefault();
-      onToggleOriginMarker();
-      return;
-    }
-    if (shouldStepForwardFromHotkey(e)) {
-      e.preventDefault();
-      onStepForward();
-    }
+    dispatchSimulationHotkeyAction(
+      e,
+      {
+        onEscape,
+        onIncreaseRate,
+        onDecreaseRate,
+        onCycleLockMode,
+        onTogglePause,
+        onToggleGrid,
+        onToggleCenterOfMass,
+        onToggleOriginMarker,
+        onStepForward,
+        onStepBack,
+      },
+      canStepBack,
+    );
   });
 
   useEffect(() => {

@@ -58,6 +58,7 @@ function App() {
   const [world, setWorld] = useState<WorldState>(initialWorld);
   const [selectedPresetId, setSelectedPresetId] = useState<string>(PRESETS[0].id);
   const [manualPanZoom, setManualPanZoom] = useState<boolean>(false);
+  const [historyDepth, setHistoryDepth] = useState(0);
   const {
     lockMode,
     setLockMode,
@@ -112,6 +113,9 @@ function App() {
   const scheduleFastReframe = () => {
     cameraRef.current = { ...initialCamera };
     forceFastZoomInFramesRef.current = FAST_REFRAME_FRAMES;
+  };
+  const syncHistoryDepth = () => {
+    setHistoryDepth(historyRef.current.snapshots.length);
   };
 
   useAppPersistence({
@@ -205,6 +209,7 @@ function App() {
       forceFastZoomInFramesRef,
       simStepCounterRef,
       historyRef,
+      onHistoryChanged: syncHistoryDepth,
     },
     hover: {
       hoverBodyIdRef,
@@ -252,8 +257,10 @@ function App() {
     controls: {
       setManualMode,
       scheduleFastReframe,
+      onHistoryChanged: syncHistoryDepth,
     },
   });
+  const canStepBack = historyDepth > 0;
 
   useSimulationHotkeys({
     onEscape: () => setManualMode(false),
@@ -266,6 +273,7 @@ function App() {
     onToggleOriginMarker: () => setShowOriginMarker((prev) => !prev),
     onStepForward: () => (worldRef.current.isRunning ? onStartPause() : onStep()),
     onStepBack,
+    canStepBack,
   });
 
   const onTogglePanelExpanded = () => {
@@ -290,6 +298,8 @@ function App() {
     onStartPause,
     onReset,
     onStep,
+    onStepBack,
+    canStepBack,
     onTogglePanelExpanded,
     onVisibleHeightChange: setDiagnosticsInsetPx,
   });

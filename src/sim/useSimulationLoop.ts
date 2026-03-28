@@ -35,6 +35,7 @@ type UseSimulationLoopArgs = {
     forceFastZoomInFramesRef: RefObject<number>;
     simStepCounterRef: RefObject<number>;
     historyRef: RefObject<SimulationHistory>;
+    onHistoryChanged?: (depth: number) => void;
   };
   hover: {
     hoverBodyIdRef: RefObject<string | null>;
@@ -56,6 +57,7 @@ type ApplySimulationFrameResultArgs = {
     hoverLastUpdateTimeRef: RefObject<number>;
     worldRef: RefObject<WorldState>;
     historyRef: RefObject<SimulationHistory>;
+    onHistoryChanged?: (depth: number) => void;
   };
   setWorld: (world: WorldState) => void;
 };
@@ -72,6 +74,7 @@ export const applySimulationFrameResult = ({
     hoverLastUpdateTimeRef,
     worldRef,
     historyRef,
+    onHistoryChanged,
   },
   setWorld,
 }: ApplySimulationFrameResultArgs): void => {
@@ -85,6 +88,7 @@ export const applySimulationFrameResult = ({
         forceFastZoomInFrames: forceFastZoomInFramesRef.current,
       }),
     );
+    onHistoryChanged?.(historyRef.current.snapshots.length);
   }
   accumulatorRef.current = frameResult.nextAccumulator;
   trailsRef.current = frameResult.nextTrails;
@@ -113,6 +117,7 @@ export const useSimulationLoop = ({
     forceFastZoomInFramesRef,
     simStepCounterRef,
     historyRef,
+    onHistoryChanged,
   },
   hover: { hoverBodyIdRef, hoverLastUpdateTimeRef, refreshHoverTooltipForBodyId },
   setWorld,
@@ -179,8 +184,9 @@ export const useSimulationLoop = ({
           forceFastZoomInFramesRef,
           hoverLastUpdateTimeRef,
           worldRef,
-          historyRef,
-        },
+    historyRef,
+    onHistoryChanged,
+  },
         setWorld,
       });
 

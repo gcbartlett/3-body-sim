@@ -39,6 +39,7 @@ type UseSimulationSessionArgs = {
   controls: {
     setManualMode: (enabled: boolean) => void;
     scheduleFastReframe: () => void;
+    onHistoryChanged?: (depth: number) => void;
   };
 };
 
@@ -71,12 +72,13 @@ export const useSimulationSession = ({
     historyRef,
   } = runtimeRefs;
   const { setWorld, setParams, setDraftBodies, setBaselineDiagnostics } = stateSetters;
-  const { setManualMode, scheduleFastReframe } = controls;
+  const { setManualMode, scheduleFastReframe, onHistoryChanged } = controls;
 
   const { onBodyChange, onParamChange, onResetParams } = useDraftEditPolicy({
     worldRef,
     paramsRef,
     historyRef,
+    onHistoryChanged,
     setWorld,
     setParams,
     setDraftBodies,
@@ -88,6 +90,7 @@ export const useSimulationSession = ({
     trailsRef,
     simStepCounterRef,
     historyRef,
+    onHistoryChanged,
     setWorld,
     setBaselineDiagnostics,
   };
@@ -105,6 +108,7 @@ export const useSimulationSession = ({
     simStepCounterRef,
     forceFastZoomInFramesRef,
     historyRef,
+    onHistoryChanged,
     setWorld,
   };
   const stepBackDeps = {
@@ -116,6 +120,7 @@ export const useSimulationSession = ({
     lastTimeRef,
     hoverLastUpdateTimeRef,
     historyRef,
+    onHistoryChanged,
     setWorld,
   };
 

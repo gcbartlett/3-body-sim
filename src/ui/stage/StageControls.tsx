@@ -4,6 +4,8 @@ type StageControlsProps = {
   onStartPause: () => void;
   onReset: () => void;
   onStep: () => void;
+  onStepBack: () => void;
+  canStepBack: boolean;
   ejectedBodyId: string | null;
   latestEjectedLabel: string | null;
   dissolutionJustDetected: boolean;
@@ -15,6 +17,8 @@ export const StageControls = ({
   onStartPause,
   onReset,
   onStep,
+  onStepBack,
+  canStepBack,
   ejectedBodyId,
   latestEjectedLabel,
   dissolutionJustDetected,
@@ -29,6 +33,13 @@ export const StageControls = ({
       </button>
       <button onClick={onStep} title={"Advance simulation by one integration step.\n" + "Hotkey: Right Arrow."}>
         Step
+      </button>
+      <button
+        onClick={onStepBack}
+        disabled={!canStepBack}
+        title={"Go back one stored simulation frame.\n" + "Hotkey: Left Arrow."}
+      >
+        Back
       </button>
     </div>
     {ejectedBodyId && (

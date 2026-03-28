@@ -21,6 +21,8 @@ type UseAppViewModelsInput = {
   onStartPause: () => void;
   onReset: () => void;
   onStep: () => void;
+  onStepBack: () => void;
+  canStepBack: boolean;
   onTogglePanelExpanded: () => void;
   onVisibleHeightChange: (height: number) => void;
 };
@@ -43,6 +45,8 @@ export const useAppViewModels = ({
   onStartPause,
   onReset,
   onStep,
+  onStepBack,
+  canStepBack,
   onTogglePanelExpanded,
   onVisibleHeightChange,
 }: UseAppViewModelsInput): UseAppViewModelsResult => {
@@ -79,6 +83,8 @@ export const useAppViewModels = ({
       onStartPause,
       onReset,
       onStep,
+      onStepBack,
+      canStepBack,
       ejectedBodyId: world.ejectedBodyId,
       latestEjectedLabel: stageViewModel.latestEjectedLabel,
       dissolutionJustDetected: world.dissolutionJustDetected,
