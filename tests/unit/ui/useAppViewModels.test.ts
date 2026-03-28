@@ -67,4 +67,28 @@ describe("useAppViewModels", () => {
     expect(result.stageControlsProps.onStepBack).toBe(onStepBack);
     expect(result.stageControlsProps.canStepBack).toBe(true);
   });
+
+  it("forwards disabled Back-control state when canStepBack is false", () => {
+    const onStepBack = vi.fn();
+    const result = useAppViewModels({
+      world: makeWorld(),
+      params: makeParams(),
+      panelExpanded: true,
+      lockMode: "none",
+      manualPanZoom: false,
+      bodyColors: ["#f00", "#0f0", "#00f"],
+      baselineDiagnostics: diagnostics,
+      diagnostics,
+      onStartPause: vi.fn(),
+      onReset: vi.fn(),
+      onStep: vi.fn(),
+      onStepBack,
+      canStepBack: false,
+      onTogglePanelExpanded: vi.fn(),
+      onVisibleHeightChange: vi.fn(),
+    });
+
+    expect(result.stageControlsProps.onStepBack).toBe(onStepBack);
+    expect(result.stageControlsProps.canStepBack).toBe(false);
+  });
 });
