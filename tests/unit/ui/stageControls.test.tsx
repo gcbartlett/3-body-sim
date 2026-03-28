@@ -19,9 +19,23 @@ describe("StageControls", () => {
       />,
     );
 
-    expect(html).toContain(">Back</button>");
+    expect(html).toContain("stage-control-svg");
+    expect(html).toContain("BACK");
+    expect(html).toContain("START");
+    expect(html).toContain("STEP");
+    expect(html).toContain("RESET");
+    expect(html.match(/stage-control-svg/g)?.length).toBe(4);
     expect(html).toContain("disabled");
     expect(html).toContain("Hotkey: Left Arrow.");
+
+    const backIndex = html.indexOf("BACK");
+    const startIndex = html.indexOf("START");
+    const stepIndex = html.indexOf("STEP");
+    const resetIndex = html.indexOf("RESET");
+    expect(backIndex).toBeGreaterThan(-1);
+    expect(startIndex).toBeGreaterThan(backIndex);
+    expect(stepIndex).toBeGreaterThan(startIndex);
+    expect(resetIndex).toBeGreaterThan(stepIndex);
   });
 
   it("renders Back button enabled when history exists", () => {
@@ -40,7 +54,12 @@ describe("StageControls", () => {
       />,
     );
 
-    expect(html).toContain(">Back</button>");
+    expect(html).toContain("stage-control-svg");
+    expect(html).toContain("BACK");
+    expect(html).toContain("STEP");
+    expect(html).toContain("PAUSE");
+    expect(html).toContain("RESET");
+    expect(html.match(/stage-control-svg/g)?.length).toBe(4);
     expect(html).not.toContain("disabled");
   });
 });
