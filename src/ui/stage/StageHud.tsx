@@ -5,6 +5,7 @@ type StageHudProps = {
   ejectedStatusRows: EjectedBodyStatusBadge[];
   elapsedTime: number;
   speed: number;
+  dt: number;
   panelExpanded: boolean;
   onTogglePanelExpanded: () => void;
 };
@@ -14,6 +15,7 @@ export const StageHud = ({
   ejectedStatusRows,
   elapsedTime,
   speed,
+  dt,
   panelExpanded,
   onTogglePanelExpanded,
 }: StageHudProps) => (
@@ -38,9 +40,9 @@ export const StageHud = ({
       <div
         className="hud"
         title={
-            "Elapsed simulation time and current simulation rate.\n" +
-            "Hotkeys: Space start/pause/resume, Right Arrow step, '+' faster, '-' slower,\n" +
-            "L cycle lock mode, G toggle grid, C toggle COM, O toggle origin."
+          `Elapsed simulation time and current simulation rate (dt=${dt.toFixed(4)}).\n` +
+          "Hotkeys: Space start/pause/resume, Right Arrow step, '+' faster, '-' slower,\n" +
+          "L cycle lock mode, G toggle grid, C toggle COM, O toggle origin."
         }
       >
         <div>t = {elapsedTime.toFixed(3)}</div>

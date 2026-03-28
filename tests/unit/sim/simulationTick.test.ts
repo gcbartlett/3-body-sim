@@ -12,7 +12,7 @@ vi.mock("~/src/sim/ejection", () => ({
 
 import { evaluateEjection } from "~/src/sim/ejection";
 import { velocityVerletStep } from "~/src/sim/integrators";
-import { advanceRunningWorldStep } from "~/src/sim/simulationTick";
+import { advanceRunningWorldStep, effectiveSimulationDt } from "~/src/sim/simulationTick";
 
 const makeBodies = (): BodyState[] => [
   {
@@ -58,6 +58,14 @@ const makeParams = (overrides: Partial<SimParams> = {}): SimParams => ({
   softening: 0.01,
   trailFade: 0.01,
   ...overrides,
+});
+
+describe("effectiveSimulationDt", () => {
+  it("matches base dt at speed <= 1 and scales up at higher speed", () => {
+    expect(effectiveSimulationDt(makeParams({ dt: 0.5, speed: 1 }))).toBeCloseTo(0.5, 12);
+    expect(effectiveSimulationDt(makeParams({ dt: 0.5, speed: 0.5 }))).toBeCloseTo(0.5, 12);
+    expect(effectiveSimulationDt(makeParams({ dt: 0.5, speed: 10 }))).toBeGreaterThan(0.5);
+  });
 });
 
 describe("advanceRunningWorldStep", () => {

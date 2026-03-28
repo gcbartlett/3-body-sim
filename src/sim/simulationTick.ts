@@ -47,6 +47,9 @@ const computeSteppingPolicy = (params: SimParams) => {
   return { rate, effectiveDt, maxStepsThisFrame, trailSampleEvery };
 };
 
+export const effectiveSimulationDt = (params: SimParams): number =>
+  computeSteppingPolicy(params).effectiveDt;
+
 export const advanceRunningWorldStep = ({
   currentWorld,
   currentParams,

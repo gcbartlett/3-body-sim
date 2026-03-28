@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import { EJECTION_TIME_THRESHOLD_SECONDS } from "../sim/ejection";
 import { stageDiagnosticsViewModelForWorld } from "../sim/diagnosticsSelectors";
 import { DISSOLUTION_TIME_THRESHOLD_SECONDS } from "../sim/simulationPolicies";
+import { effectiveSimulationDt } from "../sim/simulationTick";
 import { boundPairStateLabel, stageViewModelForWorld } from "../sim/stageSelectors";
 import type { DiagnosticsSnapshot, LockMode, SimParams, WorldState } from "../sim/types";
 import { CanvasDiagnostics } from "./CanvasDiagnostics";
@@ -68,6 +69,7 @@ export const useAppViewModels = ({
       ejectedStatusRows: stageViewModel.ejectedStatusRows,
       elapsedTime: world.elapsedTime,
       speed: params.speed,
+      dt: effectiveSimulationDt(params),
       panelExpanded,
       onTogglePanelExpanded,
     },
