@@ -12,5 +12,6 @@ Describe what changed and why.
 ## Checklist
 
 - [ ] Scope is focused and reviewable
+- [ ] No unintended line-ending churn (`LF` policy preserved)
 - [ ] Docs updated if behavior/workflow changed
 - [ ] No sensitive data introduced
