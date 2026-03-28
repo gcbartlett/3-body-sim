@@ -1,5 +1,6 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { defaultParams } from "./defaults";
+import { clearHistory, type SimulationHistory } from "./simulationHistory";
 import {
   applyBodyField,
   diagnosticsSnapshot,
@@ -11,6 +12,7 @@ import { createStoppedWorld } from "./worldState";
 type UseDraftEditPolicyArgs = {
   worldRef: RefObject<WorldState>;
   paramsRef: RefObject<SimParams>;
+  historyRef: RefObject<SimulationHistory>;
   setWorld: Dispatch<SetStateAction<WorldState>>;
   setParams: Dispatch<SetStateAction<SimParams>>;
   setDraftBodies: Dispatch<SetStateAction<BodyState[]>>;
@@ -26,6 +28,7 @@ export type DraftEditPolicyHandlers = {
 export const useDraftEditPolicy = ({
   worldRef,
   paramsRef,
+  historyRef,
   setWorld,
   setParams,
   setDraftBodies,
@@ -39,6 +42,7 @@ export const useDraftEditPolicy = ({
     worldRef.current = synced;
     setWorld(synced);
     setBaselineDiagnostics(diagnosticsSnapshot(synced.bodies, nextParams));
+    clearHistory(historyRef);
   };
 
   const onBodyChange = (index: number, field: BodyEditField, value: number) => {
@@ -60,6 +64,7 @@ export const useDraftEditPolicy = ({
     setParams(next);
     if (shouldSyncDraftEditsToStoppedWorld(worldRef.current)) {
       setBaselineDiagnostics(diagnosticsSnapshot(worldRef.current.bodies, next));
+      clearHistory(historyRef);
     }
   };
 
@@ -69,6 +74,7 @@ export const useDraftEditPolicy = ({
     setParams(next);
     if (shouldSyncDraftEditsToStoppedWorld(worldRef.current)) {
       setBaselineDiagnostics(diagnosticsSnapshot(worldRef.current.bodies, next));
+      clearHistory(historyRef);
     }
   };
 

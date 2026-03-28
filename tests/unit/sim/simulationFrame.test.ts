@@ -112,6 +112,7 @@ describe("runSimulationFrame", () => {
     expect(result.nextCamera).toEqual({ center: { x: 2, y: 3 }, worldUnitsPerPixel: 0.02 });
     expect(result.nextForceFastZoomInFrames).toBe(11);
     expect(result.nextHoverLastUpdateTime).toBe(5000);
+    expect(result.stepsAdvanced).toBe(1);
     expect(centerOfMass).toHaveBeenCalledTimes(1);
   });
 
@@ -263,6 +264,7 @@ describe("runSimulationFrame", () => {
     expect(result.nextAccumulator).toBe(0.75);
     expect(fadeAndPruneTrails).not.toHaveBeenCalled();
     expect(result.nextSimStepCounter).toBe(42);
+    expect(result.stepsAdvanced).toBe(0);
     expect(result.worldChanged).toBe(false);
   });
 

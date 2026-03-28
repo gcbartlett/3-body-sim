@@ -10,6 +10,7 @@ type UseSimulationHotkeysParams = {
   onToggleCenterOfMass: () => void;
   onToggleOriginMarker: () => void;
   onStepForward: () => void;
+  onStepBack?: () => void;
 };
 
 type KeyboardHotkeyEvent = Pick<KeyboardEvent, "key" | "code" | "repeat">;
@@ -63,7 +64,9 @@ export const useSimulationHotkeys = ({
   onToggleCenterOfMass,
   onToggleOriginMarker,
   onStepForward,
+  onStepBack: _onStepBack,
 }: UseSimulationHotkeysParams) => {
+  void _onStepBack;
   const onKeyDownEvent = useEffectEvent((e: KeyboardEvent) => {
     if (e.metaKey || e.ctrlKey || e.altKey) {
       return;

@@ -39,6 +39,7 @@ import {
   adjustedSimulationSpeed,
   diagnosticsSnapshot,
 } from "./sim/simulationPolicies";
+import type { SimulationHistory } from "./sim/simulationHistory";
 
 const initialCamera: Camera = {
   center: { x: 0, y: 0 },
@@ -47,6 +48,7 @@ const initialCamera: Camera = {
 
 const BODY_COLORS = ["#f7b731", "#60a5fa", "#8bd450"];
 const FAST_REFRAME_FRAMES = 60;
+const MAX_HISTORY_STEPS = 300;
 const APP_VERSION = __APP_VERSION__;
 
 function App() {
@@ -82,6 +84,10 @@ function App() {
   const trailsRef = useRef<TrailMap>({});
   const forceFastZoomInFramesRef = useRef(FAST_REFRAME_FRAMES);
   const simStepCounterRef = useRef(0);
+  const historyRef = useRef<SimulationHistory>({
+    snapshots: [],
+    maxSteps: MAX_HISTORY_STEPS,
+  });
   const { worldRef, paramsRef, manualPanZoomRef, setManualMode } = useAppRuntimeState({
     world,
     params,
@@ -198,6 +204,7 @@ function App() {
       accumulatorRef,
       forceFastZoomInFramesRef,
       simStepCounterRef,
+      historyRef,
     },
     hover: {
       hoverBodyIdRef,
@@ -214,6 +221,7 @@ function App() {
     onStartPause,
     onReset,
     onStep,
+    onStepBack,
     onApplyPreset,
     onGenerateRandomStable,
     onGenerateRandomChaotic,
@@ -231,6 +239,9 @@ function App() {
       accumulatorRef,
       lastTimeRef,
       simStepCounterRef,
+      forceFastZoomInFramesRef,
+      hoverLastUpdateTimeRef,
+      historyRef,
     },
     stateSetters: {
       setWorld,
@@ -254,6 +265,7 @@ function App() {
     onToggleCenterOfMass: () => setShowCenterOfMass((prev) => !prev),
     onToggleOriginMarker: () => setShowOriginMarker((prev) => !prev),
     onStepForward: () => (worldRef.current.isRunning ? onStartPause() : onStep()),
+    onStepBack,
   });
 
   const onTogglePanelExpanded = () => {

@@ -1,9 +1,11 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { TrailMap } from "../render/canvasRenderer";
+import type { SimulationHistory } from "./simulationHistory";
 import { applyDissolutionProgress, diagnosticsSnapshot } from "./simulationPolicies";
 import {
   applyNewInitialStateTransition,
-  runSingleStepTransition,
+  runSingleStepWithHistoryTransition,
+  runStepBackTransition,
   runStartPauseTransition,
 } from "./sessionTransitions";
 import type { BodyState, DiagnosticsSnapshot, PresetProfile, SimParams, WorldState } from "./types";
@@ -24,6 +26,9 @@ type UseSimulationSessionArgs = {
     accumulatorRef: RefObject<number>;
     lastTimeRef: RefObject<number | null>;
     simStepCounterRef: RefObject<number>;
+    forceFastZoomInFramesRef: RefObject<number>;
+    hoverLastUpdateTimeRef: RefObject<number>;
+    historyRef: RefObject<SimulationHistory>;
   };
   stateSetters: {
     setWorld: Dispatch<SetStateAction<WorldState>>;
@@ -41,6 +46,7 @@ type SimulationSessionHandlers = DraftEditPolicyHandlers & {
   onStartPause: () => void;
   onReset: () => void;
   onStep: () => void;
+  onStepBack: () => void;
   onApplyPreset: () => void;
   onGenerateRandomStable: () => void;
   onGenerateRandomChaotic: () => void;
@@ -53,13 +59,24 @@ export const useSimulationSession = ({
   controls,
 }: UseSimulationSessionArgs): SimulationSessionHandlers => {
   const { draftBodies, allPresets, selectedPresetId, bodyColors } = session;
-  const { worldRef, paramsRef, trailsRef, accumulatorRef, lastTimeRef, simStepCounterRef } = runtimeRefs;
+  const {
+    worldRef,
+    paramsRef,
+    trailsRef,
+    accumulatorRef,
+    lastTimeRef,
+    simStepCounterRef,
+    forceFastZoomInFramesRef,
+    hoverLastUpdateTimeRef,
+    historyRef,
+  } = runtimeRefs;
   const { setWorld, setParams, setDraftBodies, setBaselineDiagnostics } = stateSetters;
   const { setManualMode, scheduleFastReframe } = controls;
 
   const { onBodyChange, onParamChange, onResetParams } = useDraftEditPolicy({
     worldRef,
     paramsRef,
+    historyRef,
     setWorld,
     setParams,
     setDraftBodies,
@@ -70,6 +87,7 @@ export const useSimulationSession = ({
     worldRef,
     trailsRef,
     simStepCounterRef,
+    historyRef,
     setWorld,
     setBaselineDiagnostics,
   };
@@ -83,6 +101,21 @@ export const useSimulationSession = ({
     worldRef,
     paramsRef,
     trailsRef,
+    accumulatorRef,
+    simStepCounterRef,
+    forceFastZoomInFramesRef,
+    historyRef,
+    setWorld,
+  };
+  const stepBackDeps = {
+    worldRef,
+    accumulatorRef,
+    simStepCounterRef,
+    forceFastZoomInFramesRef,
+    trailsRef,
+    lastTimeRef,
+    hoverLastUpdateTimeRef,
+    historyRef,
     setWorld,
   };
 
@@ -99,7 +132,11 @@ export const useSimulationSession = ({
   };
 
   const onStep = () => {
-    runSingleStepTransition(singleStepDeps, applyDissolutionProgress);
+    runSingleStepWithHistoryTransition(singleStepDeps, applyDissolutionProgress);
+  };
+
+  const onStepBack = () => {
+    runStepBackTransition(stepBackDeps);
   };
   const { onApplyPreset, onGenerateRandomStable, onGenerateRandomChaotic } =
     useSessionPresetCommands({
@@ -128,6 +165,7 @@ export const useSimulationSession = ({
     onStartPause,
     onReset,
     onStep,
+    onStepBack,
     onApplyPreset,
     onGenerateRandomStable,
     onGenerateRandomChaotic,

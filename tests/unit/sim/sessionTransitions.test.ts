@@ -26,9 +26,12 @@ import {
   buildNewInitialStateTransition,
   buildSingleStepTransition,
   buildStartPauseTransition,
+  runSingleStepWithHistoryTransition,
   runSingleStepTransition,
+  runStepBackTransition,
   runStartPauseTransition,
 } from "~/src/sim/sessionTransitions";
+import type { SimulationHistory, SimulationSnapshot } from "~/src/sim/simulationHistory";
 
 const makeBodies = (): BodyState[] => [
   {
@@ -76,6 +79,13 @@ const makeParams = (overrides: Partial<SimParams> = {}): SimParams => ({
   ...overrides,
 });
 
+const makeHistoryRef = (
+  snapshots: SimulationSnapshot[] = [],
+  maxSteps = 300,
+): { current: SimulationHistory } => ({
+  current: { snapshots, maxSteps },
+});
+
 describe("buildNewInitialStateTransition", () => {
   it("returns stopped world clone with fresh baseline diagnostics", () => {
     const nextBodies = makeBodies();
@@ -108,6 +118,14 @@ describe("applyNewInitialStateTransition", () => {
     const worldRef = { current: makeWorld({ isRunning: true, elapsedTime: 9 }) };
     const trailsRef = { current: { a: [{ x: 1, y: 2, life: 0.5 }] } };
     const simStepCounterRef = { current: 99 };
+    const historyRef = makeHistoryRef([
+      {
+        world: makeWorld(),
+        accumulator: 1,
+        simStepCounter: 2,
+        forceFastZoomInFrames: 3,
+      },
+    ]);
     const setWorld = vi.fn();
     const setBaselineDiagnostics = vi.fn();
 
@@ -116,6 +134,7 @@ describe("applyNewInitialStateTransition", () => {
         worldRef: worldRef as never,
         trailsRef: trailsRef as never,
         simStepCounterRef: simStepCounterRef as never,
+        historyRef: historyRef as never,
         setWorld,
         setBaselineDiagnostics,
       },
@@ -131,18 +150,21 @@ describe("applyNewInitialStateTransition", () => {
       energy: nextBodies.length,
       momentum: { x: 0, y: 0 },
     });
+    expect(historyRef.current.snapshots).toEqual([]);
   });
 
   it("resets trailsRef.current to an empty map", () => {
     const worldRef = { current: makeWorld() };
     const trailsRef = { current: { a: [{ x: 1, y: 2, life: 1 }] } };
     const simStepCounterRef = { current: 12 };
+    const historyRef = makeHistoryRef();
 
     applyNewInitialStateTransition(
       {
         worldRef: worldRef as never,
         trailsRef: trailsRef as never,
         simStepCounterRef: simStepCounterRef as never,
+        historyRef: historyRef as never,
         setWorld: vi.fn(),
         setBaselineDiagnostics: vi.fn(),
       },
@@ -158,12 +180,14 @@ describe("applyNewInitialStateTransition", () => {
     const worldRef = { current: makeWorld() };
     const trailsRef = { current: {} };
     const simStepCounterRef = { current: 47 };
+    const historyRef = makeHistoryRef();
 
     applyNewInitialStateTransition(
       {
         worldRef: worldRef as never,
         trailsRef: trailsRef as never,
         simStepCounterRef: simStepCounterRef as never,
+        historyRef: historyRef as never,
         setWorld: vi.fn(),
         setBaselineDiagnostics: vi.fn(),
       },
@@ -173,6 +197,55 @@ describe("applyNewInitialStateTransition", () => {
     );
 
     expect(simStepCounterRef.current).toBe(0);
+  });
+});
+
+describe("runSingleStepWithHistoryTransition", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(velocityVerletStep).mockImplementation((bodies) => bodies.map((body) => ({ ...body })));
+    vi.mocked(evaluateEjection).mockImplementation((world) => ({
+      ejectionCounterById: world.ejectionCounterById,
+      ejectedBodyId: world.ejectedBodyId,
+      ejectedBodyIds: world.ejectedBodyIds,
+      isRunning: false,
+    }));
+    vi.mocked(appendTrailPoints).mockReturnValue({});
+    vi.mocked(fadeAndPruneTrails).mockReturnValue({});
+  });
+
+  it("captures a snapshot before applying single-step transition", () => {
+    const worldRef = { current: makeWorld({ elapsedTime: 2 }) };
+    const paramsRef = { current: makeParams({ dt: 0.5 }) };
+    const trailsRef = { current: {} };
+    const accumulatorRef = { current: 0.33 };
+    const simStepCounterRef = { current: 9 };
+    const forceFastZoomInFramesRef = { current: 7 };
+    const historyRef = makeHistoryRef([], 4);
+    const setWorld = vi.fn();
+
+    runSingleStepWithHistoryTransition(
+      {
+        worldRef: worldRef as never,
+        paramsRef: paramsRef as never,
+        trailsRef: trailsRef as never,
+        accumulatorRef: accumulatorRef as never,
+        simStepCounterRef: simStepCounterRef as never,
+        forceFastZoomInFramesRef: forceFastZoomInFramesRef as never,
+        historyRef: historyRef as never,
+        setWorld,
+      },
+      (world) => world,
+    );
+
+    expect(historyRef.current.snapshots).toHaveLength(1);
+    expect(historyRef.current.snapshots[0]).toEqual({
+      world: makeWorld({ elapsedTime: 2 }),
+      accumulator: 0.33,
+      simStepCounter: 9,
+      forceFastZoomInFrames: 7,
+    });
+    expect(setWorld).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -484,5 +557,145 @@ describe("runSingleStepTransition", () => {
     expect(worldRef.current.ejectedBodyId).toBe("b");
     expect(worldRef.current.ejectedBodyIds).toEqual(["b", "c"]);
     expect(setWorld).toHaveBeenCalledWith(worldRef.current);
+  });
+});
+
+describe("runStepBackTransition", () => {
+  it("is a no-op when history is empty", () => {
+    const worldRef = { current: makeWorld({ elapsedTime: 10, isRunning: true }) };
+    const accumulatorRef = { current: 2 };
+    const simStepCounterRef = { current: 3 };
+    const forceFastZoomInFramesRef = { current: 4 };
+    const trailsRef = { current: { a: [{ x: 1, y: 1, life: 0.9 }] } };
+    const lastTimeRef = { current: 99 };
+    const hoverLastUpdateTimeRef = { current: 88 };
+    const historyRef = makeHistoryRef();
+    const setWorld = vi.fn();
+
+    const didStepBack = runStepBackTransition({
+      worldRef: worldRef as never,
+      accumulatorRef: accumulatorRef as never,
+      simStepCounterRef: simStepCounterRef as never,
+      forceFastZoomInFramesRef: forceFastZoomInFramesRef as never,
+      trailsRef: trailsRef as never,
+      lastTimeRef: lastTimeRef as never,
+      hoverLastUpdateTimeRef: hoverLastUpdateTimeRef as never,
+      historyRef: historyRef as never,
+      setWorld,
+    });
+
+    expect(didStepBack).toBe(false);
+    expect(setWorld).not.toHaveBeenCalled();
+    expect(worldRef.current.elapsedTime).toBe(10);
+  });
+
+  it("restores snapshot atomically, clears trails, and resets timing refs", () => {
+    const snapshotWorld = makeWorld({
+      elapsedTime: 4,
+      isRunning: true,
+      ejectionCounterById: { a: 5 },
+      ejectedBodyId: "a",
+      ejectedBodyIds: ["a"],
+    });
+    const historyRef = makeHistoryRef([
+      {
+        world: snapshotWorld,
+        accumulator: 0.75,
+        simStepCounter: 21,
+        forceFastZoomInFrames: 11,
+      },
+    ]);
+    const worldRef = { current: makeWorld({ elapsedTime: 99, isRunning: true }) };
+    const accumulatorRef = { current: 0 };
+    const simStepCounterRef = { current: 0 };
+    const forceFastZoomInFramesRef = { current: 0 };
+    const trailsRef = { current: { a: [{ x: 5, y: 6, life: 0.4 }] } };
+    const lastTimeRef = { current: 5000 };
+    const hoverLastUpdateTimeRef = { current: 4000 };
+    const setWorld = vi.fn();
+
+    const didStepBack = runStepBackTransition({
+      worldRef: worldRef as never,
+      accumulatorRef: accumulatorRef as never,
+      simStepCounterRef: simStepCounterRef as never,
+      forceFastZoomInFramesRef: forceFastZoomInFramesRef as never,
+      trailsRef: trailsRef as never,
+      lastTimeRef: lastTimeRef as never,
+      hoverLastUpdateTimeRef: hoverLastUpdateTimeRef as never,
+      historyRef: historyRef as never,
+      setWorld,
+    });
+
+    expect(didStepBack).toBe(true);
+    expect(historyRef.current.snapshots).toEqual([]);
+    expect(worldRef.current).toEqual({ ...snapshotWorld, isRunning: false });
+    expect(worldRef.current).not.toBe(snapshotWorld);
+    expect(accumulatorRef.current).toBe(0.75);
+    expect(simStepCounterRef.current).toBe(21);
+    expect(forceFastZoomInFramesRef.current).toBe(11);
+    expect(trailsRef.current).toEqual({});
+    expect(lastTimeRef.current).toBeNull();
+    expect(hoverLastUpdateTimeRef.current).toBe(0);
+    expect(setWorld).toHaveBeenCalledWith(worldRef.current);
+  });
+
+  it("restores prior world after one forward step and one step back", () => {
+    vi.mocked(velocityVerletStep).mockImplementation((bodies) =>
+      bodies.map((body) => ({
+        ...body,
+        position: { x: body.position.x + 1, y: body.position.y + 1 },
+        velocity: { ...body.velocity },
+      })),
+    );
+    vi.mocked(evaluateEjection).mockImplementation((world) => ({
+      ejectionCounterById: world.ejectionCounterById,
+      ejectedBodyId: world.ejectedBodyId,
+      ejectedBodyIds: world.ejectedBodyIds,
+      isRunning: false,
+    }));
+    vi.mocked(appendTrailPoints).mockReturnValue({});
+    vi.mocked(fadeAndPruneTrails).mockReturnValue({});
+
+    const startingWorld = makeWorld({ elapsedTime: 3, isRunning: false });
+    const worldRef = { current: startingWorld };
+    const paramsRef = { current: makeParams({ dt: 0.2 }) };
+    const trailsRef = { current: {} };
+    const accumulatorRef = { current: 0.4 };
+    const simStepCounterRef = { current: 10 };
+    const forceFastZoomInFramesRef = { current: 5 };
+    const historyRef = makeHistoryRef();
+    const setWorld = vi.fn();
+
+    runSingleStepWithHistoryTransition(
+      {
+        worldRef: worldRef as never,
+        paramsRef: paramsRef as never,
+        trailsRef: trailsRef as never,
+        accumulatorRef: accumulatorRef as never,
+        simStepCounterRef: simStepCounterRef as never,
+        forceFastZoomInFramesRef: forceFastZoomInFramesRef as never,
+        historyRef: historyRef as never,
+        setWorld,
+      },
+      (world) => world,
+    );
+
+    const didStepBack = runStepBackTransition({
+      worldRef: worldRef as never,
+      accumulatorRef: accumulatorRef as never,
+      simStepCounterRef: simStepCounterRef as never,
+      forceFastZoomInFramesRef: forceFastZoomInFramesRef as never,
+      trailsRef: trailsRef as never,
+      lastTimeRef: { current: 100 } as never,
+      hoverLastUpdateTimeRef: { current: 200 } as never,
+      historyRef: historyRef as never,
+      setWorld,
+    });
+
+    expect(didStepBack).toBe(true);
+    expect(worldRef.current).toEqual({ ...startingWorld, isRunning: false });
+    expect(accumulatorRef.current).toBe(0.4);
+    expect(simStepCounterRef.current).toBe(10);
+    expect(forceFastZoomInFramesRef.current).toBe(5);
   });
 });

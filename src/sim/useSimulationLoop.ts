@@ -1,7 +1,12 @@
 import { useEffect, useEffectEvent, type RefObject } from "react";
 import type { TrailMap } from "../render/canvasRenderer";
 import { type Camera } from "./camera";
-import { runSimulationFrame } from "./simulationFrame";
+import {
+  captureSnapshot,
+  pushSnapshot,
+  type SimulationHistory,
+} from "./simulationHistory";
+import { runSimulationFrame, type SimulationFrameResult } from "./simulationFrame";
 import type { LockMode, SimParams, WorldState } from "./types";
 
 type Viewport = {
@@ -29,6 +34,7 @@ type UseSimulationLoopArgs = {
     accumulatorRef: RefObject<number>;
     forceFastZoomInFramesRef: RefObject<number>;
     simStepCounterRef: RefObject<number>;
+    historyRef: RefObject<SimulationHistory>;
   };
   hover: {
     hoverBodyIdRef: RefObject<string | null>;
@@ -36,6 +42,60 @@ type UseSimulationLoopArgs = {
     refreshHoverTooltipForBodyId: (bodyId: string) => void;
   };
   setWorld: (world: WorldState) => void;
+};
+
+type ApplySimulationFrameResultArgs = {
+  currentWorld: WorldState;
+  frameResult: SimulationFrameResult;
+  refs: {
+    accumulatorRef: RefObject<number>;
+    trailsRef: RefObject<TrailMap>;
+    simStepCounterRef: RefObject<number>;
+    cameraRef: RefObject<Camera>;
+    forceFastZoomInFramesRef: RefObject<number>;
+    hoverLastUpdateTimeRef: RefObject<number>;
+    worldRef: RefObject<WorldState>;
+    historyRef: RefObject<SimulationHistory>;
+  };
+  setWorld: (world: WorldState) => void;
+};
+
+export const applySimulationFrameResult = ({
+  currentWorld,
+  frameResult,
+  refs: {
+    accumulatorRef,
+    trailsRef,
+    simStepCounterRef,
+    cameraRef,
+    forceFastZoomInFramesRef,
+    hoverLastUpdateTimeRef,
+    worldRef,
+    historyRef,
+  },
+  setWorld,
+}: ApplySimulationFrameResultArgs): void => {
+  if (frameResult.stepsAdvanced > 0) {
+    pushSnapshot(
+      historyRef,
+      captureSnapshot({
+        world: currentWorld,
+        accumulator: accumulatorRef.current,
+        simStepCounter: simStepCounterRef.current,
+        forceFastZoomInFrames: forceFastZoomInFramesRef.current,
+      }),
+    );
+  }
+  accumulatorRef.current = frameResult.nextAccumulator;
+  trailsRef.current = frameResult.nextTrails;
+  simStepCounterRef.current = frameResult.nextSimStepCounter;
+  cameraRef.current = frameResult.nextCamera;
+  forceFastZoomInFramesRef.current = frameResult.nextForceFastZoomInFrames;
+  hoverLastUpdateTimeRef.current = frameResult.nextHoverLastUpdateTime;
+  if (frameResult.worldChanged) {
+    worldRef.current = frameResult.nextWorld;
+    setWorld(frameResult.nextWorld);
+  }
 };
 
 export const useSimulationLoop = ({
@@ -52,6 +112,7 @@ export const useSimulationLoop = ({
     accumulatorRef,
     forceFastZoomInFramesRef,
     simStepCounterRef,
+    historyRef,
   },
   hover: { hoverBodyIdRef, hoverLastUpdateTimeRef, refreshHoverTooltipForBodyId },
   setWorld,
@@ -107,16 +168,21 @@ export const useSimulationLoop = ({
           onHoverRefresh: onHoverRefreshEvent,
         },
       });
-      accumulatorRef.current = frameResult.nextAccumulator;
-      trailsRef.current = frameResult.nextTrails;
-      simStepCounterRef.current = frameResult.nextSimStepCounter;
-      cameraRef.current = frameResult.nextCamera;
-      forceFastZoomInFramesRef.current = frameResult.nextForceFastZoomInFrames;
-      hoverLastUpdateTimeRef.current = frameResult.nextHoverLastUpdateTime;
-      if (frameResult.worldChanged) {
-        worldRef.current = frameResult.nextWorld;
-        setWorld(frameResult.nextWorld);
-      }
+      applySimulationFrameResult({
+        currentWorld,
+        frameResult,
+        refs: {
+          accumulatorRef,
+          trailsRef,
+          simStepCounterRef,
+          cameraRef,
+          forceFastZoomInFramesRef,
+          hoverLastUpdateTimeRef,
+          worldRef,
+          historyRef,
+        },
+        setWorld,
+      });
 
       rafRef.current = requestAnimationFrame(tick);
     };

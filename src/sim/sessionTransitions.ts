@@ -2,6 +2,14 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import { fadeAndPruneTrails, type TrailMap } from "../render/canvasRenderer";
 import { evaluateEjection } from "./ejection";
 import { velocityVerletStep } from "./integrators";
+import {
+  captureSnapshot,
+  clearHistory,
+  popSnapshot,
+  pushSnapshot,
+  restoreSnapshot,
+  type SimulationHistory,
+} from "./simulationHistory";
 import { appendTrailPoints } from "./simulationPolicies";
 import type { BodyState, DiagnosticsSnapshot, SimParams, WorldState } from "./types";
 import { createStoppedWorld } from "./worldState";
@@ -29,6 +37,7 @@ export type NewInitialStateTransitionDeps = {
   worldRef: RefObject<WorldState>;
   trailsRef: RefObject<TrailMap>;
   simStepCounterRef: RefObject<number>;
+  historyRef: RefObject<SimulationHistory>;
   setWorld: Dispatch<SetStateAction<WorldState>>;
   setBaselineDiagnostics: Dispatch<SetStateAction<DiagnosticsSnapshot>>;
 };
@@ -45,6 +54,7 @@ export const applyNewInitialStateTransition = (
   deps.setBaselineDiagnostics(transition.baselineDiagnostics);
   deps.trailsRef.current = {};
   deps.simStepCounterRef.current = 0;
+  clearHistory(deps.historyRef);
 };
 
 export type StartPauseTransition = {
@@ -137,4 +147,57 @@ export const runSingleStepTransition = (
   deps.setWorld(nextWorld);
   const sampledTrails = appendTrailPoints(deps.trailsRef.current, nextWorld.bodies);
   deps.trailsRef.current = fadeAndPruneTrails(sampledTrails, deps.paramsRef.current.trailFade);
+};
+
+export type SingleStepWithHistoryTransitionDeps = SingleStepTransitionDeps & {
+  accumulatorRef: RefObject<number>;
+  simStepCounterRef: RefObject<number>;
+  forceFastZoomInFramesRef: RefObject<number>;
+  historyRef: RefObject<SimulationHistory>;
+};
+
+export const runSingleStepWithHistoryTransition = (
+  deps: SingleStepWithHistoryTransitionDeps,
+  applyDissolutionProgress: (world: WorldState, stepParams: SimParams, dt: number) => WorldState,
+): void => {
+  pushSnapshot(
+    deps.historyRef,
+    captureSnapshot({
+      world: deps.worldRef.current,
+      accumulator: deps.accumulatorRef.current,
+      simStepCounter: deps.simStepCounterRef.current,
+      forceFastZoomInFrames: deps.forceFastZoomInFramesRef.current,
+    }),
+  );
+  runSingleStepTransition(deps, applyDissolutionProgress);
+};
+
+export type StepBackTransitionDeps = {
+  worldRef: RefObject<WorldState>;
+  accumulatorRef: RefObject<number>;
+  simStepCounterRef: RefObject<number>;
+  forceFastZoomInFramesRef: RefObject<number>;
+  trailsRef: RefObject<TrailMap>;
+  lastTimeRef: RefObject<number | null>;
+  hoverLastUpdateTimeRef: RefObject<number>;
+  historyRef: RefObject<SimulationHistory>;
+  setWorld: Dispatch<SetStateAction<WorldState>>;
+};
+
+export const runStepBackTransition = (deps: StepBackTransitionDeps): boolean => {
+  const snapshot = popSnapshot(deps.historyRef);
+  if (!snapshot) {
+    return false;
+  }
+
+  const restored = restoreSnapshot({ snapshot });
+  deps.worldRef.current = restored.world;
+  deps.accumulatorRef.current = restored.accumulator;
+  deps.simStepCounterRef.current = restored.simStepCounter;
+  deps.forceFastZoomInFramesRef.current = restored.forceFastZoomInFrames;
+  deps.trailsRef.current = {};
+  deps.lastTimeRef.current = null;
+  deps.hoverLastUpdateTimeRef.current = 0;
+  deps.setWorld(restored.world);
+  return true;
 };

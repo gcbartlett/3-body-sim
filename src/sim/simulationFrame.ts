@@ -46,6 +46,7 @@ export type SimulationFrameResult = {
   nextAccumulator: number;
   nextTrails: TrailMap;
   nextSimStepCounter: number;
+  stepsAdvanced: number;
   nextCamera: Camera;
   nextForceFastZoomInFrames: number;
   nextHoverLastUpdateTime: number;
@@ -110,6 +111,7 @@ export const runSimulationFrame = ({
     nextAccumulator: stepResult.nextAccumulator,
     nextTrails,
     nextSimStepCounter: stepResult.nextSimStepCounter,
+    stepsAdvanced: stepResult.stepsAdvanced,
     nextCamera,
     nextForceFastZoomInFrames,
     nextHoverLastUpdateTime,
