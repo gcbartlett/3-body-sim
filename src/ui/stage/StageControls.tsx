@@ -80,7 +80,7 @@ export const StageControls = ({
         <button
           onClick={onStepBack}
           disabled={!canStepBack}
-          title={"Go back one stored simulation frame.\n" + "Hotkey: Left Arrow."}
+          title={"Move simulation back by one frame.\n" + "Hotkey: Left Arrow."}
         >
           <span className="stage-control-icon">
             <BackIcon />
@@ -91,7 +91,7 @@ export const StageControls = ({
           <span className="stage-control-icon">{runIcon}</span>
           <span className="stage-control-label">{runLabel}</span>
         </button>
-        <button onClick={onStep} title={"Advance simulation by one integration step.\n" + "Hotkey: Right Arrow."}>
+        <button onClick={onStep} title={"Move simulation forward by one frame.\n" + "Hotkey: Right Arrow."}>
           <span className="stage-control-icon">
             <StepIcon />
           </span>
