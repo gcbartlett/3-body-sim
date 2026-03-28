@@ -66,6 +66,24 @@ describe("effectiveSimulationDt", () => {
     expect(effectiveSimulationDt(makeParams({ dt: 0.5, speed: 0.5 }))).toBeCloseTo(0.5, 12);
     expect(effectiveSimulationDt(makeParams({ dt: 0.5, speed: 10 }))).toBeGreaterThan(0.5);
   });
+
+  it("never exceeds dt multiplied by the max dt scale cap at high speeds", () => {
+    const dt = 0.25;
+    const effectiveDt = effectiveSimulationDt(makeParams({ dt, speed: 1_000_000 }));
+
+    expect(effectiveDt).toBeLessThanOrEqual(dt * 6);
+  });
+
+  it("is non-decreasing across representative increasing speeds", () => {
+    const dtAt1 = effectiveSimulationDt(makeParams({ dt: 0.25, speed: 1 }));
+    const dtAt2 = effectiveSimulationDt(makeParams({ dt: 0.25, speed: 2 }));
+    const dtAt10 = effectiveSimulationDt(makeParams({ dt: 0.25, speed: 10 }));
+    const dtAt1k = effectiveSimulationDt(makeParams({ dt: 0.25, speed: 1000 }));
+
+    expect(dtAt2).toBeGreaterThanOrEqual(dtAt1);
+    expect(dtAt10).toBeGreaterThanOrEqual(dtAt2);
+    expect(dtAt1k).toBeGreaterThanOrEqual(dtAt10);
+  });
 });
 
 describe("advanceRunningWorldStep", () => {
