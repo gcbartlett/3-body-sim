@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import type { PointerEvent, RefObject, WheelEvent } from "react";
 import type { Camera } from "../sim/camera";
+import { perfMonitor } from "../perf/perfMonitor";
 
 const MIN_WORLD_UNITS_PER_PIXEL = 0.0005;
 const MAX_WORLD_UNITS_PER_PIXEL = 5;
@@ -102,7 +103,9 @@ export const useCanvasCameraControls = ({
   };
 
   const onCanvasPointerMove = (e: PointerEvent<HTMLCanvasElement>) => {
+    perfMonitor.incrementCounter("pointer.move.events");
     const rect = e.currentTarget.getBoundingClientRect();
+    perfMonitor.incrementCounter("pointer.move.rectReads");
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
@@ -179,6 +182,7 @@ export const useCanvasCameraControls = ({
   };
 
   const onCanvasWheel = (e: WheelEvent<HTMLCanvasElement>) => {
+    perfMonitor.incrementCounter("pointer.wheel.events");
     if (!manualPanZoomRef.current) {
       setManualMode(true);
     }

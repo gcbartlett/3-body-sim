@@ -8,6 +8,7 @@ import {
 } from "./simulationHistory";
 import { runSimulationFrame, type SimulationFrameResult } from "./simulationFrame";
 import type { LockMode, SimParams, WorldState } from "./types";
+import { perfMonitor } from "../perf/perfMonitor";
 
 type Viewport = {
   width: number;
@@ -79,17 +80,20 @@ export const applySimulationFrameResult = ({
   setWorld,
 }: ApplySimulationFrameResultArgs): void => {
   if (frameResult.stepsAdvanced > 0) {
-    pushSnapshot(
-      historyRef,
-      captureSnapshot({
-        world: currentWorld,
-        trails: trailsRef.current,
-        accumulator: accumulatorRef.current,
-        simStepCounter: simStepCounterRef.current,
-        forceFastZoomInFrames: forceFastZoomInFramesRef.current,
-      }),
-    );
+    perfMonitor.measure("history.captureAndPush", () => {
+      pushSnapshot(
+        historyRef,
+        captureSnapshot({
+          world: currentWorld,
+          trails: trailsRef.current,
+          accumulator: accumulatorRef.current,
+          simStepCounter: simStepCounterRef.current,
+          forceFastZoomInFrames: forceFastZoomInFramesRef.current,
+        }),
+      );
+    });
     onHistoryChanged?.(historyRef.current.snapshots.length);
+    perfMonitor.incrementCounter("history.onHistoryChanged.calls");
   }
   accumulatorRef.current = frameResult.nextAccumulator;
   trailsRef.current = frameResult.nextTrails;
@@ -129,14 +133,17 @@ export const useSimulationLoop = ({
 
   useEffect(() => {
     const tick = (time: number) => {
+      const frameStart = performance.now();
       const canvas = canvasRef.current;
       if (!canvas) {
+        perfMonitor.incrementCounter("raf.skip.noCanvas");
         rafRef.current = requestAnimationFrame(tick);
         return;
       }
 
       const ctx = canvas.getContext("2d");
       if (!ctx) {
+        perfMonitor.incrementCounter("raf.skip.noContext");
         rafRef.current = requestAnimationFrame(tick);
         return;
       }
@@ -190,6 +197,8 @@ export const useSimulationLoop = ({
         },
         setWorld,
       });
+      perfMonitor.recordDuration("raf.tick.total", performance.now() - frameStart);
+      perfMonitor.incrementCounter("raf.tick.calls");
 
       rafRef.current = requestAnimationFrame(tick);
     };

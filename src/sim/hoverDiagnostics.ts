@@ -8,6 +8,7 @@ import { worldToScreen, type Camera } from "./camera";
 import { computeAccelerations } from "./physics";
 import type { BodyState, SimParams, Vec2, WorldState } from "./types";
 import { magnitude } from "./vector";
+import { perfMonitor } from "../perf/perfMonitor";
 
 const ejectionCounterLabel = (
   isEjected: boolean,
@@ -116,7 +117,10 @@ export const buildHoverTooltipSnapshotForBodyIndex = ({
     return null;
   }
 
-  const accelerations = computeAccelerations(world.bodies, params);
+  perfMonitor.incrementCounter("hover.computeAccelerations.calls");
+  const accelerations = perfMonitor.measure("hover.computeAccelerations", () =>
+    computeAccelerations(world.bodies, params),
+  );
   const acceleration = accelerations[bodyIndex];
   const ejectMetrics = coreEscapeMetricsForBody(bodyIndex, world, params);
   const ejectionTimeSec = world.ejectionCounterById[body.id] ?? 0;

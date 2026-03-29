@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { RefObject } from "react";
+import { perfMonitor } from "../perf/perfMonitor";
 
 type ViewportSize = {
   width: number;
@@ -29,18 +30,27 @@ export const useStageViewport = ({
     }
 
     const updateViewportFromRect = (rect: DOMRectReadOnly) => {
+      perfMonitor.incrementCounter("layout.stageViewport.rectUpdates");
       const usableHeight = Math.max(
         MIN_VIEWPORT_HEIGHT_PX,
         Math.floor(rect.height - diagnosticsInsetPx),
       );
-      setViewport({
+      const nextViewport = {
         width: Math.max(MIN_VIEWPORT_WIDTH_PX, Math.floor(rect.width)),
         height: usableHeight,
+      };
+      setViewport((prev) => {
+        const changed = prev.width !== nextViewport.width || prev.height !== nextViewport.height;
+        perfMonitor.incrementCounter(
+          changed ? "layout.stageViewport.changed" : "layout.stageViewport.unchanged",
+        );
+        return changed ? nextViewport : prev;
       });
     };
 
     updateViewportFromRect(element.getBoundingClientRect());
     const observer = new ResizeObserver((entries) => {
+      perfMonitor.incrementCounter("layout.stageViewport.resizeObserver.callback");
       updateViewportFromRect(entries[0].contentRect);
     });
     observer.observe(element);

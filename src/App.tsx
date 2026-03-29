@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { Profiler, useRef, useState, type ProfilerOnRenderCallback } from "react";
 import "./styles.css";
 import type { TrailMap } from "./render/canvasRenderer";
 import type { Camera } from "./sim/camera";
@@ -47,6 +47,7 @@ import {
   type SimulationHistory,
   type SimulationHistoryMetrics,
 } from "./sim/simulationHistory";
+import { perfMonitor } from "./perf/perfMonitor";
 
 const initialCamera: Camera = {
   center: { x: 0, y: 0 },
@@ -141,6 +142,21 @@ function App() {
   const onHistoryMaxStepsChange = (nextMaxSteps: number) => {
     setHistoryMaxSteps(historyRef, clampHistoryMaxSteps(nextMaxSteps));
     syncHistoryMetrics();
+  };
+  const onDiagnosticsInsetChange = (nextHeight: number) => {
+    const clampedHeight = Math.max(0, nextHeight);
+    setDiagnosticsInsetPx((prev) => {
+      const changed = prev !== clampedHeight;
+      perfMonitor.incrementCounter(
+        changed ? "layout.diagnosticsInset.changed" : "layout.diagnosticsInset.unchanged",
+      );
+      perfMonitor.recordGauge("layout.diagnosticsInset.value", clampedHeight);
+      return changed ? clampedHeight : prev;
+    });
+  };
+  const onProfileRender: ProfilerOnRenderCallback = (id, phase, actualDuration, baseDuration) => {
+    perfMonitor.recordReactRender(id, actualDuration, baseDuration);
+    perfMonitor.incrementCounter(`react.render.${id}.${phase}`);
   };
 
   useAppPersistence({
@@ -342,7 +358,7 @@ function App() {
     historyDepthInputMax: HISTORY_DEPTH_INPUT_MAX,
     onStepAccelerationChange: setStepAcceleration,
     onTogglePanelExpanded,
-    onVisibleHeightChange: setDiagnosticsInsetPx,
+    onVisibleHeightChange: onDiagnosticsInsetChange,
   });
   const selectedPresetIbcDirty = selectedUserPresetIbcDirty({
     selectedPresetId,
@@ -351,39 +367,47 @@ function App() {
   });
   return (
     <div className={`layout${panelExpanded ? "" : " panel-collapsed"}`}>
-      <ControlPanel
-        bodies={draftBodies}
-        params={params}
-        appVersion={APP_VERSION}
-        presets={allPresets}
-        selectedPresetId={selectedPresetId}
-        defaultPresetIds={PRESETS.map((preset) => preset.id)}
-        selectedUserPresetIbcDirty={selectedPresetIbcDirty}
-        lockMode={lockMode}
-        manualPanZoom={manualPanZoom}
-        showOriginMarker={showOriginMarker}
-        showGrid={showGrid}
-        showCenterOfMass={showCenterOfMass}
-        onBodyChange={onBodyChange}
-        onParamChange={onParamChange}
-        onLockModeChange={onLockModeChange}
-        onToggleManualPanZoom={setManualMode}
-        onToggleShowOriginMarker={setShowOriginMarker}
-        onToggleShowGrid={setShowGrid}
-        onToggleShowCenterOfMass={setShowCenterOfMass}
-        onResetParams={onResetParams}
-        onPresetSelect={setSelectedPresetId}
-        onEditUserPreset={onEditUserPreset}
-        onDeleteUserPreset={onDeleteUserPreset}
-        onApplyPreset={onApplyPreset}
-        onSaveProfile={onOpenSaveProfile}
-        onGenerateRandomStable={onGenerateRandomStable}
-        onGenerateRandomChaotic={onGenerateRandomChaotic}
-      />
+      <Profiler id="ControlPanel" onRender={onProfileRender}>
+        <ControlPanel
+          bodies={draftBodies}
+          params={params}
+          appVersion={APP_VERSION}
+          presets={allPresets}
+          selectedPresetId={selectedPresetId}
+          defaultPresetIds={PRESETS.map((preset) => preset.id)}
+          selectedUserPresetIbcDirty={selectedPresetIbcDirty}
+          lockMode={lockMode}
+          manualPanZoom={manualPanZoom}
+          showOriginMarker={showOriginMarker}
+          showGrid={showGrid}
+          showCenterOfMass={showCenterOfMass}
+          onBodyChange={onBodyChange}
+          onParamChange={onParamChange}
+          onLockModeChange={onLockModeChange}
+          onToggleManualPanZoom={setManualMode}
+          onToggleShowOriginMarker={setShowOriginMarker}
+          onToggleShowGrid={setShowGrid}
+          onToggleShowCenterOfMass={setShowCenterOfMass}
+          onResetParams={onResetParams}
+          onPresetSelect={setSelectedPresetId}
+          onEditUserPreset={onEditUserPreset}
+          onDeleteUserPreset={onDeleteUserPreset}
+          onApplyPreset={onApplyPreset}
+          onSaveProfile={onOpenSaveProfile}
+          onGenerateRandomStable={onGenerateRandomStable}
+          onGenerateRandomChaotic={onGenerateRandomChaotic}
+        />
+      </Profiler>
       <main className="stage-wrap" ref={containerRef}>
-        <StageHud {...stageHudProps} />
-        <StageControls {...stageControlsProps} />
-        <CanvasDiagnostics {...diagnosticsProps} />
+        <Profiler id="StageHud" onRender={onProfileRender}>
+          <StageHud {...stageHudProps} />
+        </Profiler>
+        <Profiler id="StageControls" onRender={onProfileRender}>
+          <StageControls {...stageControlsProps} />
+        </Profiler>
+        <Profiler id="CanvasDiagnostics" onRender={onProfileRender}>
+          <CanvasDiagnostics {...diagnosticsProps} />
+        </Profiler>
         <canvas
           ref={canvasRef}
           className={`stage${manualPanZoom ? " stage-manual" : ""}`}

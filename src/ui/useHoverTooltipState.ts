@@ -6,6 +6,7 @@ import {
   findNearestBodyIndexAtScreenPoint,
 } from "../sim/hoverDiagnostics";
 import type { SimParams, WorldState } from "../sim/types";
+import { perfMonitor } from "../perf/perfMonitor";
 
 type Viewport = {
   width: number;
@@ -43,9 +44,11 @@ export const useHoverTooltipState = ({
   };
 
   const updateBodyHoverTooltip = (screenX: number, screenY: number) => {
+    const start = performance.now();
     const bodies = worldRef.current.bodies;
     if (bodies.length === 0) {
       clearHoverBody();
+      perfMonitor.recordDuration("hover.update.total", performance.now() - start);
       return;
     }
 
@@ -60,6 +63,7 @@ export const useHoverTooltipState = ({
     );
     if (!nearest) {
       clearHoverBody();
+      perfMonitor.recordDuration("hover.update.total", performance.now() - start);
       return;
     }
 
@@ -73,6 +77,7 @@ export const useHoverTooltipState = ({
     });
     if (!snapshot) {
       clearHoverBody();
+      perfMonitor.recordDuration("hover.update.total", performance.now() - start);
       return;
     }
 
@@ -84,13 +89,17 @@ export const useHoverTooltipState = ({
       color: snapshot.color,
       lines: snapshot.lines,
     });
+    perfMonitor.recordDuration("hover.update.total", performance.now() - start);
+    perfMonitor.incrementCounter("hover.update.success");
   };
 
   const refreshHoverTooltipForBodyId = (bodyId: string) => {
+    const start = performance.now();
     const index = findBodyIndexById(worldRef.current.bodies, bodyId);
     if (index < 0) {
       hoverBodyIdRef.current = null;
       setHoverBody(null);
+      perfMonitor.recordDuration("hover.refreshById.total", performance.now() - start);
       return;
     }
     const snapshot = buildHoverTooltipSnapshotForBodyIndex({
@@ -103,6 +112,7 @@ export const useHoverTooltipState = ({
     if (!snapshot) {
       hoverBodyIdRef.current = null;
       setHoverBody(null);
+      perfMonitor.recordDuration("hover.refreshById.total", performance.now() - start);
       return;
     }
     setHoverBody({
@@ -111,6 +121,8 @@ export const useHoverTooltipState = ({
       color: snapshot.color,
       lines: snapshot.lines,
     });
+    perfMonitor.recordDuration("hover.refreshById.total", performance.now() - start);
+    perfMonitor.incrementCounter("hover.refreshById.success");
   };
 
   return {

@@ -9,6 +9,7 @@ import type { DiagnosticsSnapshot } from "../sim/types";
 import { BodyDiagnosticsColumn } from "./diagnostics/BodyDiagnosticsColumn";
 import { DiagnosticsSummaryColumn } from "./diagnostics/DiagnosticsSummaryColumn";
 import { loadCanvasDiagnosticsOpenState, saveCanvasDiagnosticsOpenState } from "./uiPrefsStorage";
+import { perfMonitor } from "../perf/perfMonitor";
 
 type Props = {
   pairEnergies: PairEnergyDisplay;
@@ -53,11 +54,17 @@ export const CanvasDiagnostics = ({
     }
 
     const emit = () => {
+      const measureStart = performance.now();
       const h = isOpen ? element.getBoundingClientRect().height + 10 : 0;
+      perfMonitor.recordDuration("layout.canvasDiagnostics.measure", performance.now() - measureStart);
       onVisibleHeightChange(h);
+      perfMonitor.incrementCounter("layout.canvasDiagnostics.emit");
     };
     emit();
-    const observer = new ResizeObserver(() => emit());
+    const observer = new ResizeObserver(() => {
+      perfMonitor.incrementCounter("layout.canvasDiagnostics.resizeObserver.callback");
+      emit();
+    });
     observer.observe(element);
     return () => {
       observer.disconnect();
