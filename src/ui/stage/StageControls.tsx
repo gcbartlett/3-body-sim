@@ -333,7 +333,7 @@ const StageWarnings = memo(function StageWarningsComponent({
 });
 StageWarnings.displayName = "StageWarnings";
 
-export const StageControls = ({
+const StageControlsComponent = ({
   runButtonLabel,
   runButtonTooltip,
   onStartPause,
@@ -379,3 +379,6 @@ export const StageControls = ({
     </div>
   );
 };
+
+export const StageControls = memo(StageControlsComponent);
+StageControls.displayName = "StageControls";
