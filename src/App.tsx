@@ -1,5 +1,6 @@
 import { Profiler, useEffect, useRef, useState, type ProfilerOnRenderCallback } from "react";
 import "./styles.css";
+// noinspection ES6PreferShortImport
 import type { TrailMap } from "./render/canvasRenderer";
 import type { Camera } from "./sim/camera";
 import { defaultBodies, defaultParams, initialWorld } from "./sim/defaults";

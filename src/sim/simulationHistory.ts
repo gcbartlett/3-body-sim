@@ -1,3 +1,4 @@
+// noinspection ES6PreferShortImport
 import type { TrailMap } from "../render/canvasRenderer";
 import type { WorldState } from "./types";
 import { perfMonitor } from "../perf/perfMonitor";

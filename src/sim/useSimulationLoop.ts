@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useEffectEvent, useRef, type RefObject } from "react";
+// noinspection ES6PreferShortImport
 import type { TrailMap } from "../render/canvasRenderer";
 import { type Camera } from "./camera";
 import {
@@ -153,6 +154,7 @@ export const useSimulationLoop = ({
   });
 
   useEffect(() => {
+    // noinspection UnnecessaryLocalVariableJS
     const tick = (time: number) => {
       rafRef.current = null;
       const frameStart = performance.now();
