@@ -1,4 +1,4 @@
-import { useEffect, useRef, type PointerEvent } from "react";
+import { memo, useEffect, useRef, type PointerEvent } from "react";
 import {
   HOLD_ACCELERATION_TICK_MS,
   IDLE_STEP_ACCELERATION,
@@ -6,6 +6,7 @@ import {
   type StepAccelerationDirection,
   type StepAccelerationState,
 } from "../stepAcceleration";
+import { useStableCallback } from "../useStableCallback";
 
 type StageControlsProps = {
   runButtonLabel: string;
@@ -95,7 +96,19 @@ const ResetIcon = () => (
   </svg>
 );
 
-export const StageControls = ({
+type StageControlButtonsProps = Pick<
+  StageControlsProps,
+  | "runButtonLabel"
+  | "runButtonTooltip"
+  | "onStartPause"
+  | "onReset"
+  | "onStep"
+  | "onStepBack"
+  | "canStepBack"
+  | "onStepAccelerationChange"
+>;
+
+const StageControlButtons = memo(function StageControlButtonsComponent({
   runButtonLabel,
   runButtonTooltip,
   onStartPause,
@@ -103,14 +116,8 @@ export const StageControls = ({
   onStep,
   onStepBack,
   canStepBack,
-  historySnapshotCount,
-  historyMaxSteps,
-  historyEstimatedBytes,
   onStepAccelerationChange,
-  ejectedBodyId,
-  latestEjectedLabel,
-  dissolutionJustDetected,
-}: StageControlsProps) => {
+}: StageControlButtonsProps) {
   const holdIntervalIdRef = useRef<number | null>(null);
   const holdStartedAtRef = useRef<number | null>(null);
   const holdActionRef = useRef<(() => void) | null>(null);
@@ -228,68 +235,147 @@ export const StageControls = ({
 
   const runIcon = runButtonLabel === "Pause" ? <PauseIcon /> : <PlayIcon />;
   const runLabel = runButtonLabel.toUpperCase();
+
+  return (
+    <div className="button-row">
+      <button
+        onClick={handleStepBackClick}
+        onPointerDown={handlePointerDownBack}
+        onPointerUp={() => stopHold("pointer-up")}
+        onPointerLeave={() => stopHold("pointer-leave")}
+        onPointerCancel={() => stopHold("pointer-cancel")}
+        disabled={!canStepBack}
+        title={BACK_BUTTON_TOOLTIP}
+      >
+        <span className="stage-control-icon">
+          <BackIcon />
+        </span>
+        <span className="stage-control-label">BACK</span>
+      </button>
+      <button onClick={onStartPause} title={runButtonTooltip}>
+        <span className="stage-control-icon">{runIcon}</span>
+        <span className="stage-control-label">{runLabel}</span>
+      </button>
+      <button
+        onClick={handleStepClick}
+        onPointerDown={handlePointerDownStep}
+        onPointerUp={() => stopHold("pointer-up")}
+        onPointerLeave={() => stopHold("pointer-leave")}
+        onPointerCancel={() => stopHold("pointer-cancel")}
+        title={STEP_BUTTON_TOOLTIP}
+      >
+        <span className="stage-control-icon">
+          <StepIcon />
+        </span>
+        <span className="stage-control-label">STEP</span>
+      </button>
+      <button onClick={onReset} title="Reset to current initial conditions and clear trails.">
+        <span className="stage-control-icon">
+          <ResetIcon />
+        </span>
+        <span className="stage-control-label">RESET</span>
+      </button>
+    </div>
+  );
+});
+StageControlButtons.displayName = "StageControlButtons";
+
+type StageHistoryLiveProps = Pick<
+  StageControlsProps,
+  "historySnapshotCount" | "historyMaxSteps" | "historyEstimatedBytes"
+>;
+
+const StageHistoryLive = memo(function StageHistoryLiveComponent({
+  historySnapshotCount,
+  historyMaxSteps,
+  historyEstimatedBytes,
+}: StageHistoryLiveProps) {
   const historyFillRatio =
     historyMaxSteps > 0 ? Math.max(0, Math.min(1, historySnapshotCount / historyMaxSteps)) : 0;
   const historyFillPercent = `${historyFillRatio * 100}%`;
 
   return (
+    <div className="stage-history-controls">
+      <div
+        className="stage-history-buffer"
+        title={`History buffer usage: ${historySnapshotCount}/${historyMaxSteps} snapshots`}
+      >
+        <div className="stage-history-buffer-fill" style={{ width: historyFillPercent }} />
+      </div>
+      <p className="stage-history-metrics">
+        {historySnapshotCount}/{historyMaxSteps} snapshots, ~{formatEstimatedMemory(historyEstimatedBytes)}
+      </p>
+    </div>
+  );
+});
+StageHistoryLive.displayName = "StageHistoryLive";
+
+type StageWarningsProps = Pick<
+  StageControlsProps,
+  "ejectedBodyId" | "latestEjectedLabel" | "dissolutionJustDetected"
+>;
+
+const StageWarnings = memo(function StageWarningsComponent({
+  ejectedBodyId,
+  latestEjectedLabel,
+  dissolutionJustDetected,
+}: StageWarningsProps) {
+  return (
+  <>
+    {ejectedBodyId && (
+      <p className="warning">
+        Paused: {latestEjectedLabel ?? ejectedBodyId} newly ejected from system.
+      </p>
+    )}
+    {dissolutionJustDetected && <p className="warning">Paused: system dissolved.</p>}
+  </>
+  );
+});
+StageWarnings.displayName = "StageWarnings";
+
+export const StageControls = ({
+  runButtonLabel,
+  runButtonTooltip,
+  onStartPause,
+  onReset,
+  onStep,
+  onStepBack,
+  canStepBack,
+  historySnapshotCount,
+  historyMaxSteps,
+  historyEstimatedBytes,
+  onStepAccelerationChange,
+  ejectedBodyId,
+  latestEjectedLabel,
+  dissolutionJustDetected,
+}: StageControlsProps) => {
+  const onStartPauseStable = useStableCallback(onStartPause);
+  const onResetStable = useStableCallback(onReset);
+  const onStepStable = useStableCallback(onStep);
+  const onStepBackStable = useStableCallback(onStepBack);
+
+  return (
     <div className="stage-controls">
-      <div className="button-row">
-        <button
-          onClick={handleStepBackClick}
-          onPointerDown={handlePointerDownBack}
-          onPointerUp={() => stopHold("pointer-up")}
-          onPointerLeave={() => stopHold("pointer-leave")}
-          onPointerCancel={() => stopHold("pointer-cancel")}
-          disabled={!canStepBack}
-          title={BACK_BUTTON_TOOLTIP}
-        >
-          <span className="stage-control-icon">
-            <BackIcon />
-          </span>
-          <span className="stage-control-label">BACK</span>
-        </button>
-        <button onClick={onStartPause} title={runButtonTooltip}>
-          <span className="stage-control-icon">{runIcon}</span>
-          <span className="stage-control-label">{runLabel}</span>
-        </button>
-        <button
-          onClick={handleStepClick}
-          onPointerDown={handlePointerDownStep}
-          onPointerUp={() => stopHold("pointer-up")}
-          onPointerLeave={() => stopHold("pointer-leave")}
-          onPointerCancel={() => stopHold("pointer-cancel")}
-          title={STEP_BUTTON_TOOLTIP}
-        >
-          <span className="stage-control-icon">
-            <StepIcon />
-          </span>
-          <span className="stage-control-label">STEP</span>
-        </button>
-        <button onClick={onReset} title="Reset to current initial conditions and clear trails.">
-          <span className="stage-control-icon">
-            <ResetIcon />
-          </span>
-          <span className="stage-control-label">RESET</span>
-        </button>
-      </div>
-      <div className="stage-history-controls">
-        <div
-          className="stage-history-buffer"
-          title={`History buffer usage: ${historySnapshotCount}/${historyMaxSteps} snapshots`}
-        >
-          <div className="stage-history-buffer-fill" style={{ width: historyFillPercent }} />
-        </div>
-        <p className="stage-history-metrics">
-          {historySnapshotCount}/{historyMaxSteps} snapshots, ~{formatEstimatedMemory(historyEstimatedBytes)}
-        </p>
-      </div>
-      {ejectedBodyId && (
-        <p className="warning">
-          Paused: {latestEjectedLabel ?? ejectedBodyId} newly ejected from system.
-        </p>
-      )}
-      {dissolutionJustDetected && <p className="warning">Paused: system dissolved.</p>}
+      <StageControlButtons
+        runButtonLabel={runButtonLabel}
+        runButtonTooltip={runButtonTooltip}
+        onStartPause={onStartPauseStable}
+        onReset={onResetStable}
+        onStep={onStepStable}
+        onStepBack={onStepBackStable}
+        canStepBack={canStepBack}
+        onStepAccelerationChange={onStepAccelerationChange}
+      />
+      <StageHistoryLive
+        historySnapshotCount={historySnapshotCount}
+        historyMaxSteps={historyMaxSteps}
+        historyEstimatedBytes={historyEstimatedBytes}
+      />
+      <StageWarnings
+        ejectedBodyId={ejectedBodyId}
+        latestEjectedLabel={latestEjectedLabel}
+        dissolutionJustDetected={dissolutionJustDetected}
+      />
     </div>
   );
 };
