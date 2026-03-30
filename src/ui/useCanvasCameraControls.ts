@@ -191,7 +191,6 @@ export const useCanvasCameraControls = ({
     if (!manualPanZoomRef.current) {
       setManualMode(true);
     }
-    e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
