@@ -18,6 +18,7 @@ type UseCanvasCameraControlsArgs = {
   setManualMode: (enabled: boolean) => void;
   onPointerHover: (x: number, y: number) => void;
   onPointerHoverClear: () => void;
+  onVisualChange?: () => void;
 };
 
 export const useCanvasCameraControls = ({
@@ -27,6 +28,7 @@ export const useCanvasCameraControls = ({
   setManualMode,
   onPointerHover,
   onPointerHoverClear,
+  onVisualChange,
 }: UseCanvasCameraControlsArgs) => {
   const dragRef = useRef<{ active: boolean; pointerId: number | null; x: number; y: number }>({
     active: false,
@@ -139,6 +141,7 @@ export const useCanvasCameraControls = ({
         }
         touchRef.current.lastDistance = distance;
         touchRef.current.lastMidpoint = midpoint;
+        onVisualChange?.();
       } else if (touchRef.current.points.size === 1) {
         const only = Array.from(touchRef.current.points.values())[0];
         if (touchRef.current.lastMidpoint) {
@@ -148,6 +151,7 @@ export const useCanvasCameraControls = ({
           );
         }
         touchRef.current.lastMidpoint = only;
+        onVisualChange?.();
       }
       return;
     }
@@ -158,6 +162,7 @@ export const useCanvasCameraControls = ({
     panCameraByScreenDelta(x - dragRef.current.x, y - dragRef.current.y);
     dragRef.current.x = x;
     dragRef.current.y = y;
+    onVisualChange?.();
   };
 
   const onCanvasPointerUpOrCancel = (e: PointerEvent<HTMLCanvasElement>) => {
@@ -192,10 +197,12 @@ export const useCanvasCameraControls = ({
     const y = e.clientY - rect.top;
     const zoomFactor = Math.exp(e.deltaY * 0.0015);
     zoomCameraAtScreenPoint({ x, y }, zoomFactor);
+    onVisualChange?.();
   };
 
   const onCanvasDoubleClick = () => {
     setManualMode(false);
+    onVisualChange?.();
   };
 
   return {

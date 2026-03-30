@@ -1,4 +1,4 @@
-import { Profiler, useRef, useState, type ProfilerOnRenderCallback } from "react";
+import { Profiler, useEffect, useRef, useState, type ProfilerOnRenderCallback } from "react";
 import "./styles.css";
 import type { TrailMap } from "./render/canvasRenderer";
 import type { Camera } from "./sim/camera";
@@ -169,22 +169,6 @@ function App() {
     userPresets,
   });
 
-  const {
-    onCanvasPointerDown,
-    onCanvasPointerMove,
-    onCanvasPointerUpOrCancel,
-    onCanvasPointerLeave,
-    onCanvasWheel,
-    onCanvasDoubleClick,
-  } = useCanvasCameraControls({
-    cameraRef,
-    viewport,
-    manualPanZoomRef,
-    setManualMode,
-    onPointerHover: updateBodyHoverTooltip,
-    onPointerHoverClear: clearHoverBody,
-  });
-
   const allPresets = [...PRESETS, ...userPresets];
   const {
     saveProfileDraft,
@@ -229,10 +213,11 @@ function App() {
     setParams(next);
   };
 
-  useSimulationLoop({
+  const { requestRender } = useSimulationLoop({
     canvasRef,
     viewport,
     runtime: {
+      isRunning: world.isRunning,
       lockMode,
       manualPanZoom,
       showOriginMarker,
@@ -259,6 +244,27 @@ function App() {
     },
     setWorld,
   });
+  const {
+    onCanvasPointerDown,
+    onCanvasPointerMove,
+    onCanvasPointerUpOrCancel,
+    onCanvasPointerLeave,
+    onCanvasWheel,
+    onCanvasDoubleClick,
+  } = useCanvasCameraControls({
+    cameraRef,
+    viewport,
+    manualPanZoomRef,
+    setManualMode,
+    onPointerHover: updateBodyHoverTooltip,
+    onPointerHoverClear: clearHoverBody,
+    onVisualChange: requestRender,
+  });
+  useEffect(() => {
+    if (!world.isRunning) {
+      requestRender();
+    }
+  }, [world, requestRender]);
 
   const {
     onBodyChange,

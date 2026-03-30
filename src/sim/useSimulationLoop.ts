@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, type RefObject } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, type RefObject } from "react";
 import type { TrailMap } from "../render/canvasRenderer";
 import { type Camera } from "./camera";
 import {
@@ -19,6 +19,7 @@ type UseSimulationLoopArgs = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   viewport: Viewport;
   runtime: {
+    isRunning: boolean;
     lockMode: LockMode;
     manualPanZoom: boolean;
     showOriginMarker: boolean;
@@ -107,10 +108,14 @@ export const applySimulationFrameResult = ({
   }
 };
 
+type UseSimulationLoopResult = {
+  requestRender: () => void;
+};
+
 export const useSimulationLoop = ({
   canvasRef,
   viewport,
-  runtime: { lockMode, manualPanZoom, showOriginMarker, showGrid, showCenterOfMass },
+  runtime: { isRunning, lockMode, manualPanZoom, showOriginMarker, showGrid, showCenterOfMass },
   refs: {
     worldRef,
     paramsRef,
@@ -126,25 +131,42 @@ export const useSimulationLoop = ({
   },
   hover: { hoverBodyIdRef, hoverLastUpdateTimeRef, refreshHoverTooltipForBodyId },
   setWorld,
-}: UseSimulationLoopArgs): void => {
+}: UseSimulationLoopArgs): UseSimulationLoopResult => {
+  const tickRef = useRef((time: number) => {
+    void time;
+  });
+
+  const scheduleFrame = useCallback(() => {
+    if (rafRef.current !== null) {
+      return;
+    }
+    rafRef.current = requestAnimationFrame((time) => tickRef.current(time));
+  }, [rafRef]);
+
+  const requestRender = useCallback(() => {
+    perfMonitor.incrementCounter("raf.requestRender.calls");
+    scheduleFrame();
+  }, [scheduleFrame]);
+
   const onHoverRefreshEvent = useEffectEvent((bodyId: string) => {
     refreshHoverTooltipForBodyId(bodyId);
   });
 
   useEffect(() => {
     const tick = (time: number) => {
+      rafRef.current = null;
       const frameStart = performance.now();
       const canvas = canvasRef.current;
       if (!canvas) {
         perfMonitor.incrementCounter("raf.skip.noCanvas");
-        rafRef.current = requestAnimationFrame(tick);
+        scheduleFrame();
         return;
       }
 
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         perfMonitor.incrementCounter("raf.skip.noContext");
-        rafRef.current = requestAnimationFrame(tick);
+        scheduleFrame();
         return;
       }
 
@@ -200,13 +222,19 @@ export const useSimulationLoop = ({
       perfMonitor.recordDuration("raf.tick.total", performance.now() - frameStart);
       perfMonitor.incrementCounter("raf.tick.calls");
 
-      rafRef.current = requestAnimationFrame(tick);
+      if (worldRef.current.isRunning) {
+        scheduleFrame();
+      } else {
+        perfMonitor.incrementCounter("raf.tick.idleStops");
+      }
     };
 
-    rafRef.current = requestAnimationFrame(tick);
+    tickRef.current = tick;
+    scheduleFrame();
     return () => {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- RefObject params are stable identities; effect should react only to runtime flags/viewport/setWorld.
@@ -216,7 +244,12 @@ export const useSimulationLoop = ({
     showCenterOfMass,
     showGrid,
     showOriginMarker,
+    isRunning,
     viewport,
     setWorld,
   ]);
+
+  return {
+    requestRender,
+  };
 };
