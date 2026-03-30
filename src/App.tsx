@@ -133,19 +133,29 @@ function App() {
     cameraRef.current = { ...initialCamera };
     forceFastZoomInFramesRef.current = FAST_REFRAME_FRAMES;
   };
-  const syncHistoryMetrics = (nextCount?: number) => {
+  const syncHistoryMetrics = useStableCallback((nextCount?: number) => {
     const metrics = getSimulationHistoryMetrics(historyRef.current);
-    setHistoryMetrics({
-      count: nextCount ?? metrics.count,
-      maxSteps: metrics.maxSteps,
-      estimatedBytes: metrics.estimatedBytes,
+    const count = nextCount ?? metrics.count;
+    setHistoryMetrics((prev) => {
+      if (
+        prev.count === count &&
+        prev.maxSteps === metrics.maxSteps &&
+        prev.estimatedBytes === metrics.estimatedBytes
+      ) {
+        return prev;
+      }
+      return {
+        count,
+        maxSteps: metrics.maxSteps,
+        estimatedBytes: metrics.estimatedBytes,
+      };
     });
-  };
-  const onHistoryMaxStepsChange = (nextMaxSteps: number) => {
+  });
+  const onHistoryMaxStepsChange = useStableCallback((nextMaxSteps: number) => {
     setHistoryMaxSteps(historyRef, clampHistoryMaxSteps(nextMaxSteps));
     syncHistoryMetrics();
-  };
-  const onDiagnosticsInsetChange = (nextHeight: number) => {
+  });
+  const onDiagnosticsInsetChange = useStableCallback((nextHeight: number) => {
     const clampedHeight = Math.max(0, nextHeight);
     setDiagnosticsInsetPx((prev) => {
       const changed = prev !== clampedHeight;
@@ -155,7 +165,7 @@ function App() {
       perfMonitor.recordGauge("layout.diagnosticsInset.value", clampedHeight);
       return changed ? clampedHeight : prev;
     });
-  };
+  });
   const onProfileRender: ProfilerOnRenderCallback = (id, phase, actualDuration, baseDuration) => {
     perfMonitor.recordReactRender(id, actualDuration, baseDuration);
     perfMonitor.incrementCounter(`react.render.${id}.${phase}`);

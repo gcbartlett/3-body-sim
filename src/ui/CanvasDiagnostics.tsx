@@ -68,7 +68,6 @@ export const CanvasDiagnostics = ({
     observer.observe(element);
     return () => {
       observer.disconnect();
-      onVisibleHeightChange(0);
     };
   }, [isOpen, onVisibleHeightChange]);
 
