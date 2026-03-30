@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { SimParams, WorldState } from "../sim/types";
 
@@ -31,10 +31,10 @@ export const useAppRuntimeState = ({
     manualPanZoomRef.current = manualPanZoom;
   }, [manualPanZoom]);
 
-  const setManualMode = (enabled: boolean) => {
+  const setManualMode = useCallback((enabled: boolean) => {
     manualPanZoomRef.current = enabled;
     setManualPanZoom(enabled);
-  };
+  }, [setManualPanZoom]);
 
   return {
     worldRef,
@@ -43,4 +43,3 @@ export const useAppRuntimeState = ({
     setManualMode,
   };
 };
-

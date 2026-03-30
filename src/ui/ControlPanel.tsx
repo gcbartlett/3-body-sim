@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { APP_LINKS } from "../config/appLinks";
 import type { BodyState, PresetProfile, SimParams } from "../sim/types";
 import { BodyConfigurationSection } from "./controlPanel/BodyConfigurationSection";
@@ -39,7 +39,7 @@ type Props = {
   onGenerateRandomChaotic: () => void;
 };
 
-export const ControlPanel = ({
+const ControlPanelComponent = ({
   bodies,
   params,
   appVersion,
@@ -156,3 +156,5 @@ export const ControlPanel = ({
     </aside>
   );
 };
+
+export const ControlPanel = memo(ControlPanelComponent);

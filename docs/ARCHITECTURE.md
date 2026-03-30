@@ -10,6 +10,14 @@ This document contains the detailed project structure map.
 - Dissolution is detected when no pair remains bound long enough, then the simulation pauses.
 - Rewind is snapshot-backed: each simulation step can be restored from history with a configurable buffer depth.
 - Step forward/back supports hold acceleration from both keyboard hotkeys and pointer press-and-hold.
+- The simulation loop is invalidation-driven while paused: RAF runs continuously only when `world.isRunning`, and paused redraws are requested on demand via `requestRender`.
+
+## Performance Instrumentation
+
+- Optional runtime performance logging is implemented in `src/perf/perfMonitor.ts`.
+- Enable with URL `?perf=1` or `localStorage` key `threeBodyPerf=1`.
+- Metrics include per-window durations/counters/gauges for RAF, simulation, rendering, history, hover, layout observers, and React Profiler segments.
+- React Profiler hooks are wired at `AppRoot` and key stage/control subtrees for commit timing visibility.
 
 ## Persistence
 
@@ -29,6 +37,8 @@ src/                                   # Application source code
   config/                              # App-level constants and external links
     appLinks.ts                        # External destination links used by UI actions
   main.tsx                             # React entry point
+  perf/                                # Runtime performance monitoring helpers
+    perfMonitor.ts                     # Opt-in performance metrics collection + console reporting
   styles.css                           # Layout and visual styling
   vite-env.d.ts                        # Vite ambient types and compile-time constants
   render/                              # Canvas rendering utilities
@@ -62,7 +72,7 @@ src/                                   # Application source code
     simulationTick.ts                  # Per-frame stepping transition logic
     types.ts                           # Canonical shared simulation/domain types
     useDraftEditPolicy.ts              # Stopped-world draft edit policy
-    useSimulationLoop.ts               # RAF lifecycle and loop orchestration
+    useSimulationLoop.ts               # RAF loop orchestration with running-mode cadence + paused invalidation rendering
     useEditPresetCommands.ts           # User preset edit dialog state and edit-confirm commands
     useSavePresetCommands.ts           # User preset save dialog state and save-confirm commands
     useSessionPresetCommands.ts        # Session preset/random apply command policy
@@ -72,7 +82,7 @@ src/                                   # Application source code
     worldState.ts                      # Canonical stopped-world constructors
   ui/                                  # UI components, dialogs, and hooks
     CanvasDiagnostics.tsx              # Diagnostics panel
-    ControlPanel.tsx                   # Control panel composition
+    ControlPanel.tsx                   # Control panel composition (memoized to avoid unnecessary rerenders)
     EditProfileDialog.tsx              # Edit-profile modal
     SaveProfileDialog.tsx              # Save-profile modal
     sponsorPage.ts                     # Sponsor link opener with window-target policy
@@ -96,6 +106,7 @@ src/                                   # Application source code
     useAppPersistence.ts               # App-level persistence side effects
     useAppUiPreferences.ts             # App UI preference state initialization and setters
     useAppRuntimeState.ts              # App runtime refs + manual-mode sync glue
+    useStableCallback.ts               # Stable-callback helper for memoized child prop identities
     useAppViewModels.ts                # Stage/diagnostics view-model and prop assembly
     useCanvasCameraControls.ts         # Pointer/touch/wheel camera interactions
     useControlPanelSections.ts         # Control-panel section open-state ownership + persistence

@@ -1,4 +1,4 @@
-import { Profiler, useEffect, useRef, useState, type ProfilerOnRenderCallback } from "react";
+import { Profiler, useEffect, useMemo, useRef, useState, type ProfilerOnRenderCallback } from "react";
 import "./styles.css";
 // noinspection ES6PreferShortImport
 import type { TrailMap } from "./render/canvasRenderer";
@@ -36,6 +36,7 @@ import { useAppPersistence } from "./ui/useAppPersistence";
 import { useAppRuntimeState } from "./ui/useAppRuntimeState";
 import { useAppUiPreferences } from "./ui/useAppUiPreferences";
 import { useAppViewModels } from "./ui/useAppViewModels";
+import { useStableCallback } from "./ui/useStableCallback";
 import { IDLE_STEP_ACCELERATION, type StepAccelerationState } from "./ui/stepAcceleration";
 import {
   adjustedSimulationSpeed,
@@ -170,7 +171,8 @@ function App() {
     userPresets,
   });
 
-  const allPresets = [...PRESETS, ...userPresets];
+  const allPresets = useMemo(() => [...PRESETS, ...userPresets], [userPresets]);
+  const defaultPresetIds = useMemo(() => PRESETS.map((preset) => preset.id), []);
   const {
     saveProfileDraft,
     editProfileDraft,
@@ -372,6 +374,17 @@ function App() {
     userPresets,
     draftBodies,
   });
+  const onBodyChangeControlPanel = useStableCallback(onBodyChange);
+  const onParamChangeControlPanel = useStableCallback(onParamChange);
+  const onLockModeChangeControlPanel = useStableCallback(onLockModeChange);
+  const onResetParamsControlPanel = useStableCallback(onResetParams);
+  const onPresetSelectControlPanel = useStableCallback(setSelectedPresetId);
+  const onEditUserPresetControlPanel = useStableCallback(onEditUserPreset);
+  const onDeleteUserPresetControlPanel = useStableCallback(onDeleteUserPreset);
+  const onApplyPresetControlPanel = useStableCallback(onApplyPreset);
+  const onSaveProfileControlPanel = useStableCallback(onOpenSaveProfile);
+  const onGenerateRandomStableControlPanel = useStableCallback(onGenerateRandomStable);
+  const onGenerateRandomChaoticControlPanel = useStableCallback(onGenerateRandomChaotic);
   return (
     <div className={`layout${panelExpanded ? "" : " panel-collapsed"}`}>
       <Profiler id="ControlPanel" onRender={onProfileRender}>
@@ -381,28 +394,28 @@ function App() {
           appVersion={APP_VERSION}
           presets={allPresets}
           selectedPresetId={selectedPresetId}
-          defaultPresetIds={PRESETS.map((preset) => preset.id)}
+          defaultPresetIds={defaultPresetIds}
           selectedUserPresetIbcDirty={selectedPresetIbcDirty}
           lockMode={lockMode}
           manualPanZoom={manualPanZoom}
           showOriginMarker={showOriginMarker}
           showGrid={showGrid}
           showCenterOfMass={showCenterOfMass}
-          onBodyChange={onBodyChange}
-          onParamChange={onParamChange}
-          onLockModeChange={onLockModeChange}
+          onBodyChange={onBodyChangeControlPanel}
+          onParamChange={onParamChangeControlPanel}
+          onLockModeChange={onLockModeChangeControlPanel}
           onToggleManualPanZoom={setManualMode}
           onToggleShowOriginMarker={setShowOriginMarker}
           onToggleShowGrid={setShowGrid}
           onToggleShowCenterOfMass={setShowCenterOfMass}
-          onResetParams={onResetParams}
-          onPresetSelect={setSelectedPresetId}
-          onEditUserPreset={onEditUserPreset}
-          onDeleteUserPreset={onDeleteUserPreset}
-          onApplyPreset={onApplyPreset}
-          onSaveProfile={onOpenSaveProfile}
-          onGenerateRandomStable={onGenerateRandomStable}
-          onGenerateRandomChaotic={onGenerateRandomChaotic}
+          onResetParams={onResetParamsControlPanel}
+          onPresetSelect={onPresetSelectControlPanel}
+          onEditUserPreset={onEditUserPresetControlPanel}
+          onDeleteUserPreset={onDeleteUserPresetControlPanel}
+          onApplyPreset={onApplyPresetControlPanel}
+          onSaveProfile={onSaveProfileControlPanel}
+          onGenerateRandomStable={onGenerateRandomStableControlPanel}
+          onGenerateRandomChaotic={onGenerateRandomChaoticControlPanel}
         />
       </Profiler>
       <main className="stage-wrap" ref={containerRef}>
