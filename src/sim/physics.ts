@@ -5,8 +5,8 @@ export const computeAccelerations = (bodies: BodyState[], params: SimParams): Ve
   const accelerations: Vec2[] = bodies.map(() => ({ x: 0, y: 0 }));
   const eps2 = params.softening * params.softening;
 
-  for (let i = 0; i < bodies.length; i += 1) {
-    for (let j = 0; j < bodies.length; j += 1) {
+  for (let i = 0; i < bodies.length; ++i) {
+    for (let j = 0; j < bodies.length; ++j) {
       if (i === j) {
         continue;
       }
@@ -44,8 +44,8 @@ export const totalEnergy = (bodies: BodyState[], params: SimParams): number => {
   );
 
   let potential = 0;
-  for (let i = 0; i < bodies.length; i += 1) {
-    for (let j = i + 1; j < bodies.length; j += 1) {
+  for (let i = 0; i < bodies.length; ++i) {
+    for (let j = i + 1; j < bodies.length; ++j) {
       const d = magnitude(sub(bodies[j].position, bodies[i].position));
       const softened = Math.sqrt(d * d + params.softening * params.softening);
       potential -= (params.G * bodies[i].mass * bodies[j].mass) / softened;

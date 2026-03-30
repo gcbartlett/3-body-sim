@@ -87,7 +87,7 @@ export const evaluateEjection = (
   const knownEjected = new Set(world.ejectedBodyIds);
   let newlyEjectedBodyId: string | null = null;
 
-  for (let i = 0; i < world.bodies.length; i += 1) {
+  for (let i = 0; i < world.bodies.length; ++i) {
     const body = world.bodies[i];
     const metrics = coreEscapeMetricsForBody(i, world, params);
     if (!metrics) {

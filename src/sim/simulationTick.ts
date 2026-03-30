@@ -83,7 +83,7 @@ export const advanceRunningWorldStep = ({
 
   while (nextAccumulator >= policy.effectiveDt && stepCount < policy.maxStepsThisFrame) {
     const steppedBodies = velocityVerletStep(nextWorld.bodies, stepParams);
-    nextSimStepCounter += 1;
+    ++nextSimStepCounter;
     if (nextSimStepCounter % policy.trailSampleEvery === 0) {
       nextTrails = appendTrailPoints(nextTrails, steppedBodies);
     }
@@ -103,7 +103,7 @@ export const advanceRunningWorldStep = ({
     };
     nextWorld = applyDissolutionProgress(nextWorld, stepParams, policy.effectiveDt);
     nextAccumulator -= policy.effectiveDt;
-    stepCount += 1;
+    ++stepCount;
     if (!nextWorld.isRunning) {
       break;
     }

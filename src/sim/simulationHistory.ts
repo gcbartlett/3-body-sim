@@ -134,7 +134,7 @@ const ensureRingState = (history: SimulationHistory): void => {
   const seededSnapshots = history.snapshots ?? [];
   const trimmed = seededSnapshots.slice(Math.max(0, seededSnapshots.length - maxSteps));
   const ringBuffer = new Array<SimulationSnapshot | undefined>(maxSteps);
-  for (let i = 0; i < trimmed.length; i += 1) {
+  for (let i = 0; i < trimmed.length; ++i) {
     ringBuffer[i] = trimmed[i];
   }
 
@@ -175,7 +175,7 @@ export const getHistorySnapshots = (history: SimulationHistory): SimulationSnaps
   ensureRingState(history);
   const ringCount = history.ringCount!;
   const snapshots: SimulationSnapshot[] = new Array(ringCount);
-  for (let i = 0; i < ringCount; i += 1) {
+  for (let i = 0; i < ringCount; ++i) {
     const snapshot = getRingSnapshot(history, i);
     if (!snapshot) {
       continue;
@@ -255,7 +255,7 @@ export const setHistoryMaxSteps = (historyRef: HistoryRef, nextMaxSteps: number)
   const snapshots = getHistorySnapshots(history);
   const retained = snapshots.slice(Math.max(0, snapshots.length - clampedMaxSteps));
   const nextBuffer = new Array<SimulationSnapshot | undefined>(clampedMaxSteps);
-  for (let i = 0; i < retained.length; i += 1) {
+  for (let i = 0; i < retained.length; ++i) {
     nextBuffer[i] = retained[i];
   }
   history.maxSteps = clampedMaxSteps;

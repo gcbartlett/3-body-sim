@@ -159,7 +159,7 @@ const StageControlButtons = memo(function StageControlButtonsComponent({
   );
 
   const runBurstAction = (action: () => void, burstCount: number) => {
-    for (let i = 0; i < burstCount; i += 1) {
+    for (let i = 0; i < burstCount; ++i) {
       action();
     }
   };

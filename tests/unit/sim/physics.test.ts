@@ -90,7 +90,7 @@ describe("computeAccelerations", () => {
     const shiftedAccelerations = computeAccelerations(shiftedBodies, params);
 
     expect(shiftedAccelerations).toHaveLength(baseAccelerations.length);
-    for (let i = 0; i < baseAccelerations.length; i += 1) {
+    for (let i = 0; i < baseAccelerations.length; ++i) {
       expect(shiftedAccelerations[i].x).toBeCloseTo(baseAccelerations[i].x, 12);
       expect(shiftedAccelerations[i].y).toBeCloseTo(baseAccelerations[i].y, 12);
     }

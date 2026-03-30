@@ -10,7 +10,7 @@ const withMockedRandom = <T>(values: number[], run: () => T): T => {
   let index = 0;
   const randomSpy = vi.spyOn(Math, "random").mockImplementation(() => {
     const next = values[index];
-    index += 1;
+    ++index;
     return next ?? 0.5;
   });
   try {

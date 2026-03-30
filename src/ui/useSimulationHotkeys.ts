@@ -128,14 +128,14 @@ export const dispatchSimulationHotkeyAction = (
   }
   if (shouldStepForwardFromHotkey(e)) {
     e.preventDefault();
-    for (let i = 0; i < stepForwardBurst; i += 1) {
+    for (let i = 0; i < stepForwardBurst; ++i) {
       handlers.onStepForward();
     }
     return;
   }
   if (canStepBack && shouldStepBackFromHotkey(e)) {
     e.preventDefault();
-    for (let i = 0; i < stepBackBurst; i += 1) {
+    for (let i = 0; i < stepBackBurst; ++i) {
       handlers.onStepBack();
     }
   }
@@ -161,12 +161,12 @@ export const useSimulationHotkeys = ({
 
   const runBurstStep = useEffectEvent((direction: StepAccelerationDirection, burst: number) => {
     if (direction === "forward") {
-      for (let i = 0; i < burst; i += 1) {
+      for (let i = 0; i < burst; ++i) {
         onStepForward();
       }
       return;
     }
-    for (let i = 0; i < burst; i += 1) {
+    for (let i = 0; i < burst; ++i) {
       onStepBack();
     }
   });

@@ -26,7 +26,7 @@ const nextUserPresetNumber = (presetIds: string[]): number => {
   }
   let next = 1;
   while (used.has(next)) {
-    next += 1;
+    ++next;
   }
   return next;
 };

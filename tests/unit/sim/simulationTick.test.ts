@@ -216,7 +216,7 @@ describe("advanceRunningWorldStep", () => {
   it("samples trails only when simStepCounter is divisible by trailSampleEvery", () => {
     let step = 0;
     vi.mocked(velocityVerletStep).mockImplementation((bodies) => {
-      step += 1;
+      ++step;
       return bodies.map((body) => ({
         ...body,
         position: {

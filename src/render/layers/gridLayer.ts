@@ -16,7 +16,7 @@ const divisibilityLevel = (n: number, radix: number): number => {
   let level = 0;
   let value = abs;
   while (value % radix === 0) {
-    level += 1;
+    ++level;
     value /= radix;
     if (level >= 6) {
       break;
@@ -78,7 +78,7 @@ export const drawGridLayer = (
   const yEnd = Math.floor(maxY / minorStep);
 
   ctx.save();
-  for (let n = xStart; n <= xEnd; n += 1) {
+  for (let n = xStart; n <= xEnd; ++n) {
     const x = n * minorStep;
     const level = divisibilityLevel(n, majorMultiple);
     const { alpha, width } = gridLineStyle(level, transitionPhase);
@@ -94,7 +94,7 @@ export const drawGridLayer = (
     ctx.stroke();
   }
 
-  for (let n = yStart; n <= yEnd; n += 1) {
+  for (let n = yStart; n <= yEnd; ++n) {
     const y = n * minorStep;
     const level = divisibilityLevel(n, majorMultiple);
     const { alpha, width } = gridLineStyle(level, transitionPhase);

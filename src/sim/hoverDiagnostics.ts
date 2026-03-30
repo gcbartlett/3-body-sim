@@ -78,7 +78,7 @@ export const findNearestBodyIndexAtScreenPoint = (
   let nearestDistSq = Number.POSITIVE_INFINITY;
   let nearestScreen = { x: 0, y: 0 };
 
-  for (let i = 0; i < bodies.length; i += 1) {
+  for (let i = 0; i < bodies.length; ++i) {
     const screen = worldToScreen(bodies[i].position, camera, viewport);
     const dx = screen.x - screenX;
     const dy = screen.y - screenY;
