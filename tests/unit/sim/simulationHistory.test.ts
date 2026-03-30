@@ -227,6 +227,23 @@ describe("history depth configuration and metrics", () => {
     expect(historyRef.current.snapshots).toHaveLength(50);
   });
 
+  it("keeps estimated bytes correct when trimming with uninitialized cached bytes", () => {
+    const snapshots = Array.from({ length: 80 }, (_, index) => makeSnapshot(`s${index}`));
+    const historyRef: { current: SimulationHistory } = {
+      current: {
+        snapshots,
+        maxSteps: 300,
+      },
+    };
+
+    setHistoryMaxSteps(historyRef, 50);
+
+    const metrics = getSimulationHistoryMetrics(historyRef.current);
+    expect(metrics.count).toBe(50);
+    expect(metrics.estimatedBytes).toBeGreaterThan(0);
+    expect(Number.isFinite(metrics.estimatedBytes)).toBe(true);
+  });
+
   it("reports bounded history metrics with estimated bytes", () => {
     const metrics = getSimulationHistoryMetrics({
       snapshots: [makeSnapshot("alpha"), makeSnapshot("beta")],
@@ -236,5 +253,40 @@ describe("history depth configuration and metrics", () => {
     expect(metrics.count).toBe(2);
     expect(metrics.maxSteps).toBe(300);
     expect(metrics.estimatedBytes).toBeGreaterThan(0);
+  });
+
+  it("maintains estimated-byte metrics incrementally across mutations", () => {
+    const historyRef: { current: SimulationHistory } = {
+      current: {
+        snapshots: [],
+        maxSteps: 2,
+      },
+    };
+    const first = makeSnapshot("first");
+    const second = makeSnapshot("second");
+    const third = makeSnapshot("third");
+
+    pushSnapshot(historyRef, first);
+    const afterFirst = getSimulationHistoryMetrics(historyRef.current);
+    pushSnapshot(historyRef, second);
+    const afterSecond = getSimulationHistoryMetrics(historyRef.current);
+    pushSnapshot(historyRef, third);
+    const afterThird = getSimulationHistoryMetrics(historyRef.current);
+
+    expect(afterFirst.count).toBe(1);
+    expect(afterSecond.count).toBe(2);
+    expect(afterThird.count).toBe(2);
+    expect(afterSecond.estimatedBytes).toBeGreaterThan(afterFirst.estimatedBytes);
+    expect(afterThird.estimatedBytes).toBeGreaterThan(0);
+
+    popSnapshot(historyRef);
+    const afterPop = getSimulationHistoryMetrics(historyRef.current);
+    expect(afterPop.count).toBe(1);
+    expect(afterPop.estimatedBytes).toBeLessThan(afterThird.estimatedBytes);
+
+    clearHistory(historyRef);
+    const afterClear = getSimulationHistoryMetrics(historyRef.current);
+    expect(afterClear.count).toBe(0);
+    expect(afterClear.estimatedBytes).toBe(0);
   });
 });

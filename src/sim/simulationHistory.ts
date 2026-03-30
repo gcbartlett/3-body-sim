@@ -17,6 +17,7 @@ export type SimulationSnapshot = {
 export type SimulationHistory = {
   snapshots: SimulationSnapshot[];
   maxSteps: number;
+  estimatedBytes?: number;
 };
 
 type CaptureSnapshotArgs = {
@@ -97,50 +98,69 @@ export const captureSnapshot = ({
   })),
 });
 
-export const pushSnapshot = (historyRef: HistoryRef, snapshot: SimulationSnapshot): void => {
-  const history = historyRef.current;
-  history.snapshots.push(snapshot);
-  perfMonitor.incrementCounter("history.pushSnapshot.calls");
-  if (history.snapshots.length > history.maxSteps) {
-    history.snapshots.shift();
-    perfMonitor.incrementCounter("history.pushSnapshot.shifted");
-  }
-  perfMonitor.recordGauge("history.snapshot.count", history.snapshots.length);
-};
-
-export const popSnapshot = (historyRef: HistoryRef): SimulationSnapshot | null => {
-  const snapshot = historyRef.current.snapshots.pop();
-  perfMonitor.recordGauge("history.snapshot.count", historyRef.current.snapshots.length);
-  return snapshot ?? null;
-};
-
-export const clearHistory = (historyRef: HistoryRef): void => {
-  historyRef.current.snapshots = [];
-  perfMonitor.recordGauge("history.snapshot.count", historyRef.current.snapshots.length);
-};
-
-export const setHistoryMaxSteps = (historyRef: HistoryRef, nextMaxSteps: number): void => {
-  historyRef.current.maxSteps = clampHistoryMaxSteps(nextMaxSteps);
-  if (historyRef.current.snapshots.length > historyRef.current.maxSteps) {
-    historyRef.current.snapshots.splice(
-      0,
-      historyRef.current.snapshots.length - historyRef.current.maxSteps,
-    );
-    perfMonitor.recordGauge("history.snapshot.count", historyRef.current.snapshots.length);
-  }
-};
-
 const estimateSnapshotBytes = (snapshot: SimulationSnapshot): number => {
   const bodyCount = snapshot.world.bodies.length;
   const trailPoints = Object.values(snapshot.trails).reduce((acc, points) => acc + points.length, 0);
   return bodyCount * 160 + trailPoints * 32 + 64;
 };
 
+const totalEstimatedBytes = (snapshots: SimulationSnapshot[]): number =>
+  snapshots.reduce((acc, snapshot) => acc + estimateSnapshotBytes(snapshot), 0);
+
+const getOrInitEstimatedBytes = (history: SimulationHistory): number => {
+  if (history.estimatedBytes === undefined) {
+    history.estimatedBytes = totalEstimatedBytes(history.snapshots);
+  }
+  return history.estimatedBytes;
+};
+
+export const pushSnapshot = (historyRef: HistoryRef, snapshot: SimulationSnapshot): void => {
+  const history = historyRef.current;
+  history.snapshots.push(snapshot);
+  history.estimatedBytes = getOrInitEstimatedBytes(history) + estimateSnapshotBytes(snapshot);
+  perfMonitor.incrementCounter("history.pushSnapshot.calls");
+  if (history.snapshots.length > history.maxSteps) {
+    const shifted = history.snapshots.shift();
+    if (shifted) {
+      history.estimatedBytes -= estimateSnapshotBytes(shifted);
+    }
+    perfMonitor.incrementCounter("history.pushSnapshot.shifted");
+  }
+  perfMonitor.recordGauge("history.snapshot.count", history.snapshots.length);
+};
+
+export const popSnapshot = (historyRef: HistoryRef): SimulationSnapshot | null => {
+  const history = historyRef.current;
+  const snapshot = history.snapshots.pop();
+  if (snapshot) {
+    history.estimatedBytes = getOrInitEstimatedBytes(history) - estimateSnapshotBytes(snapshot);
+  }
+  perfMonitor.recordGauge("history.snapshot.count", history.snapshots.length);
+  return snapshot ?? null;
+};
+
+export const clearHistory = (historyRef: HistoryRef): void => {
+  historyRef.current.snapshots = [];
+  historyRef.current.estimatedBytes = 0;
+  perfMonitor.recordGauge("history.snapshot.count", historyRef.current.snapshots.length);
+};
+
+export const setHistoryMaxSteps = (historyRef: HistoryRef, nextMaxSteps: number): void => {
+  const history = historyRef.current;
+  history.maxSteps = clampHistoryMaxSteps(nextMaxSteps);
+  if (history.snapshots.length > history.maxSteps) {
+    const previousEstimatedBytes = history.estimatedBytes ?? totalEstimatedBytes(history.snapshots);
+    const removed = history.snapshots.splice(0, history.snapshots.length - history.maxSteps);
+    history.estimatedBytes = Math.max(0, previousEstimatedBytes - totalEstimatedBytes(removed));
+    perfMonitor.recordGauge("history.snapshot.count", history.snapshots.length);
+  }
+};
+
 export const getSimulationHistoryMetrics = (history: SimulationHistory): SimulationHistoryMetrics => ({
   ...perfMonitor.measure("history.metrics.compute", () => ({
     count: history.snapshots.length,
     maxSteps: history.maxSteps,
-    estimatedBytes: history.snapshots.reduce((acc, snapshot) => acc + estimateSnapshotBytes(snapshot), 0),
+    estimatedBytes: getOrInitEstimatedBytes(history),
   })),
 });
 

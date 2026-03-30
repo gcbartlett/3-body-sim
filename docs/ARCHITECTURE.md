@@ -9,6 +9,7 @@ This document contains the detailed project structure map.
 - Ejection logic requires sustained strong-escape conditions before flagging a body as ejected.
 - Dissolution is detected when no pair remains bound long enough, then the simulation pauses.
 - Rewind is snapshot-backed: each simulation step can be restored from history with a configurable buffer depth.
+- History metrics (`count`, `estimatedBytes`) are maintained incrementally in `simulationHistory` so UI metric sync does not rescan the full snapshot array each update.
 - Step forward/back supports hold acceleration from both keyboard hotkeys and pointer press-and-hold.
 - History depth configuration lives in the Control Panel simulation-parameters section; the stage controls show live buffer fill and memory estimate.
 - The simulation loop is invalidation-driven while paused: RAF runs continuously only when `world.isRunning`, and paused redraws are requested on demand via `requestRender`.
