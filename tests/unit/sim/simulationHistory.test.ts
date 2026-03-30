@@ -283,6 +283,10 @@ describe("history depth configuration and metrics", () => {
     const afterPop = getSimulationHistoryMetrics(historyRef.current);
     expect(afterPop.count).toBe(1);
     expect(afterPop.estimatedBytes).toBeLessThan(afterThird.estimatedBytes);
+    popSnapshot(historyRef);
+    const afterPopAll = getSimulationHistoryMetrics(historyRef.current);
+    expect(afterPopAll.count).toBe(0);
+    expect(afterPopAll.estimatedBytes).toBe(0);
 
     clearHistory(historyRef);
     const afterClear = getSimulationHistoryMetrics(historyRef.current);

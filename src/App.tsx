@@ -62,6 +62,8 @@ const FAST_REFRAME_FRAMES = 60;
 const MAX_HISTORY_STEPS = 300;
 const HISTORY_DEPTH_INPUT_MIN = 50;
 const HISTORY_DEPTH_INPUT_MAX = 2000;
+const PUBLISH_HZ = 15;
+const PUBLISH_INTERVAL_MS = 1000 / PUBLISH_HZ;
 const APP_VERSION = __APP_VERSION__;
 
 function App() {
@@ -112,6 +114,10 @@ function App() {
     snapshots: [],
     maxSteps: MAX_HISTORY_STEPS,
   });
+  const nextHistoryMetricsPublishAtRef = useRef(0);
+  const pendingHistoryMetricsRef = useRef<SimulationHistoryMetrics | null>(null);
+  const pendingHistoryMetricsCountRef = useRef<number | undefined>(undefined);
+  const historyMetricsFlushTimeoutRef = useRef<number | null>(null);
   const { worldRef, paramsRef, manualPanZoomRef, setManualMode } = useAppRuntimeState({
     world,
     params,
@@ -137,17 +143,29 @@ function App() {
     cameraRef.current = { ...initialCamera };
     forceFastZoomInFramesRef.current = FAST_REFRAME_FRAMES;
   };
-  const syncHistoryMetrics = useStableCallback((nextCount?: number) => {
-    const metrics = getSimulationHistoryMetrics(historyRef.current);
-    const count = nextCount ?? metrics.count;
+
+  const publishHistoryMetrics = useStableCallback((
+    metrics: SimulationHistoryMetrics,
+    count: number,
+    publishTime: number = performance.now(),
+  ) => {
+    nextHistoryMetricsPublishAtRef.current = publishTime + PUBLISH_INTERVAL_MS;
+    pendingHistoryMetricsRef.current = null;
+    pendingHistoryMetricsCountRef.current = undefined;
+    if (historyMetricsFlushTimeoutRef.current !== null) {
+      window.clearTimeout(historyMetricsFlushTimeoutRef.current);
+      historyMetricsFlushTimeoutRef.current = null;
+    }
     setHistoryMetrics((prev) => {
       if (
         prev.count === count &&
         prev.maxSteps === metrics.maxSteps &&
         prev.estimatedBytes === metrics.estimatedBytes
       ) {
+        perfMonitor.incrementCounter("history.metrics.publish.skipped");
         return prev;
       }
+      perfMonitor.incrementCounter("history.metrics.publish.calls");
       return {
         count,
         maxSteps: metrics.maxSteps,
@@ -155,6 +173,60 @@ function App() {
       };
     });
   });
+
+  const flushPendingHistoryMetrics = useStableCallback(() => {
+    historyMetricsFlushTimeoutRef.current = null;
+    const pendingMetrics = pendingHistoryMetricsRef.current;
+    if (!pendingMetrics) {
+      return;
+    }
+    const now = performance.now();
+    if (now < nextHistoryMetricsPublishAtRef.current) {
+      const waitMs = Math.max(0, nextHistoryMetricsPublishAtRef.current - now);
+      historyMetricsFlushTimeoutRef.current = window.setTimeout(() => {
+        historyMetricsFlushTimeoutRef.current = null;
+        const delayedPendingMetrics = pendingHistoryMetricsRef.current;
+        if (!delayedPendingMetrics) {
+          return;
+        }
+        const delayedNow = performance.now();
+        const delayedCount = pendingHistoryMetricsCountRef.current ?? delayedPendingMetrics.count;
+        publishHistoryMetrics(delayedPendingMetrics, delayedCount, delayedNow);
+      }, waitMs);
+      return;
+    }
+    const pendingCount = pendingHistoryMetricsCountRef.current ?? pendingMetrics.count;
+    publishHistoryMetrics(pendingMetrics, pendingCount, now);
+  });
+
+  const syncHistoryMetrics = useStableCallback((nextCount?: number) => {
+    const metrics = getSimulationHistoryMetrics(historyRef.current);
+    const count = nextCount ?? metrics.count;
+    pendingHistoryMetricsRef.current = metrics;
+    pendingHistoryMetricsCountRef.current = count;
+    const now = performance.now();
+    if (
+      now >= nextHistoryMetricsPublishAtRef.current &&
+      historyMetricsFlushTimeoutRef.current === null
+    ) {
+      publishHistoryMetrics(metrics, count, now);
+      return;
+    }
+
+    perfMonitor.incrementCounter("history.metrics.publish.throttled");
+    if (historyMetricsFlushTimeoutRef.current !== null) {
+      return;
+    }
+    const waitMs = Math.max(0, nextHistoryMetricsPublishAtRef.current - now);
+    historyMetricsFlushTimeoutRef.current = window.setTimeout(flushPendingHistoryMetrics, waitMs);
+  });
+
+  useEffect(() => () => {
+    if (historyMetricsFlushTimeoutRef.current !== null) {
+      window.clearTimeout(historyMetricsFlushTimeoutRef.current);
+      historyMetricsFlushTimeoutRef.current = null;
+    }
+  }, []);
   const onHistoryMaxStepsChange = useStableCallback((nextMaxSteps: number) => {
     setHistoryMaxSteps(historyRef, clampHistoryMaxSteps(nextMaxSteps));
     syncHistoryMetrics();

@@ -116,8 +116,9 @@ const getOrInitEstimatedBytes = (history: SimulationHistory): number => {
 
 export const pushSnapshot = (historyRef: HistoryRef, snapshot: SimulationSnapshot): void => {
   const history = historyRef.current;
+  const previousEstimatedBytes = getOrInitEstimatedBytes(history);
   history.snapshots.push(snapshot);
-  history.estimatedBytes = getOrInitEstimatedBytes(history) + estimateSnapshotBytes(snapshot);
+  history.estimatedBytes = previousEstimatedBytes + estimateSnapshotBytes(snapshot);
   perfMonitor.incrementCounter("history.pushSnapshot.calls");
   if (history.snapshots.length > history.maxSteps) {
     const shifted = history.snapshots.shift();
