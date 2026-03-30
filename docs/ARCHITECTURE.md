@@ -12,6 +12,7 @@ This document contains the detailed project structure map.
 - Step forward/back supports hold acceleration from both keyboard hotkeys and pointer press-and-hold.
 - History depth configuration lives in the Control Panel simulation-parameters section; the stage controls show live buffer fill and memory estimate.
 - The simulation loop is invalidation-driven while paused: RAF runs continuously only when `world.isRunning`, and paused redraws are requested on demand via `requestRender`.
+- While running, simulation/draw still execute each RAF tick, but React `world` publishes are throttled to 15 Hz in `useSimulationLoop` (with immediate publish on run-state transitions such as auto-pause).
 
 ## Performance Instrumentation
 

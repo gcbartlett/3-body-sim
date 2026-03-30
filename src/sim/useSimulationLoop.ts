@@ -11,6 +11,9 @@ import { runSimulationFrame, type SimulationFrameResult } from "./simulationFram
 import type { LockMode, SimParams, WorldState } from "./types";
 import { perfMonitor } from "../perf/perfMonitor";
 
+const REACT_WORLD_PUBLISH_HZ = 15;
+const REACT_WORLD_PUBLISH_INTERVAL_MS = 1000 / REACT_WORLD_PUBLISH_HZ;
+
 type Viewport = {
   width: number;
   height: number;
@@ -49,6 +52,7 @@ type UseSimulationLoopArgs = {
 };
 
 type ApplySimulationFrameResultArgs = {
+  frameTime: number;
   currentWorld: WorldState;
   frameResult: SimulationFrameResult;
   refs: {
@@ -59,6 +63,7 @@ type ApplySimulationFrameResultArgs = {
     forceFastZoomInFramesRef: RefObject<number>;
     hoverLastUpdateTimeRef: RefObject<number>;
     worldRef: RefObject<WorldState>;
+    lastWorldPublishTimeRef: RefObject<number>;
     historyRef: RefObject<SimulationHistory>;
     onHistoryChanged?: (depth: number) => void;
   };
@@ -66,6 +71,7 @@ type ApplySimulationFrameResultArgs = {
 };
 
 export const applySimulationFrameResult = ({
+  frameTime,
   currentWorld,
   frameResult,
   refs: {
@@ -76,6 +82,7 @@ export const applySimulationFrameResult = ({
     forceFastZoomInFramesRef,
     hoverLastUpdateTimeRef,
     worldRef,
+    lastWorldPublishTimeRef,
     historyRef,
     onHistoryChanged,
   },
@@ -104,8 +111,19 @@ export const applySimulationFrameResult = ({
   forceFastZoomInFramesRef.current = frameResult.nextForceFastZoomInFrames;
   hoverLastUpdateTimeRef.current = frameResult.nextHoverLastUpdateTime;
   if (frameResult.worldChanged) {
-    worldRef.current = frameResult.nextWorld;
-    setWorld(frameResult.nextWorld);
+    const nextWorld = frameResult.nextWorld;
+    worldRef.current = nextWorld;
+    const runStateChanged = currentWorld.isRunning !== nextWorld.isRunning;
+    const publishDue =
+      frameTime - lastWorldPublishTimeRef.current >= REACT_WORLD_PUBLISH_INTERVAL_MS;
+    const shouldPublish = runStateChanged || !nextWorld.isRunning || publishDue;
+    if (shouldPublish) {
+      setWorld(nextWorld);
+      lastWorldPublishTimeRef.current = frameTime;
+      perfMonitor.incrementCounter("react.worldPublish.calls");
+    } else {
+      perfMonitor.incrementCounter("react.worldPublish.throttled");
+    }
   }
 };
 
@@ -136,6 +154,7 @@ export const useSimulationLoop = ({
   const tickRef = useRef((time: number) => {
     void time;
   });
+  const lastWorldPublishTimeRef = useRef(-Infinity);
 
   const scheduleFrame = useCallback(() => {
     if (rafRef.current !== null) {
@@ -206,6 +225,7 @@ export const useSimulationLoop = ({
         },
       });
       applySimulationFrameResult({
+        frameTime: time,
         currentWorld,
         frameResult,
         refs: {
@@ -216,6 +236,7 @@ export const useSimulationLoop = ({
           forceFastZoomInFramesRef,
           hoverLastUpdateTimeRef,
           worldRef,
+          lastWorldPublishTimeRef,
           historyRef,
           onHistoryChanged,
         },
