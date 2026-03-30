@@ -44,6 +44,7 @@ import {
 } from "./sim/simulationPolicies";
 import {
   clampHistoryMaxSteps,
+  createSimulationHistory,
   getSimulationHistoryMetrics,
   setHistoryMaxSteps,
   type SimulationHistory,
@@ -110,10 +111,7 @@ function App() {
   const trailsRef = useRef<TrailMap>({});
   const forceFastZoomInFramesRef = useRef(FAST_REFRAME_FRAMES);
   const simStepCounterRef = useRef(0);
-  const historyRef = useRef<SimulationHistory>({
-    snapshots: [],
-    maxSteps: MAX_HISTORY_STEPS,
-  });
+  const historyRef = useRef<SimulationHistory>(createSimulationHistory(MAX_HISTORY_STEPS));
   const nextHistoryMetricsPublishAtRef = useRef(0);
   const pendingHistoryMetricsRef = useRef<SimulationHistoryMetrics | null>(null);
   const pendingHistoryMetricsCountRef = useRef<number | undefined>(undefined);

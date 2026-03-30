@@ -12,6 +12,7 @@ This document contains the detailed project structure map.
 - History metrics (`count`, `estimatedBytes`) are maintained incrementally in `simulationHistory` so UI metric sync does not rescan the full snapshot array each update.
 - Incremental history metrics remain exact across push/pop/trim flows, including reporting `0` bytes when no snapshots are retained.
 - History snapshots are still captured every step for precise frame-by-frame rewind, while React-published history metrics are throttled to 15 Hz in `App`.
+- Snapshot storage uses a ring-buffer strategy in `simulationHistory` to avoid per-step `Array.shift()` churn when history is at capacity.
 - Step forward/back supports hold acceleration from both keyboard hotkeys and pointer press-and-hold.
 - History depth configuration lives in the Control Panel simulation-parameters section; the stage controls show live buffer fill and memory estimate.
 - The simulation loop is invalidation-driven while paused: RAF runs continuously only when `world.isRunning`, and paused redraws are requested on demand via `requestRender`.

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { applySimulationFrameResult } from "~/src/sim/useSimulationLoop";
 import type { Camera } from "~/src/sim/camera";
-import type { SimulationHistory } from "~/src/sim/simulationHistory";
+import { createSimulationHistory, getHistorySnapshots, type SimulationHistory } from "~/src/sim/simulationHistory";
 import type { WorldState } from "~/src/sim/types";
 
 const makeWorld = (overrides: Partial<WorldState> = {}): WorldState => ({
@@ -36,7 +36,7 @@ describe("applySimulationFrameResult", () => {
     const currentWorld = makeWorld({ elapsedTime: 4 });
     const nextWorld = makeWorld({ elapsedTime: 5, isRunning: false });
     const historyRef = {
-      current: { snapshots: [], maxSteps: 10 } satisfies SimulationHistory,
+      current: createSimulationHistory(50) satisfies SimulationHistory,
     };
     const accumulatorRef = { current: 0.2 };
     const trailsRef = { current: { a: [{ x: 1, y: 2, life: 0.9 }] } };
@@ -76,8 +76,8 @@ describe("applySimulationFrameResult", () => {
       setWorld,
     });
 
-    expect(historyRef.current.snapshots).toHaveLength(1);
-    expect(historyRef.current.snapshots[0]).toEqual({
+    expect(getHistorySnapshots(historyRef.current)).toHaveLength(1);
+    expect(getHistorySnapshots(historyRef.current)[0]).toEqual({
       world: currentWorld,
       trails: { a: [{ x: 1, y: 2, life: 0.9 }] },
       accumulator: 0.2,
@@ -95,7 +95,7 @@ describe("applySimulationFrameResult", () => {
   it("does not capture a snapshot when no simulation steps advanced", () => {
     const currentWorld = makeWorld({ elapsedTime: 10 });
     const historyRef = {
-      current: { snapshots: [], maxSteps: 10 } satisfies SimulationHistory,
+      current: createSimulationHistory(50) satisfies SimulationHistory,
     };
     const worldRef = { current: currentWorld };
     const lastWorldPublishTimeRef = { current: -Infinity };
@@ -129,7 +129,7 @@ describe("applySimulationFrameResult", () => {
       setWorld,
     });
 
-    expect(historyRef.current.snapshots).toEqual([]);
+    expect(getHistorySnapshots(historyRef.current)).toEqual([]);
     expect(setWorld).not.toHaveBeenCalled();
   });
 
@@ -163,7 +163,7 @@ describe("applySimulationFrameResult", () => {
         hoverLastUpdateTimeRef: { current: 0 } as never,
         worldRef: worldRef as never,
         lastWorldPublishTimeRef: lastWorldPublishTimeRef as never,
-        historyRef: { current: { snapshots: [], maxSteps: 10 } } as never,
+        historyRef: { current: createSimulationHistory(50) } as never,
       },
       setWorld,
     });
@@ -203,7 +203,7 @@ describe("applySimulationFrameResult", () => {
         hoverLastUpdateTimeRef: { current: 0 } as never,
         worldRef: worldRef as never,
         lastWorldPublishTimeRef: lastWorldPublishTimeRef as never,
-        historyRef: { current: { snapshots: [], maxSteps: 10 } } as never,
+        historyRef: { current: createSimulationHistory(50) } as never,
       },
       setWorld,
     });

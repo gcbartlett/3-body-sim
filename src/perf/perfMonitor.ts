@@ -21,6 +21,8 @@
  *   latest numeric value per metric at flush time.
  * - React render metrics (`recordReactRender`):
  *   commit counters + actual/base duration series per profiler id.
+ * - Optional heap gauges (Chrome-only, sampled at 1 Hz when available):
+ *   `js.heap.used`, `js.heap.limit`, `js.heap.usedRatio`.
  */
 type DurationStats = {
   count: number;
@@ -45,6 +47,14 @@ const LOCAL_STORAGE_KEY = "threeBodyPerf";
 const QUERY_PARAM = "perf";
 const SAMPLE_CAP = 300;
 const FLUSH_INTERVAL_MS = 2000;
+const HEAP_SAMPLE_INTERVAL_MS = 1000;
+
+type PerformanceWithMemory = Performance & {
+  memory?: {
+    usedJSHeapSize?: number;
+    jsHeapSizeLimit?: number;
+  };
+};
 
 const percentile = (sorted: number[], pct: number): number => {
   if (sorted.length === 0) {
@@ -127,6 +137,7 @@ class PerfMonitor {
   private readonly counters = new Map<string, number>();
   private readonly gauges = new Map<string, number>();
   private lastFlushAt = performance.now();
+  private lastHeapSampleAt = -Infinity;
 
   isEnabled(): boolean {
     return this.enabled;
@@ -135,9 +146,32 @@ class PerfMonitor {
   setEnabled(value: boolean): void {
     this.enabled = value;
     this.lastFlushAt = performance.now();
+    this.lastHeapSampleAt = -Infinity;
     this.durationSamples.clear();
     this.counters.clear();
     this.gauges.clear();
+  }
+
+  sampleHeap(now: number): void {
+    if (!this.enabled || now - this.lastHeapSampleAt < HEAP_SAMPLE_INTERVAL_MS) {
+      return;
+    }
+    this.lastHeapSampleAt = now;
+    const performanceWithMemory = performance as PerformanceWithMemory;
+    const memory = performanceWithMemory.memory;
+    if (!memory) {
+      return;
+    }
+    const used = memory.usedJSHeapSize;
+    const limit = memory.jsHeapSizeLimit;
+    if (!Number.isFinite(used ?? NaN)) {
+      return;
+    }
+    this.gauges.set("js.heap.used", used!);
+    if (Number.isFinite(limit ?? NaN) && (limit ?? 0) > 0) {
+      this.gauges.set("js.heap.limit", limit!);
+      this.gauges.set("js.heap.usedRatio", used! / limit!);
+    }
   }
 
   recordDuration(name: string, durationMs: number): void {
@@ -221,6 +255,7 @@ class PerfMonitor {
       return;
     }
     const now = performance.now();
+    this.sampleHeap(now);
     const elapsedMs = now - this.lastFlushAt;
     if (elapsedMs < FLUSH_INTERVAL_MS) {
       return;

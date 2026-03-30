@@ -5,6 +5,7 @@ import { velocityVerletStep } from "./integrators";
 import {
   captureSnapshot,
   clearHistory,
+  getHistorySnapshotCount,
   popSnapshot,
   pushSnapshot,
   restoreSnapshot,
@@ -56,7 +57,7 @@ export const applyNewInitialStateTransition = (
   deps.trailsRef.current = {};
   deps.simStepCounterRef.current = 0;
   clearHistory(deps.historyRef);
-  deps.onHistoryChanged?.(deps.historyRef.current.snapshots.length);
+  deps.onHistoryChanged?.(getHistorySnapshotCount(deps.historyRef.current));
 };
 
 export type StartPauseTransition = {
@@ -173,7 +174,7 @@ export const runSingleStepWithHistoryTransition = (
       forceFastZoomInFrames: deps.forceFastZoomInFramesRef.current,
     }),
   );
-  deps.onHistoryChanged?.(deps.historyRef.current.snapshots.length);
+  deps.onHistoryChanged?.(getHistorySnapshotCount(deps.historyRef.current));
   runSingleStepTransition(deps, applyDissolutionProgress);
 };
 
@@ -195,7 +196,7 @@ export const runStepBackTransition = (deps: StepBackTransitionDeps): boolean => 
   if (!snapshot) {
     return false;
   }
-  deps.onHistoryChanged?.(deps.historyRef.current.snapshots.length);
+  deps.onHistoryChanged?.(getHistorySnapshotCount(deps.historyRef.current));
 
   const restored = restoreSnapshot({ snapshot });
   deps.worldRef.current = restored.world;

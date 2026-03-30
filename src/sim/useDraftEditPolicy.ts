@@ -1,6 +1,6 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { defaultParams } from "./defaults";
-import { clearHistory, type SimulationHistory } from "./simulationHistory";
+import { clearHistory, getHistorySnapshotCount, type SimulationHistory } from "./simulationHistory";
 import {
   applyBodyField,
   diagnosticsSnapshot,
@@ -45,7 +45,7 @@ export const useDraftEditPolicy = ({
     setWorld(synced);
     setBaselineDiagnostics(diagnosticsSnapshot(synced.bodies, nextParams));
     clearHistory(historyRef);
-    onHistoryChanged?.(historyRef.current.snapshots.length);
+    onHistoryChanged?.(getHistorySnapshotCount(historyRef.current));
   };
 
   const onBodyChange = (index: number, field: BodyEditField, value: number) => {
@@ -68,7 +68,7 @@ export const useDraftEditPolicy = ({
     if (shouldSyncDraftEditsToStoppedWorld(worldRef.current)) {
       setBaselineDiagnostics(diagnosticsSnapshot(worldRef.current.bodies, next));
       clearHistory(historyRef);
-      onHistoryChanged?.(historyRef.current.snapshots.length);
+      onHistoryChanged?.(getHistorySnapshotCount(historyRef.current));
     }
   };
 
@@ -79,7 +79,7 @@ export const useDraftEditPolicy = ({
     if (shouldSyncDraftEditsToStoppedWorld(worldRef.current)) {
       setBaselineDiagnostics(diagnosticsSnapshot(worldRef.current.bodies, next));
       clearHistory(historyRef);
-      onHistoryChanged?.(historyRef.current.snapshots.length);
+      onHistoryChanged?.(getHistorySnapshotCount(historyRef.current));
     }
   };
 

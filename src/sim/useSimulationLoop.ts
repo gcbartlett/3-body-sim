@@ -4,6 +4,7 @@ import type { TrailMap } from "../render/canvasRenderer";
 import { type Camera } from "./camera";
 import {
   captureSnapshot,
+  getHistorySnapshotCount,
   pushSnapshot,
   type SimulationHistory,
 } from "./simulationHistory";
@@ -101,7 +102,7 @@ export const applySimulationFrameResult = ({
         }),
       );
     });
-    onHistoryChanged?.(historyRef.current.snapshots.length);
+    onHistoryChanged?.(getHistorySnapshotCount(historyRef.current));
     perfMonitor.incrementCounter("history.onHistoryChanged.calls");
   }
   accumulatorRef.current = frameResult.nextAccumulator;

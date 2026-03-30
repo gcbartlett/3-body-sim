@@ -6,6 +6,8 @@ import {
   captureSnapshot,
   clearHistory,
   cloneWorldState,
+  createSimulationHistory,
+  getHistorySnapshots,
   getSimulationHistoryMetrics,
   popSnapshot,
   pushSnapshot,
@@ -116,7 +118,7 @@ describe("captureSnapshot", () => {
 
 describe("history helpers", () => {
   const makeHistoryRef = (maxSteps: number): { current: SimulationHistory } => ({
-    current: { snapshots: [], maxSteps },
+    current: createSimulationHistory(maxSteps),
   });
 
   it("pushes and pops in LIFO order", () => {
@@ -133,16 +135,15 @@ describe("history helpers", () => {
   });
 
   it("evicts the oldest snapshot when capacity is exceeded", () => {
-    const historyRef = makeHistoryRef(2);
-    const first = makeSnapshot("first");
-    const second = makeSnapshot("second");
-    const third = makeSnapshot("third");
+    const historyRef = makeHistoryRef(50);
+    const snapshots = Array.from({ length: 51 }, (_, index) => makeSnapshot(`s${index}`));
+    for (const snapshot of snapshots) {
+      pushSnapshot(historyRef, snapshot);
+    }
 
-    pushSnapshot(historyRef, first);
-    pushSnapshot(historyRef, second);
-    pushSnapshot(historyRef, third);
-
-    expect(historyRef.current.snapshots).toEqual([second, third]);
+    expect(getHistorySnapshots(historyRef.current)).toHaveLength(50);
+    expect(getHistorySnapshots(historyRef.current)[0]).toEqual(snapshots[1]);
+    expect(getHistorySnapshots(historyRef.current)[49]).toEqual(snapshots[50]);
   });
 
   it("clears all stored snapshots", () => {
@@ -152,7 +153,7 @@ describe("history helpers", () => {
 
     clearHistory(historyRef);
 
-    expect(historyRef.current.snapshots).toEqual([]);
+    expect(getHistorySnapshots(historyRef.current)).toEqual([]);
     expect(popSnapshot(historyRef)).toBeNull();
   });
 });
@@ -211,29 +212,23 @@ describe("history depth configuration and metrics", () => {
     const snapshots = Array.from({ length: 80 }, (_, index) => makeSnapshot(`s${index}`));
     const expectedFirstRetainedId = snapshots[30].world.ejectedBodyId;
     const historyRef: { current: SimulationHistory } = {
-      current: {
-        snapshots,
-        maxSteps: 300,
-      },
+      current: createSimulationHistory(300, snapshots),
     };
 
     setHistoryMaxSteps(historyRef, 50);
     expect(historyRef.current.maxSteps).toBe(50);
-    expect(historyRef.current.snapshots).toHaveLength(50);
-    expect(historyRef.current.snapshots[0].world.ejectedBodyId).toBe(expectedFirstRetainedId);
+    expect(getHistorySnapshots(historyRef.current)).toHaveLength(50);
+    expect(getHistorySnapshots(historyRef.current)[0].world.ejectedBodyId).toBe(expectedFirstRetainedId);
 
     setHistoryMaxSteps(historyRef, 2_000);
     expect(historyRef.current.maxSteps).toBe(2000);
-    expect(historyRef.current.snapshots).toHaveLength(50);
+    expect(getHistorySnapshots(historyRef.current)).toHaveLength(50);
   });
 
   it("keeps estimated bytes correct when trimming with uninitialized cached bytes", () => {
     const snapshots = Array.from({ length: 80 }, (_, index) => makeSnapshot(`s${index}`));
     const historyRef: { current: SimulationHistory } = {
-      current: {
-        snapshots,
-        maxSteps: 300,
-      },
+      current: createSimulationHistory(300, snapshots),
     };
 
     setHistoryMaxSteps(historyRef, 50);
@@ -246,8 +241,7 @@ describe("history depth configuration and metrics", () => {
 
   it("reports bounded history metrics with estimated bytes", () => {
     const metrics = getSimulationHistoryMetrics({
-      snapshots: [makeSnapshot("alpha"), makeSnapshot("beta")],
-      maxSteps: 300,
+      ...createSimulationHistory(300, [makeSnapshot("alpha"), makeSnapshot("beta")]),
     });
 
     expect(metrics.count).toBe(2);
@@ -257,10 +251,7 @@ describe("history depth configuration and metrics", () => {
 
   it("maintains estimated-byte metrics incrementally across mutations", () => {
     const historyRef: { current: SimulationHistory } = {
-      current: {
-        snapshots: [],
-        maxSteps: 2,
-      },
+      current: createSimulationHistory(50),
     };
     const first = makeSnapshot("first");
     const second = makeSnapshot("second");
@@ -275,14 +266,15 @@ describe("history depth configuration and metrics", () => {
 
     expect(afterFirst.count).toBe(1);
     expect(afterSecond.count).toBe(2);
-    expect(afterThird.count).toBe(2);
+    expect(afterThird.count).toBe(3);
     expect(afterSecond.estimatedBytes).toBeGreaterThan(afterFirst.estimatedBytes);
     expect(afterThird.estimatedBytes).toBeGreaterThan(0);
 
     popSnapshot(historyRef);
     const afterPop = getSimulationHistoryMetrics(historyRef.current);
-    expect(afterPop.count).toBe(1);
+    expect(afterPop.count).toBe(2);
     expect(afterPop.estimatedBytes).toBeLessThan(afterThird.estimatedBytes);
+    popSnapshot(historyRef);
     popSnapshot(historyRef);
     const afterPopAll = getSimulationHistoryMetrics(historyRef.current);
     expect(afterPopAll.count).toBe(0);

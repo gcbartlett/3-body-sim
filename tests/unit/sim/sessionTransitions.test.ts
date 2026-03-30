@@ -31,7 +31,12 @@ import {
   runStepBackTransition,
   runStartPauseTransition,
 } from "~/src/sim/sessionTransitions";
-import type { SimulationHistory, SimulationSnapshot } from "~/src/sim/simulationHistory";
+import {
+  createSimulationHistory,
+  getHistorySnapshots,
+  type SimulationHistory,
+  type SimulationSnapshot,
+} from "~/src/sim/simulationHistory";
 
 const makeBodies = (): BodyState[] => [
   {
@@ -83,7 +88,7 @@ const makeHistoryRef = (
   snapshots: SimulationSnapshot[] = [],
   maxSteps = 300,
 ): { current: SimulationHistory } => ({
-  current: { snapshots, maxSteps },
+  current: createSimulationHistory(maxSteps, snapshots),
 });
 
 describe("buildNewInitialStateTransition", () => {
@@ -151,7 +156,7 @@ describe("applyNewInitialStateTransition", () => {
       energy: nextBodies.length,
       momentum: { x: 0, y: 0 },
     });
-    expect(historyRef.current.snapshots).toEqual([]);
+    expect(getHistorySnapshots(historyRef.current)).toEqual([]);
   });
 
   it("resets trailsRef.current to an empty map", () => {
@@ -239,8 +244,8 @@ describe("runSingleStepWithHistoryTransition", () => {
       (world) => world,
     );
 
-    expect(historyRef.current.snapshots).toHaveLength(1);
-    expect(historyRef.current.snapshots[0]).toEqual({
+    expect(getHistorySnapshots(historyRef.current)).toHaveLength(1);
+    expect(getHistorySnapshots(historyRef.current)[0]).toEqual({
       world: makeWorld({ elapsedTime: 2 }),
       trails: {},
       accumulator: 0.33,
@@ -630,7 +635,7 @@ describe("runStepBackTransition", () => {
     });
 
     expect(didStepBack).toBe(true);
-    expect(historyRef.current.snapshots).toEqual([]);
+    expect(getHistorySnapshots(historyRef.current)).toEqual([]);
     expect(worldRef.current).toEqual({ ...snapshotWorld, isRunning: false });
     expect(worldRef.current).not.toBe(snapshotWorld);
     expect(accumulatorRef.current).toBe(0.75);

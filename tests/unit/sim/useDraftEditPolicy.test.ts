@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { useDraftEditPolicy } from "~/src/sim/useDraftEditPolicy";
 import type { BodyState, SimParams, WorldState } from "~/src/sim/types";
-import type { SimulationHistory } from "~/src/sim/simulationHistory";
+import { createSimulationHistory, getHistorySnapshots, type SimulationHistory } from "~/src/sim/simulationHistory";
 
 const makeBodies = (): BodyState[] => [
   {
@@ -43,17 +43,15 @@ const makeParams = (): SimParams => ({
 
 describe("useDraftEditPolicy", () => {
   const makeHistoryRef = (): { current: SimulationHistory } => ({
-    current: {
-      snapshots: [
-        {
-          world: makeWorld({ elapsedTime: 5, isRunning: true }),
-          accumulator: 1,
-          simStepCounter: 2,
-          forceFastZoomInFrames: 3,
-        },
-      ],
-      maxSteps: 300,
-    },
+    current: createSimulationHistory(300, [
+      {
+        world: makeWorld({ elapsedTime: 5, isRunning: true }),
+        trails: {},
+        accumulator: 1,
+        simStepCounter: 2,
+        forceFastZoomInFrames: 3,
+      },
+    ]),
   });
 
   it("clears history when body edits rebuild stopped initial world", () => {
@@ -80,7 +78,7 @@ describe("useDraftEditPolicy", () => {
 
     handlers.onBodyChange(0, "mass", 2);
 
-    expect(historyRef.current.snapshots).toEqual([]);
+    expect(getHistorySnapshots(historyRef.current)).toEqual([]);
     expect(setWorld).toHaveBeenCalledTimes(1);
     expect(setParams).not.toHaveBeenCalled();
     expect(setBaselineDiagnostics).toHaveBeenCalledTimes(1);
@@ -108,7 +106,7 @@ describe("useDraftEditPolicy", () => {
 
     handlers.onParamChange("dt", 0.02);
 
-    expect(historyRef.current.snapshots).toEqual([]);
+    expect(getHistorySnapshots(historyRef.current)).toEqual([]);
     expect(setWorld).not.toHaveBeenCalled();
     expect(setParams).toHaveBeenCalledTimes(1);
     expect(setBaselineDiagnostics).toHaveBeenCalledTimes(1);
@@ -135,7 +133,7 @@ describe("useDraftEditPolicy", () => {
 
     handlers.onResetParams();
 
-    expect(historyRef.current.snapshots).toEqual([]);
+    expect(getHistorySnapshots(historyRef.current)).toEqual([]);
     expect(setWorld).not.toHaveBeenCalled();
     expect(setParams).toHaveBeenCalledTimes(1);
     expect(setBaselineDiagnostics).toHaveBeenCalledTimes(1);
