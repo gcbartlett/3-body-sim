@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { EjectedBodyStatusBadge } from "../../sim/stageSelectors";
 
 type StageHudProps = {
@@ -70,30 +71,42 @@ export const StageHud = ({
           ) : null}
         </div>
       </div>
-      <button
-        className="panel-toggle-icon"
-        title={panelExpanded ? "Hide panel (maximize canvas)" : "Show panel (restore layout)"}
-        onClick={onTogglePanelExpanded}
-        aria-label={panelExpanded ? "Maximize canvas" : "Restore panel"}
-      >
-        {panelExpanded ? (
-          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-            <path
-              d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        ) : (
-          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-            <rect x="5" y="5" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" />
-          </svg>
-        )}
-      </button>
+      <PanelToggleButton
+        panelExpanded={panelExpanded}
+        onTogglePanelExpanded={onTogglePanelExpanded}
+      />
     </div>
     </>
   );
 };
+
+type PanelToggleButtonProps = Pick<StageHudProps, "panelExpanded" | "onTogglePanelExpanded">;
+
+const PanelToggleButton = memo(({
+  panelExpanded,
+  onTogglePanelExpanded,
+}: PanelToggleButtonProps) => (
+  <button
+    className="panel-toggle-icon"
+    title={panelExpanded ? "Hide panel (maximize canvas)" : "Show panel (restore layout)"}
+    onClick={onTogglePanelExpanded}
+    aria-label={panelExpanded ? "Maximize canvas" : "Restore panel"}
+  >
+    {panelExpanded ? (
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path
+          d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ) : (
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <rect x="5" y="5" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    )}
+  </button>
+));

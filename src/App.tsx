@@ -327,10 +327,10 @@ function App() {
     onStepAccelerationChange: setStepAcceleration,
   });
 
-  const onTogglePanelExpanded = () => {
+  const onTogglePanelExpanded = useStableCallback(() => {
     scheduleFastReframe();
     setPanelExpanded((prev) => !prev);
-  };
+  });
 
   const diagnostics = diagnosticsSnapshot(world.bodies, params);
   const accelerationActive = stepAcceleration.active;
@@ -362,9 +362,6 @@ function App() {
     historySnapshotCount: historyMetrics.count,
     historyMaxSteps: historyMetrics.maxSteps,
     historyEstimatedBytes: historyMetrics.estimatedBytes,
-    onHistoryMaxStepsChange,
-    historyDepthInputMin: HISTORY_DEPTH_INPUT_MIN,
-    historyDepthInputMax: HISTORY_DEPTH_INPUT_MAX,
     onStepAccelerationChange: setStepAcceleration,
     onTogglePanelExpanded,
     onVisibleHeightChange: onDiagnosticsInsetChange,
@@ -376,6 +373,7 @@ function App() {
   });
   const onBodyChangeControlPanel = useStableCallback(onBodyChange);
   const onParamChangeControlPanel = useStableCallback(onParamChange);
+  const onHistoryMaxStepsChangeControlPanel = useStableCallback(onHistoryMaxStepsChange);
   const onLockModeChangeControlPanel = useStableCallback(onLockModeChange);
   const onResetParamsControlPanel = useStableCallback(onResetParams);
   const onPresetSelectControlPanel = useStableCallback(setSelectedPresetId);
@@ -401,8 +399,12 @@ function App() {
           showOriginMarker={showOriginMarker}
           showGrid={showGrid}
           showCenterOfMass={showCenterOfMass}
+          historyMaxSteps={historyMetrics.maxSteps}
+          historyDepthInputMin={HISTORY_DEPTH_INPUT_MIN}
+          historyDepthInputMax={HISTORY_DEPTH_INPUT_MAX}
           onBodyChange={onBodyChangeControlPanel}
           onParamChange={onParamChangeControlPanel}
+          onHistoryMaxStepsChange={onHistoryMaxStepsChangeControlPanel}
           onLockModeChange={onLockModeChangeControlPanel}
           onToggleManualPanZoom={setManualMode}
           onToggleShowOriginMarker={setShowOriginMarker}

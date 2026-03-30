@@ -20,9 +20,6 @@ describe("StageControls", () => {
         historySnapshotCount={0}
         historyMaxSteps={300}
         historyEstimatedBytes={0}
-        onHistoryMaxStepsChange={() => {}}
-        historyDepthInputMin={50}
-        historyDepthInputMax={2000}
         ejectedBodyId={null}
         latestEjectedLabel={null}
         dissolutionJustDetected={false}
@@ -63,9 +60,6 @@ describe("StageControls", () => {
         historySnapshotCount={10}
         historyMaxSteps={300}
         historyEstimatedBytes={2048}
-        onHistoryMaxStepsChange={() => {}}
-        historyDepthInputMin={50}
-        historyDepthInputMax={2000}
         ejectedBodyId={null}
         latestEjectedLabel={null}
         dissolutionJustDetected={false}

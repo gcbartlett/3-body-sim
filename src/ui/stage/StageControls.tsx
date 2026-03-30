@@ -18,9 +18,6 @@ type StageControlsProps = {
   historySnapshotCount: number;
   historyMaxSteps: number;
   historyEstimatedBytes: number;
-  onHistoryMaxStepsChange: (nextMaxSteps: number) => void;
-  historyDepthInputMin: number;
-  historyDepthInputMax: number;
   onStepAccelerationChange?: (next: StepAccelerationState) => void;
   ejectedBodyId: string | null;
   latestEjectedLabel: string | null;
@@ -109,9 +106,6 @@ export const StageControls = ({
   historySnapshotCount,
   historyMaxSteps,
   historyEstimatedBytes,
-  onHistoryMaxStepsChange,
-  historyDepthInputMin,
-  historyDepthInputMax,
   onStepAccelerationChange,
   ejectedBodyId,
   latestEjectedLabel,
@@ -286,23 +280,6 @@ export const StageControls = ({
         >
           <div className="stage-history-buffer-fill" style={{ width: historyFillPercent }} />
         </div>
-        <label htmlFor="history-depth-input">
-          History depth
-          <input
-            id="history-depth-input"
-            type="number"
-            min={historyDepthInputMin}
-            max={historyDepthInputMax}
-            step={10}
-            value={historyMaxSteps}
-            onChange={(event) => {
-              const parsed = Number.parseInt(event.target.value, 10);
-              if (Number.isFinite(parsed)) {
-                onHistoryMaxStepsChange(parsed);
-              }
-            }}
-          />
-        </label>
         <p className="stage-history-metrics">
           {historySnapshotCount}/{historyMaxSteps} snapshots, ~{formatEstimatedMemory(historyEstimatedBytes)}
         </p>

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   PRESET_DESCRIPTION_MAX_LENGTH,
   PRESET_ID_MAX_LENGTH,
@@ -18,7 +19,7 @@ type EditProfileDialogProps = {
   onCancel: () => void;
 };
 
-export function EditProfileDialog({
+function EditProfileDialogComponent({
   draft,
   onFieldChange,
   onSave,
@@ -66,3 +67,5 @@ export function EditProfileDialog({
     </div>
   );
 }
+
+export const EditProfileDialog = memo(EditProfileDialogComponent);

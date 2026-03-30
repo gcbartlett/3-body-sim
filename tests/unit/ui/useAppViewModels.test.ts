@@ -66,9 +66,6 @@ describe("useAppViewModels", () => {
       historySnapshotCount: 3,
       historyMaxSteps: 300,
       historyEstimatedBytes: 12345,
-      onHistoryMaxStepsChange: vi.fn(),
-      historyDepthInputMin: 50,
-      historyDepthInputMax: 2000,
       onTogglePanelExpanded: vi.fn(),
       onVisibleHeightChange: vi.fn(),
     });
@@ -101,9 +98,6 @@ describe("useAppViewModels", () => {
       historySnapshotCount: 0,
       historyMaxSteps: 300,
       historyEstimatedBytes: 0,
-      onHistoryMaxStepsChange: vi.fn(),
-      historyDepthInputMin: 50,
-      historyDepthInputMax: 2000,
       onTogglePanelExpanded: vi.fn(),
       onVisibleHeightChange: vi.fn(),
     });

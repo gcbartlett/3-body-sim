@@ -22,8 +22,12 @@ type Props = {
   showOriginMarker: boolean;
   showGrid: boolean;
   showCenterOfMass: boolean;
+  historyMaxSteps: number;
+  historyDepthInputMin: number;
+  historyDepthInputMax: number;
   onBodyChange: (index: number, field: BodyConfigField, value: number) => void;
   onParamChange: (field: keyof SimParams, value: number) => void;
+  onHistoryMaxStepsChange: (nextMaxSteps: number) => void;
   onLockModeChange: (mode: LockMode) => void;
   onToggleManualPanZoom: (value: boolean) => void;
   onToggleShowOriginMarker: (value: boolean) => void;
@@ -52,8 +56,12 @@ const ControlPanelComponent = ({
   showOriginMarker,
   showGrid,
   showCenterOfMass,
+  historyMaxSteps,
+  historyDepthInputMin,
+  historyDepthInputMax,
   onBodyChange,
   onParamChange,
+  onHistoryMaxStepsChange,
   onLockModeChange,
   onToggleManualPanZoom,
   onToggleShowOriginMarker,
@@ -122,9 +130,13 @@ const ControlPanelComponent = ({
         showOriginMarker={showOriginMarker}
         showGrid={showGrid}
         showCenterOfMass={showCenterOfMass}
+        historyMaxSteps={historyMaxSteps}
+        historyDepthInputMin={historyDepthInputMin}
+        historyDepthInputMax={historyDepthInputMax}
         open={sectionState.simParamsOpen}
         onOpenChange={setSimParamsOpen}
         onParamChange={onParamChange}
+        onHistoryMaxStepsChange={onHistoryMaxStepsChange}
         onLockModeChange={onLockModeChange}
         onToggleManualPanZoom={onToggleManualPanZoom}
         onToggleShowOriginMarker={onToggleShowOriginMarker}

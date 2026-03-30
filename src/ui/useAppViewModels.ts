@@ -29,9 +29,6 @@ type UseAppViewModelsInput = {
   historySnapshotCount: number;
   historyMaxSteps: number;
   historyEstimatedBytes: number;
-  onHistoryMaxStepsChange: (nextMaxSteps: number) => void;
-  historyDepthInputMin: number;
-  historyDepthInputMax: number;
   onStepAccelerationChange?: ComponentProps<typeof StageControls>["onStepAccelerationChange"];
   onTogglePanelExpanded: () => void;
   onVisibleHeightChange: (height: number) => void;
@@ -63,9 +60,6 @@ export const useAppViewModels = ({
   historySnapshotCount,
   historyMaxSteps,
   historyEstimatedBytes,
-  onHistoryMaxStepsChange,
-  historyDepthInputMin,
-  historyDepthInputMax,
   onStepAccelerationChange,
   onTogglePanelExpanded,
   onVisibleHeightChange,
@@ -113,9 +107,6 @@ export const useAppViewModels = ({
       historySnapshotCount,
       historyMaxSteps,
       historyEstimatedBytes,
-      onHistoryMaxStepsChange,
-      historyDepthInputMin,
-      historyDepthInputMax,
       onStepAccelerationChange,
       ejectedBodyId: world.ejectedBodyId,
       latestEjectedLabel: stageViewModel.latestEjectedLabel,

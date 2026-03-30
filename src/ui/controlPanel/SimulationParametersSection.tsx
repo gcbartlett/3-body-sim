@@ -8,9 +8,13 @@ type Props = {
   showOriginMarker: boolean;
   showGrid: boolean;
   showCenterOfMass: boolean;
+  historyMaxSteps: number;
+  historyDepthInputMin: number;
+  historyDepthInputMax: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onParamChange: (field: keyof SimParams, value: number) => void;
+  onHistoryMaxStepsChange: (nextMaxSteps: number) => void;
   onLockModeChange: (mode: LockMode) => void;
   onToggleManualPanZoom: (value: boolean) => void;
   onToggleShowOriginMarker: (value: boolean) => void;
@@ -28,9 +32,13 @@ export const SimulationParametersSection = ({
   showOriginMarker,
   showGrid,
   showCenterOfMass,
+  historyMaxSteps,
+  historyDepthInputMin,
+  historyDepthInputMax,
   open,
   onOpenChange,
   onParamChange,
+  onHistoryMaxStepsChange,
   onLockModeChange,
   onToggleManualPanZoom,
   onToggleShowOriginMarker,
@@ -96,6 +104,23 @@ export const SimulationParametersSection = ({
           min="0"
           value={params.softening}
           onChange={(e) => onParamChange("softening", number(e.target.valueAsNumber))}
+        />
+      </label>
+      <label title="Maximum number of rewind snapshots kept in memory for step-back history.">
+        History depth
+        <input
+          id="history-depth-input"
+          type="number"
+          min={historyDepthInputMin}
+          max={historyDepthInputMax}
+          step={10}
+          value={historyMaxSteps}
+          onChange={(event) => {
+            const parsed = Number.parseInt(event.target.value, 10);
+            if (Number.isFinite(parsed)) {
+              onHistoryMaxStepsChange(parsed);
+            }
+          }}
         />
       </label>
       <div className="control-matrix">

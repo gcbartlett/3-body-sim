@@ -10,6 +10,7 @@ This document contains the detailed project structure map.
 - Dissolution is detected when no pair remains bound long enough, then the simulation pauses.
 - Rewind is snapshot-backed: each simulation step can be restored from history with a configurable buffer depth.
 - Step forward/back supports hold acceleration from both keyboard hotkeys and pointer press-and-hold.
+- History depth configuration lives in the Control Panel simulation-parameters section; the stage controls show live buffer fill and memory estimate.
 - The simulation loop is invalidation-driven while paused: RAF runs continuously only when `world.isRunning`, and paused redraws are requested on demand via `requestRender`.
 
 ## Performance Instrumentation
@@ -90,7 +91,7 @@ src/                                   # Application source code
     controlPanel/                      # Control panel sections and shared inputs
       BodyConfigurationSection.tsx     # Body mass/position/velocity editors
       PresetsSection.tsx               # Preset selection/apply/random/save controls
-      SimulationParametersSection.tsx  # Global sim parameter controls
+      SimulationParametersSection.tsx  # Global sim parameters + history depth configuration
       StepperNumberInput.tsx           # Shared numeric input with stepping/precision behavior
       numberInputPrecision.ts          # Decimal precision helper for control-panel number inputs
       types.ts                         # Shared control-panel prop types
@@ -100,7 +101,7 @@ src/                                   # Application source code
       styles.ts                        # Diagnostics layout/style constants
     stage/                             # Stage controls, HUD, and hover overlays
       HoverTooltip.tsx                 # Hover tooltip overlay
-      StageControls.tsx                # Run/reset/step controls and alerts
+      StageControls.tsx                # Run/reset/step controls, alerts, and live history buffer status
       StageHud.tsx                     # Status strip and panel toggle
     uiPrefsStorage.ts                  # UI open-state persistence helpers
     useAppPersistence.ts               # App-level persistence side effects
