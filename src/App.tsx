@@ -63,8 +63,8 @@ const FAST_REFRAME_FRAMES = 60;
 const MAX_HISTORY_STEPS = 300;
 const HISTORY_DEPTH_INPUT_MIN = 50;
 const HISTORY_DEPTH_INPUT_MAX = 2000;
-const PUBLISH_HZ = 15;
-const PUBLISH_INTERVAL_MS = 1000 / PUBLISH_HZ;
+const PUBLISH_HZ_DIAGNOSTICS_OPEN = 15;
+const PUBLISH_HZ_DIAGNOSTICS_CLOSED = 10;
 const APP_VERSION = __APP_VERSION__;
 
 function App() {
@@ -101,6 +101,9 @@ function App() {
   const [baselineDiagnostics, setBaselineDiagnostics] = useState<DiagnosticsSnapshot>(() =>
     diagnosticsSnapshot(initialWorld().bodies, defaultParams()),
   );
+  const runningPublishIntervalMs =
+    1000 /
+    (canvasDiagnosticsOpen ? PUBLISH_HZ_DIAGNOSTICS_OPEN : PUBLISH_HZ_DIAGNOSTICS_CLOSED);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -147,7 +150,7 @@ function App() {
     count: number,
     publishTime: number = performance.now(),
   ) => {
-    nextHistoryMetricsPublishAtRef.current = publishTime + PUBLISH_INTERVAL_MS;
+    nextHistoryMetricsPublishAtRef.current = publishTime + runningPublishIntervalMs;
     pendingHistoryMetricsRef.current = null;
     pendingHistoryMetricsCountRef.current = undefined;
     if (historyMetricsFlushTimeoutRef.current !== null) {
@@ -310,6 +313,7 @@ function App() {
       showOriginMarker,
       showGrid,
       showCenterOfMass,
+      reactWorldPublishIntervalMs: runningPublishIntervalMs,
     },
     refs: {
       worldRef,
@@ -351,7 +355,7 @@ function App() {
     if (!world.isRunning) {
       requestRender();
     }
-  }, [world, requestRender]);
+  }, [world.isRunning, requestRender]);
 
   const {
     onBodyChange,

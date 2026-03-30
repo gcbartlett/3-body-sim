@@ -12,8 +12,8 @@ import { runSimulationFrame, type SimulationFrameResult } from "./simulationFram
 import type { LockMode, SimParams, WorldState } from "./types";
 import { perfMonitor } from "../perf/perfMonitor";
 
-const REACT_WORLD_PUBLISH_HZ = 15;
-const REACT_WORLD_PUBLISH_INTERVAL_MS = 1000 / REACT_WORLD_PUBLISH_HZ;
+const DEFAULT_REACT_WORLD_PUBLISH_HZ = 15;
+const DEFAULT_REACT_WORLD_PUBLISH_INTERVAL_MS = 1000 / DEFAULT_REACT_WORLD_PUBLISH_HZ;
 
 type Viewport = {
   width: number;
@@ -30,6 +30,7 @@ type UseSimulationLoopArgs = {
     showOriginMarker: boolean;
     showGrid: boolean;
     showCenterOfMass: boolean;
+    reactWorldPublishIntervalMs?: number;
   };
   refs: {
     worldRef: RefObject<WorldState>;
@@ -56,6 +57,7 @@ type ApplySimulationFrameResultArgs = {
   frameTime: number;
   currentWorld: WorldState;
   frameResult: SimulationFrameResult;
+  reactWorldPublishIntervalMs?: number;
   refs: {
     accumulatorRef: RefObject<number>;
     trailsRef: RefObject<TrailMap>;
@@ -75,6 +77,7 @@ export const applySimulationFrameResult = ({
   frameTime,
   currentWorld,
   frameResult,
+  reactWorldPublishIntervalMs = DEFAULT_REACT_WORLD_PUBLISH_INTERVAL_MS,
   refs: {
     accumulatorRef,
     trailsRef,
@@ -115,8 +118,7 @@ export const applySimulationFrameResult = ({
     const nextWorld = frameResult.nextWorld;
     worldRef.current = nextWorld;
     const runStateChanged = currentWorld.isRunning !== nextWorld.isRunning;
-    const publishDue =
-      frameTime - lastWorldPublishTimeRef.current >= REACT_WORLD_PUBLISH_INTERVAL_MS;
+    const publishDue = frameTime - lastWorldPublishTimeRef.current >= reactWorldPublishIntervalMs;
     const shouldPublish = runStateChanged || !nextWorld.isRunning || publishDue;
     if (shouldPublish) {
       setWorld(nextWorld);
@@ -135,7 +137,15 @@ type UseSimulationLoopResult = {
 export const useSimulationLoop = ({
   canvasRef,
   viewport,
-  runtime: { isRunning, lockMode, manualPanZoom, showOriginMarker, showGrid, showCenterOfMass },
+  runtime: {
+    isRunning,
+    lockMode,
+    manualPanZoom,
+    showOriginMarker,
+    showGrid,
+    showCenterOfMass,
+    reactWorldPublishIntervalMs,
+  },
   refs: {
     worldRef,
     paramsRef,
@@ -229,6 +239,7 @@ export const useSimulationLoop = ({
         frameTime: time,
         currentWorld,
         frameResult,
+        reactWorldPublishIntervalMs,
         refs: {
           accumulatorRef,
           trailsRef,
@@ -265,6 +276,7 @@ export const useSimulationLoop = ({
   }, [
     lockMode,
     manualPanZoom,
+    reactWorldPublishIntervalMs,
     showCenterOfMass,
     showGrid,
     showOriginMarker,

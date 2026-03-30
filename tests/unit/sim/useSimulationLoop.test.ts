@@ -212,4 +212,45 @@ describe("applySimulationFrameResult", () => {
     expect(setWorld).toHaveBeenCalledWith(nextWorld);
     expect(lastWorldPublishTimeRef.current).toBe(120);
   });
+
+  it("respects a custom running publish interval", () => {
+    const currentWorld = makeWorld({ isRunning: true, elapsedTime: 1 });
+    const nextWorld = makeWorld({ isRunning: true, elapsedTime: 2 });
+    const worldRef = { current: currentWorld };
+    const setWorld = vi.fn();
+    const lastWorldPublishTimeRef = { current: 100 };
+
+    applySimulationFrameResult({
+      frameTime: 220,
+      currentWorld,
+      frameResult: {
+        nextWorld,
+        nextAccumulator: 0,
+        nextTrails: {},
+        nextSimStepCounter: 0,
+        stepsAdvanced: 0,
+        nextCamera: makeCamera(),
+        nextForceFastZoomInFrames: 0,
+        nextHoverLastUpdateTime: 0,
+        worldChanged: true,
+      },
+      reactWorldPublishIntervalMs: 200,
+      refs: {
+        accumulatorRef: { current: 0 } as never,
+        trailsRef: { current: {} } as never,
+        simStepCounterRef: { current: 0 } as never,
+        cameraRef: { current: makeCamera() } as never,
+        forceFastZoomInFramesRef: { current: 0 } as never,
+        hoverLastUpdateTimeRef: { current: 0 } as never,
+        worldRef: worldRef as never,
+        lastWorldPublishTimeRef: lastWorldPublishTimeRef as never,
+        historyRef: { current: createSimulationHistory(50) } as never,
+      },
+      setWorld,
+    });
+
+    expect(worldRef.current).toBe(nextWorld);
+    expect(setWorld).not.toHaveBeenCalled();
+    expect(lastWorldPublishTimeRef.current).toBe(100);
+  });
 });
