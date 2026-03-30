@@ -19,6 +19,7 @@ This document contains the detailed project structure map.
 - While running, simulation/draw still execute each RAF tick, while React `world` publishes use an adaptive cadence in `useSimulationLoop`: 15 Hz when diagnostics are open and 10 Hz when closed (with immediate publish on run-state transitions such as auto-pause).
 - Diagnostics panel data publishing is two-mode in `App`: while running and open, diagnostics recompute/publish at 10 Hz; while paused (including step/step-back/reset results), diagnostics publish immediately for frame-accurate inspection.
 - Diagnostics render cost is reduced with memoization boundaries on `CanvasDiagnostics` and diagnostics columns, plus memoized diagnostics view-model derivation in `useAppViewModels` keyed to diagnostics publish inputs.
+- Trail rendering now deduplicates near-coincident live draw samples and connects samples with line segments in `trailLayer`; this is a render-only optimization and does not alter snapshot history fidelity for step-back.
 
 ## Performance Instrumentation
 
@@ -128,6 +129,7 @@ tests/                                 # Automated test suites
   unit/                                # Unit tests by feature area
     render/                            # Unit tests for rendering modules
       canvasRenderer.test.ts           # Unit tests for render orchestration and trail behavior
+      trailLayer.test.ts               # Unit tests for trail dedupe and segment rendering behavior
     sim/                               # Unit tests for simulation modules
       camera.test.ts                   # Unit tests for camera transforms and updates
       cameraPolicy.test.ts             # Unit tests for auto-camera policy behavior
