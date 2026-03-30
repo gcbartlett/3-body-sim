@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import { memo, useEffect, useRef, useState, type ReactElement } from "react";
 import type {
   BodyEjectionStatusSnapshot,
   BodyVectorSnapshot,
@@ -25,7 +25,7 @@ type Props = {
   onOpenChange?: (isOpen: boolean) => void;
 };
 
-export const CanvasDiagnostics = ({
+const CanvasDiagnosticsComponent = ({
   pairEnergies,
   displayPairState,
   dissolutionCounterSec,
@@ -120,3 +120,6 @@ export const CanvasDiagnostics = ({
     </details>
   );
 };
+
+export const CanvasDiagnostics = memo(CanvasDiagnosticsComponent);
+CanvasDiagnostics.displayName = "CanvasDiagnostics";

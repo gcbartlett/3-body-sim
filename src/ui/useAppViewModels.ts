@@ -49,6 +49,71 @@ type UseAppViewModelsResult = {
   diagnosticsProps: ComponentProps<typeof CanvasDiagnostics>;
 };
 
+type DiagnosticsViewModel = {
+  pairEnergies: ReturnType<typeof pairEnergiesForBodies>;
+  displayPairState: ReturnType<typeof displayPairStateFromEnergies> & { eps: number };
+  bodyVectors: ReturnType<typeof stageDiagnosticsViewModelForWorld>["bodyVectors"];
+  bodyEjectionStatuses: ReturnType<typeof stageDiagnosticsViewModelForWorld>["bodyEjectionStatuses"];
+};
+
+let cachedDiagnosticsInput:
+  | {
+      world: WorldState;
+      params: SimParams;
+      diagnosticsOpen: boolean;
+    }
+  | null = null;
+let cachedDiagnosticsViewModel: DiagnosticsViewModel | null = null;
+
+const getDiagnosticsViewModel = ({
+  world,
+  params,
+  diagnosticsOpen,
+}: {
+  world: WorldState;
+  params: SimParams;
+  diagnosticsOpen: boolean;
+}): DiagnosticsViewModel => {
+  if (
+    cachedDiagnosticsInput &&
+    cachedDiagnosticsInput.world === world &&
+    cachedDiagnosticsInput.params === params &&
+    cachedDiagnosticsInput.diagnosticsOpen === diagnosticsOpen &&
+    cachedDiagnosticsViewModel
+  ) {
+    return cachedDiagnosticsViewModel;
+  }
+
+  const pairEnergies = pairEnergiesForBodies(world.bodies, params);
+  const displayPairState = {
+    ...displayPairStateFromEnergies(
+      pairEnergies.eps12,
+      pairEnergies.eps13,
+      pairEnergies.eps23,
+      world.ejectedBodyIds.length > 0,
+      DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
+    ),
+    eps: DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
+  };
+
+  const diagnosticsViewModel: DiagnosticsViewModel = diagnosticsOpen
+    ? stageDiagnosticsViewModelForWorld({
+        world,
+        params,
+        ejectionThresholdSec: EJECTION_TIME_THRESHOLD_SECONDS,
+      })
+    : {
+        pairEnergies,
+        displayPairState,
+        bodyVectors: [],
+        bodyEjectionStatuses: [],
+      };
+
+  cachedDiagnosticsInput = { world, params, diagnosticsOpen };
+  cachedDiagnosticsViewModel = diagnosticsViewModel;
+  return diagnosticsViewModel;
+};
+
 export const useAppViewModels = ({
   world,
   params,
@@ -77,34 +142,17 @@ export const useAppViewModels = ({
   diagnosticsOpen,
   onDiagnosticsOpenChange,
 }: UseAppViewModelsInput): UseAppViewModelsResult => {
-  const pairEnergies = pairEnergiesForBodies(diagnosticsWorld.bodies, diagnosticsParams);
-  const displayPairState = {
-    ...displayPairStateFromEnergies(
-      pairEnergies.eps12,
-      pairEnergies.eps13,
-      pairEnergies.eps23,
-      diagnosticsWorld.ejectedBodyIds.length > 0,
-      DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
-    ),
-    eps: DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
-  };
+  const diagnosticsViewModel = getDiagnosticsViewModel({
+    world: diagnosticsWorld,
+    params: diagnosticsParams,
+    diagnosticsOpen,
+  });
+
+  const { displayPairState } = diagnosticsViewModel;
   const pairStateLabel = boundPairStateLabel(
     displayPairState,
     diagnosticsWorld.dissolutionDetected,
   );
-
-  const diagnosticsViewModel = diagnosticsOpen
-    ? stageDiagnosticsViewModelForWorld({
-        world: diagnosticsWorld,
-        params: diagnosticsParams,
-        ejectionThresholdSec: EJECTION_TIME_THRESHOLD_SECONDS,
-      })
-    : {
-        pairEnergies,
-        displayPairState,
-        bodyVectors: [],
-        bodyEjectionStatuses: [],
-      };
 
   const stageViewModel = stageViewModelForWorld({
     world,

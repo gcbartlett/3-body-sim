@@ -18,6 +18,7 @@ This document contains the detailed project structure map.
 - The simulation loop is invalidation-driven while paused: RAF runs continuously only when `world.isRunning`, and paused redraws are requested on demand via `requestRender`.
 - While running, simulation/draw still execute each RAF tick, while React `world` publishes use an adaptive cadence in `useSimulationLoop`: 15 Hz when diagnostics are open and 10 Hz when closed (with immediate publish on run-state transitions such as auto-pause).
 - Diagnostics panel data publishing is two-mode in `App`: while running and open, diagnostics recompute/publish at 10 Hz; while paused (including step/step-back/reset results), diagnostics publish immediately for frame-accurate inspection.
+- Diagnostics render cost is reduced with memoization boundaries on `CanvasDiagnostics` and diagnostics columns, plus memoized diagnostics view-model derivation in `useAppViewModels` keyed to diagnostics publish inputs.
 
 ## Performance Instrumentation
 

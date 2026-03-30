@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { FAR_FIELD_RATIO_GATE } from "../../sim/ejection";
 import { formatDiagnosticValue } from "../../sim/diagnosticFormatting";
 import type {
@@ -18,7 +19,7 @@ type Props = {
   ejectionStatus?: BodyEjectionStatusSnapshot;
 };
 
-export const BodyDiagnosticsColumn = ({ body, bodyIndex, ejectionStatus }: Props) => {
+const BodyDiagnosticsColumnComponent = ({ body, bodyIndex, ejectionStatus }: Props) => {
   const speed = magnitude(body.velocity);
   const parallelAcceleration =
     speed > 1e-9
@@ -92,3 +93,6 @@ export const BodyDiagnosticsColumn = ({ body, bodyIndex, ejectionStatus }: Props
     </div>
   );
 };
+
+export const BodyDiagnosticsColumn = memo(BodyDiagnosticsColumnComponent);
+BodyDiagnosticsColumn.displayName = "BodyDiagnosticsColumn";

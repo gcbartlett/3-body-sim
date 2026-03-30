@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { formatDiagnosticValue } from "../../sim/diagnosticFormatting";
 import { diagnosticsDriftMetrics } from "../../sim/diagnosticsSelectors";
 import type {
@@ -23,7 +24,7 @@ type Props = {
   pairColors: [string, string, string];
 };
 
-export const DiagnosticsSummaryColumn = ({
+const DiagnosticsSummaryColumnComponent = ({
   pairEnergies,
   displayPairState,
   dissolutionCounterSec,
@@ -94,3 +95,6 @@ export const DiagnosticsSummaryColumn = ({
     </div>
   );
 };
+
+export const DiagnosticsSummaryColumn = memo(DiagnosticsSummaryColumnComponent);
+DiagnosticsSummaryColumn.displayName = "DiagnosticsSummaryColumn";
