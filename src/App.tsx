@@ -36,6 +36,7 @@ import { useAppPersistence } from "./ui/useAppPersistence";
 import { useAppRuntimeState } from "./ui/useAppRuntimeState";
 import { useAppUiPreferences } from "./ui/useAppUiPreferences";
 import { useAppViewModels } from "./ui/useAppViewModels";
+import { decideDiagnosticsPublish } from "./ui/diagnosticsPublishPolicy";
 import { useStableCallback } from "./ui/useStableCallback";
 import { IDLE_STEP_ACCELERATION, type StepAccelerationState } from "./ui/stepAcceleration";
 import {
@@ -65,7 +66,15 @@ const HISTORY_DEPTH_INPUT_MIN = 50;
 const HISTORY_DEPTH_INPUT_MAX = 2000;
 const PUBLISH_HZ_DIAGNOSTICS_OPEN = 15;
 const PUBLISH_HZ_DIAGNOSTICS_CLOSED = 10;
+const RUNNING_DIAGNOSTICS_PUBLISH_HZ = 10;
+const RUNNING_DIAGNOSTICS_PUBLISH_INTERVAL_MS = 1000 / RUNNING_DIAGNOSTICS_PUBLISH_HZ;
 const APP_VERSION = __APP_VERSION__;
+
+type PublishedDiagnostics = {
+  world: WorldState;
+  params: SimParams;
+  snapshot: DiagnosticsSnapshot;
+};
 
 function App() {
   const [params, setParams] = useState<SimParams>(loadPersistedParams);
@@ -101,6 +110,11 @@ function App() {
   const [baselineDiagnostics, setBaselineDiagnostics] = useState<DiagnosticsSnapshot>(() =>
     diagnosticsSnapshot(initialWorld().bodies, defaultParams()),
   );
+  const [publishedDiagnostics, setPublishedDiagnostics] = useState<PublishedDiagnostics>(() => ({
+    world,
+    params,
+    snapshot: diagnosticsSnapshot(world.bodies, params),
+  }));
   const runningPublishIntervalMs =
     1000 /
     (canvasDiagnosticsOpen ? PUBLISH_HZ_DIAGNOSTICS_OPEN : PUBLISH_HZ_DIAGNOSTICS_CLOSED);
@@ -119,6 +133,10 @@ function App() {
   const pendingHistoryMetricsRef = useRef<SimulationHistoryMetrics | null>(null);
   const pendingHistoryMetricsCountRef = useRef<number | undefined>(undefined);
   const historyMetricsFlushTimeoutRef = useRef<number | null>(null);
+  const diagnosticsFlushTimeoutRef = useRef<number | null>(null);
+  const nextDiagnosticsPublishAtRef = useRef(0);
+  const pendingDiagnosticsRef = useRef<PublishedDiagnostics | null>(null);
+  const previousDiagnosticsOpenRef = useRef(canvasDiagnosticsOpen);
   const { worldRef, paramsRef, manualPanZoomRef, setManualMode } = useAppRuntimeState({
     world,
     params,
@@ -200,6 +218,87 @@ function App() {
     publishHistoryMetrics(pendingMetrics, pendingCount, now);
   });
 
+  const publishDiagnostics = useStableCallback((
+    next: PublishedDiagnostics,
+    publishTime: number = performance.now(),
+  ) => {
+    nextDiagnosticsPublishAtRef.current = publishTime + RUNNING_DIAGNOSTICS_PUBLISH_INTERVAL_MS;
+    pendingDiagnosticsRef.current = null;
+    if (diagnosticsFlushTimeoutRef.current !== null) {
+      window.clearTimeout(diagnosticsFlushTimeoutRef.current);
+      diagnosticsFlushTimeoutRef.current = null;
+    }
+    perfMonitor.incrementCounter("diagnostics.publish.calls");
+    setPublishedDiagnostics((prev) => {
+      if (
+        prev.world === next.world &&
+        prev.params === next.params &&
+        prev.snapshot === next.snapshot
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  });
+
+  const flushPendingDiagnostics = useStableCallback(() => {
+    diagnosticsFlushTimeoutRef.current = null;
+    const pending = pendingDiagnosticsRef.current;
+    if (!pending) {
+      return;
+    }
+    const now = performance.now();
+    if (now < nextDiagnosticsPublishAtRef.current) {
+      const waitMs = Math.max(0, nextDiagnosticsPublishAtRef.current - now);
+      diagnosticsFlushTimeoutRef.current = window.setTimeout(() => {
+        diagnosticsFlushTimeoutRef.current = null;
+        const delayedPending = pendingDiagnosticsRef.current;
+        if (!delayedPending) {
+          return;
+        }
+        const delayedNow = performance.now();
+        publishDiagnostics(delayedPending, delayedNow);
+      }, waitMs);
+      return;
+    }
+    publishDiagnostics(pending, now);
+  });
+
+  const syncPublishedDiagnostics = useStableCallback((forceImmediate: boolean = false) => {
+    const next: PublishedDiagnostics = {
+      world,
+      params,
+      snapshot: diagnosticsSnapshot(world.bodies, params),
+    };
+    const now = performance.now();
+    const decision = decideDiagnosticsPublish({
+      diagnosticsOpen: canvasDiagnosticsOpen,
+      isRunning: world.isRunning,
+      forceImmediate,
+      now,
+      nextPublishAt: nextDiagnosticsPublishAtRef.current,
+    });
+
+    if (decision.type === "skip") {
+      return;
+    }
+
+    if (decision.type === "publish_now") {
+      if (decision.reason === "paused_or_forced") {
+        perfMonitor.incrementCounter("diagnostics.publish.immediate");
+      }
+      publishDiagnostics(next);
+      return;
+    }
+
+    pendingDiagnosticsRef.current = next;
+    if (diagnosticsFlushTimeoutRef.current !== null) {
+      return;
+    }
+    perfMonitor.incrementCounter("diagnostics.publish.throttled");
+    diagnosticsFlushTimeoutRef.current = window.setTimeout(flushPendingDiagnostics, decision.waitMs);
+  });
+
   const syncHistoryMetrics = useStableCallback((nextCount?: number) => {
     const metrics = getSimulationHistoryMetrics(historyRef.current);
     const count = nextCount ?? metrics.count;
@@ -227,7 +326,29 @@ function App() {
       window.clearTimeout(historyMetricsFlushTimeoutRef.current);
       historyMetricsFlushTimeoutRef.current = null;
     }
+    if (diagnosticsFlushTimeoutRef.current !== null) {
+      window.clearTimeout(diagnosticsFlushTimeoutRef.current);
+      diagnosticsFlushTimeoutRef.current = null;
+    }
   }, []);
+
+  useEffect(() => {
+    const diagnosticsWasOpen = previousDiagnosticsOpenRef.current;
+    const diagnosticsJustOpened = canvasDiagnosticsOpen && !diagnosticsWasOpen;
+    previousDiagnosticsOpenRef.current = canvasDiagnosticsOpen;
+
+    if (!canvasDiagnosticsOpen) {
+      pendingDiagnosticsRef.current = null;
+      if (diagnosticsFlushTimeoutRef.current !== null) {
+        window.clearTimeout(diagnosticsFlushTimeoutRef.current);
+        diagnosticsFlushTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    syncPublishedDiagnostics(diagnosticsJustOpened || !world.isRunning);
+  }, [canvasDiagnosticsOpen, params, syncPublishedDiagnostics, world]);
+
   const onHistoryMaxStepsChange = useStableCallback((nextMaxSteps: number) => {
     setHistoryMaxSteps(historyRef, clampHistoryMaxSteps(nextMaxSteps));
     syncHistoryMetrics();
@@ -420,9 +541,9 @@ function App() {
     setPanelExpanded((prev) => !prev);
   });
 
-  const diagnostics = canvasDiagnosticsOpen
-    ? diagnosticsSnapshot(world.bodies, params)
-    : baselineDiagnostics;
+  const diagnosticsWorld = canvasDiagnosticsOpen ? publishedDiagnostics.world : world;
+  const diagnosticsParams = canvasDiagnosticsOpen ? publishedDiagnostics.params : params;
+  const diagnostics = canvasDiagnosticsOpen ? publishedDiagnostics.snapshot : baselineDiagnostics;
   const accelerationActive = stepAcceleration.active;
   const accelerationBurst = stepAcceleration.active ? stepAcceleration.burst : 1;
   const accelerationDirection = stepAcceleration.active ? stepAcceleration.direction : null;
@@ -435,6 +556,8 @@ function App() {
   } = useAppViewModels({
     world,
     params,
+    diagnosticsWorld,
+    diagnosticsParams,
     panelExpanded,
     lockMode,
     manualPanZoom,

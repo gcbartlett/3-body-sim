@@ -49,6 +49,8 @@ describe("useAppViewModels", () => {
     const result = useAppViewModels({
       world: makeWorld(),
       params: makeParams(),
+      diagnosticsWorld: makeWorld(),
+      diagnosticsParams: makeParams(),
       panelExpanded: true,
       lockMode: "none",
       manualPanZoom: false,
@@ -83,6 +85,8 @@ describe("useAppViewModels", () => {
     const result = useAppViewModels({
       world: makeWorld(),
       params: makeParams(),
+      diagnosticsWorld: makeWorld(),
+      diagnosticsParams: makeParams(),
       panelExpanded: true,
       lockMode: "none",
       manualPanZoom: false,
@@ -114,6 +118,8 @@ describe("useAppViewModels", () => {
     const result = useAppViewModels({
       world: makeWorld(),
       params: makeParams(),
+      diagnosticsWorld: makeWorld(),
+      diagnosticsParams: makeParams(),
       panelExpanded: true,
       lockMode: "none",
       manualPanZoom: false,

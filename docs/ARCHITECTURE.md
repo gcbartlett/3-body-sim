@@ -17,6 +17,7 @@ This document contains the detailed project structure map.
 - History depth configuration lives in the Control Panel simulation-parameters section; the stage controls show live buffer fill and memory estimate.
 - The simulation loop is invalidation-driven while paused: RAF runs continuously only when `world.isRunning`, and paused redraws are requested on demand via `requestRender`.
 - While running, simulation/draw still execute each RAF tick, while React `world` publishes use an adaptive cadence in `useSimulationLoop`: 15 Hz when diagnostics are open and 10 Hz when closed (with immediate publish on run-state transitions such as auto-pause).
+- Diagnostics panel data publishing is two-mode in `App`: while running and open, diagnostics recompute/publish at 10 Hz; while paused (including step/step-back/reset results), diagnostics publish immediately for frame-accurate inspection.
 
 ## Performance Instrumentation
 
@@ -114,6 +115,7 @@ src/                                   # Application source code
     useAppPersistence.ts               # App-level persistence side effects
     useAppUiPreferences.ts             # App UI preference state initialization and setters
     useAppRuntimeState.ts              # App runtime refs + manual-mode sync glue
+    diagnosticsPublishPolicy.ts        # Two-mode diagnostics publish decision helper
     useStableCallback.ts               # Stable-callback helper for memoized child prop identities
     useAppViewModels.ts                # Stage/diagnostics view-model and prop assembly
     useCanvasCameraControls.ts         # Pointer/touch/wheel camera interactions
@@ -156,6 +158,7 @@ tests/                                 # Automated test suites
       stageControls.test.tsx           # Unit tests for stage controls hold acceleration/disabled back state
       uiPrefsStorage.test.ts           # Unit tests for UI preference persistence helpers
       useAppViewModels.test.ts         # Unit tests for app-level stage/diagnostic view-model assembly
+      diagnosticsPublishPolicy.test.ts # Unit tests for diagnostics publish cadence decisions
       useSimulationHotkeys.test.ts     # Unit tests for hotkey dispatch and hold acceleration behavior
       controlPanel/                    # Unit tests for control-panel helpers
         numberInputPrecision.test.ts   # Unit tests for decimal precision parsing/clamping

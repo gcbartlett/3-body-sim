@@ -17,6 +17,8 @@ import { StageHud } from "./stage/StageHud";
 type UseAppViewModelsInput = {
   world: WorldState;
   params: SimParams;
+  diagnosticsWorld: WorldState;
+  diagnosticsParams: SimParams;
   panelExpanded: boolean;
   lockMode: LockMode;
   manualPanZoom: boolean;
@@ -50,6 +52,8 @@ type UseAppViewModelsResult = {
 export const useAppViewModels = ({
   world,
   params,
+  diagnosticsWorld,
+  diagnosticsParams,
   panelExpanded,
   lockMode,
   manualPanZoom,
@@ -73,26 +77,26 @@ export const useAppViewModels = ({
   diagnosticsOpen,
   onDiagnosticsOpenChange,
 }: UseAppViewModelsInput): UseAppViewModelsResult => {
-  const pairEnergies = pairEnergiesForBodies(world.bodies, params);
+  const pairEnergies = pairEnergiesForBodies(diagnosticsWorld.bodies, diagnosticsParams);
   const displayPairState = {
     ...displayPairStateFromEnergies(
       pairEnergies.eps12,
       pairEnergies.eps13,
       pairEnergies.eps23,
-      world.ejectedBodyIds.length > 0,
+      diagnosticsWorld.ejectedBodyIds.length > 0,
       DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
     ),
     eps: DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
   };
   const pairStateLabel = boundPairStateLabel(
     displayPairState,
-    world.dissolutionDetected,
+    diagnosticsWorld.dissolutionDetected,
   );
 
   const diagnosticsViewModel = diagnosticsOpen
     ? stageDiagnosticsViewModelForWorld({
-        world,
-        params,
+        world: diagnosticsWorld,
+        params: diagnosticsParams,
         ejectionThresholdSec: EJECTION_TIME_THRESHOLD_SECONDS,
       })
     : {
@@ -144,9 +148,9 @@ export const useAppViewModels = ({
     diagnosticsProps: {
       pairEnergies: diagnosticsViewModel.pairEnergies,
       displayPairState: diagnosticsViewModel.displayPairState,
-      dissolutionCounterSec: world.dissolutionCounterSec,
+      dissolutionCounterSec: diagnosticsWorld.dissolutionCounterSec,
       dissolutionThresholdSec: DISSOLUTION_TIME_THRESHOLD_SECONDS,
-      dissolutionDetected: world.dissolutionDetected,
+      dissolutionDetected: diagnosticsWorld.dissolutionDetected,
       diagnostics,
       baselineDiagnostics,
       bodyVectors: diagnosticsViewModel.bodyVectors,
