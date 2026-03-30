@@ -22,6 +22,7 @@ type Props = {
   bodyVectors: BodyVectorSnapshot[];
   bodyEjectionStatuses: BodyEjectionStatusSnapshot[];
   onVisibleHeightChange?: (height: number) => void;
+  onOpenChange?: (isOpen: boolean) => void;
 };
 
 export const CanvasDiagnostics = ({
@@ -35,6 +36,7 @@ export const CanvasDiagnostics = ({
   bodyVectors,
   bodyEjectionStatuses,
   onVisibleHeightChange,
+  onOpenChange,
 }: Props) => {
   const [isOpen, setIsOpen] = useState<boolean>(loadCanvasDiagnosticsOpenState);
   const rootRef = useRef<HTMLDetailsElement | null>(null);
@@ -42,6 +44,10 @@ export const CanvasDiagnostics = ({
   useEffect(() => {
     saveCanvasDiagnosticsOpenState(isOpen);
   }, [isOpen]);
+
+  useEffect(() => {
+    onOpenChange?.(isOpen);
+  }, [isOpen, onOpenChange]);
 
   useEffect(() => {
     if (!onVisibleHeightChange) {

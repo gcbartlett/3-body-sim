@@ -1,6 +1,11 @@
 import type { ComponentProps } from "react";
 import { EJECTION_TIME_THRESHOLD_SECONDS } from "../sim/ejection";
-import { stageDiagnosticsViewModelForWorld } from "../sim/diagnosticsSelectors";
+import {
+  DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
+  displayPairStateFromEnergies,
+  pairEnergiesForBodies,
+  stageDiagnosticsViewModelForWorld,
+} from "../sim/diagnosticsSelectors";
 import { DISSOLUTION_TIME_THRESHOLD_SECONDS } from "../sim/simulationPolicies";
 import { effectiveSimulationDt } from "../sim/simulationTick";
 import { boundPairStateLabel, stageViewModelForWorld } from "../sim/stageSelectors";
@@ -32,6 +37,8 @@ type UseAppViewModelsInput = {
   onStepAccelerationChange?: ComponentProps<typeof StageControls>["onStepAccelerationChange"];
   onTogglePanelExpanded: () => void;
   onVisibleHeightChange: (height: number) => void;
+  diagnosticsOpen: boolean;
+  onDiagnosticsOpenChange: (isOpen: boolean) => void;
 };
 
 type UseAppViewModelsResult = {
@@ -63,16 +70,38 @@ export const useAppViewModels = ({
   onStepAccelerationChange,
   onTogglePanelExpanded,
   onVisibleHeightChange,
+  diagnosticsOpen,
+  onDiagnosticsOpenChange,
 }: UseAppViewModelsInput): UseAppViewModelsResult => {
-  const diagnosticsViewModel = stageDiagnosticsViewModelForWorld({
-    world,
-    params,
-    ejectionThresholdSec: EJECTION_TIME_THRESHOLD_SECONDS,
-  });
+  const pairEnergies = pairEnergiesForBodies(world.bodies, params);
+  const displayPairState = {
+    ...displayPairStateFromEnergies(
+      pairEnergies.eps12,
+      pairEnergies.eps13,
+      pairEnergies.eps23,
+      world.ejectedBodyIds.length > 0,
+      DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
+    ),
+    eps: DEFAULT_DISPLAY_PAIR_ENERGY_EPS,
+  };
   const pairStateLabel = boundPairStateLabel(
-    diagnosticsViewModel.displayPairState,
+    displayPairState,
     world.dissolutionDetected,
   );
+
+  const diagnosticsViewModel = diagnosticsOpen
+    ? stageDiagnosticsViewModelForWorld({
+        world,
+        params,
+        ejectionThresholdSec: EJECTION_TIME_THRESHOLD_SECONDS,
+      })
+    : {
+        pairEnergies,
+        displayPairState,
+        bodyVectors: [],
+        bodyEjectionStatuses: [],
+      };
+
   const stageViewModel = stageViewModelForWorld({
     world,
     lockMode,
@@ -123,6 +152,7 @@ export const useAppViewModels = ({
       bodyVectors: diagnosticsViewModel.bodyVectors,
       bodyEjectionStatuses: diagnosticsViewModel.bodyEjectionStatuses,
       onVisibleHeightChange,
+      onOpenChange: onDiagnosticsOpenChange,
     },
   };
 };

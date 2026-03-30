@@ -50,6 +50,7 @@ import {
   type SimulationHistoryMetrics,
 } from "./sim/simulationHistory";
 import { perfMonitor } from "./perf/perfMonitor";
+import { loadCanvasDiagnosticsOpenState } from "./ui/uiPrefsStorage";
 
 const initialCamera: Camera = {
   center: { x: 0, y: 0 },
@@ -91,6 +92,9 @@ function App() {
     setPanelExpanded,
   } = useAppUiPreferences();
   const [diagnosticsInsetPx, setDiagnosticsInsetPx] = useState<number>(0);
+  const [canvasDiagnosticsOpen, setCanvasDiagnosticsOpen] = useState<boolean>(
+    loadCanvasDiagnosticsOpenState,
+  );
   const [baselineDiagnostics, setBaselineDiagnostics] = useState<DiagnosticsSnapshot>(() =>
     diagnosticsSnapshot(initialWorld().bodies, defaultParams()),
   );
@@ -342,7 +346,9 @@ function App() {
     setPanelExpanded((prev) => !prev);
   });
 
-  const diagnostics = diagnosticsSnapshot(world.bodies, params);
+  const diagnostics = canvasDiagnosticsOpen
+    ? diagnosticsSnapshot(world.bodies, params)
+    : baselineDiagnostics;
   const accelerationActive = stepAcceleration.active;
   const accelerationBurst = stepAcceleration.active ? stepAcceleration.burst : 1;
   const accelerationDirection = stepAcceleration.active ? stepAcceleration.direction : null;
@@ -375,6 +381,8 @@ function App() {
     onStepAccelerationChange: setStepAcceleration,
     onTogglePanelExpanded,
     onVisibleHeightChange: onDiagnosticsInsetChange,
+    diagnosticsOpen: canvasDiagnosticsOpen,
+    onDiagnosticsOpenChange: setCanvasDiagnosticsOpen,
   });
   const selectedPresetIbcDirty = selectedUserPresetIbcDirty({
     selectedPresetId,

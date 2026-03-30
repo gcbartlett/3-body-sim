@@ -68,6 +68,8 @@ describe("useAppViewModels", () => {
       historyEstimatedBytes: 12345,
       onTogglePanelExpanded: vi.fn(),
       onVisibleHeightChange: vi.fn(),
+      diagnosticsOpen: true,
+      onDiagnosticsOpenChange: vi.fn(),
     });
 
     expect(result.stageControlsProps.onStepBack).toBe(onStepBack);
@@ -100,9 +102,42 @@ describe("useAppViewModels", () => {
       historyEstimatedBytes: 0,
       onTogglePanelExpanded: vi.fn(),
       onVisibleHeightChange: vi.fn(),
+      diagnosticsOpen: true,
+      onDiagnosticsOpenChange: vi.fn(),
     });
 
     expect(result.stageControlsProps.onStepBack).toBe(onStepBack);
     expect(result.stageControlsProps.canStepBack).toBe(false);
+  });
+
+  it("skips heavy diagnostics vectors when diagnostics panel is closed", () => {
+    const result = useAppViewModels({
+      world: makeWorld(),
+      params: makeParams(),
+      panelExpanded: true,
+      lockMode: "none",
+      manualPanZoom: false,
+      bodyColors: ["#f00", "#0f0", "#00f"],
+      baselineDiagnostics: diagnostics,
+      diagnostics,
+      onStartPause: vi.fn(),
+      onReset: vi.fn(),
+      onStep: vi.fn(),
+      onStepBack: vi.fn(),
+      canStepBack: false,
+      accelerationActive: false,
+      accelerationBurst: 1,
+      accelerationDirection: null,
+      historySnapshotCount: 0,
+      historyMaxSteps: 300,
+      historyEstimatedBytes: 0,
+      onTogglePanelExpanded: vi.fn(),
+      onVisibleHeightChange: vi.fn(),
+      diagnosticsOpen: false,
+      onDiagnosticsOpenChange: vi.fn(),
+    });
+
+    expect(result.diagnosticsProps.bodyVectors).toEqual([]);
+    expect(result.diagnosticsProps.bodyEjectionStatuses).toEqual([]);
   });
 });

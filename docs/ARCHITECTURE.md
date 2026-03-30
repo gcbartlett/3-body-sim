@@ -20,6 +20,7 @@ This document contains the detailed project structure map.
 - Metrics include per-window durations/counters/gauges for RAF, simulation, rendering, history, hover, layout observers, and React Profiler segments.
 - React Profiler hooks are wired at `AppRoot` and key stage/control subtrees for commit timing visibility.
 - Canvas diagnostics content is lazily rendered only while the diagnostics panel is open.
+- Diagnostics open/closed state is surfaced back to `App`; while closed, heavy diagnostics view-model arrays are skipped in `useAppViewModels` to reduce per-frame React-side work.
 
 ## Persistence
 
