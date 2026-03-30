@@ -19,6 +19,7 @@ This document contains the detailed project structure map.
 - Enable with URL `?perf=1` or `localStorage` key `threeBodyPerf=1`.
 - Metrics include per-window durations/counters/gauges for RAF, simulation, rendering, history, hover, layout observers, and React Profiler segments.
 - React Profiler hooks are wired at `AppRoot` and key stage/control subtrees for commit timing visibility.
+- Canvas diagnostics content is lazily rendered only while the diagnostics panel is open.
 
 ## Persistence
 

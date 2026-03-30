@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import type {
   BodyEjectionStatusSnapshot,
   BodyVectorSnapshot,
@@ -71,20 +71,14 @@ export const CanvasDiagnostics = ({
     };
   }, [isOpen, onVisibleHeightChange]);
 
-  const pairColors: [string, string, string] = [
-    bodyVectors[0]?.color ?? "#f7b731",
-    bodyVectors[1]?.color ?? "#60a5fa",
-    bodyVectors[2]?.color ?? "#8bd450",
-  ];
-
-  return (
-    <details
-      ref={rootRef}
-      className="canvas-diagnostics"
-      open={isOpen}
-      onToggle={(e) => setIsOpen(e.currentTarget.open)}
-    >
-      <summary className="collapsible-summary">Diagnostics</summary>
+  let diagnosticsGrid: ReactElement | null = null;
+  if (isOpen) {
+    const pairColors: [string, string, string] = [
+      bodyVectors[0]?.color ?? "#f7b731",
+      bodyVectors[1]?.color ?? "#60a5fa",
+      bodyVectors[2]?.color ?? "#8bd450",
+    ];
+    diagnosticsGrid = (
       <div className="diagnostics-grid">
         <DiagnosticsSummaryColumn
           pairEnergies={pairEnergies}
@@ -105,6 +99,18 @@ export const CanvasDiagnostics = ({
           />
         ))}
       </div>
+    );
+  }
+
+  return (
+    <details
+      ref={rootRef}
+      className="canvas-diagnostics"
+      open={isOpen}
+      onToggle={(e) => setIsOpen(e.currentTarget.open)}
+    >
+      <summary className="collapsible-summary">Diagnostics</summary>
+      {diagnosticsGrid}
     </details>
   );
 };
