@@ -7,7 +7,7 @@ import type { TrailMap, TrailPoint, Viewport } from "./types";
 const MIN_TRAIL_ALPHA = 0.015;
 const TRAIL_DUPLICATE_DISTANCE_PX = 0.25;
 const TRAIL_DOT_RADIUS_PX = 1.5;
-const TRAIL_LINE_WIDTH_PX = 2;
+const TRAIL_LINE_WIDTH_PX = 4;
 const rgbColorCache = new Map<string, string>();
 
 type RenderTrailSample = {

@@ -92,6 +92,7 @@ describe("drawTrailLayer", () => {
     expect(ctx.moveTo).toHaveBeenCalledTimes(1);
     expect(ctx.lineTo).toHaveBeenCalledTimes(1);
     expect(ctx.stroke).toHaveBeenCalledTimes(1);
+    expect(ctx.lineWidth).toBe(4);
   });
 
   it("connects samples across large gaps", () => {

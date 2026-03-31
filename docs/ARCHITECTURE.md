@@ -11,7 +11,7 @@ This document contains the detailed project structure map.
 - Camera behavior supports unlocked tracking, center-of-mass lock, and origin lock, with manual pan/zoom override.
 - Auto-camera reframing uses the same damping policy across lock modes and fast-reframe-triggering transitions (reset/load/lock/manual exit).
 - Diagnostics are optimized for two use cases: low overhead while running and frame-accurate inspection while paused.
-- Trail rendering is optimized for visual continuity and runtime cost while preserving history fidelity for rewind.
+- Trail rendering is optimized for visual continuity/readability and runtime cost while preserving history fidelity for rewind.
 
 ## Performance Monitoring
 
