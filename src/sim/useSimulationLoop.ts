@@ -92,6 +92,11 @@ export const applySimulationFrameResult = ({
   },
   setWorld,
 }: ApplySimulationFrameResultArgs): void => {
+  // Discard results from a frame computed against an outdated world snapshot.
+  if (worldRef.current !== currentWorld) {
+    return;
+  }
+
   if (frameResult.stepsAdvanced > 0) {
     perfMonitor.measure("history.captureAndPush", () => {
       pushSnapshot(

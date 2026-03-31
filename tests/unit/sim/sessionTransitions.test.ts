@@ -424,6 +424,7 @@ describe("runStartPauseTransition", () => {
     const setBaselineDiagnostics = vi.fn();
     const worldRef = { current: makeWorld({ isRunning: false, elapsedTime: 0 }) };
     const paramsRef = { current: makeParams({ dt: 0.25 }) };
+    const lastTimeRef = { current: 1234 };
 
     const setWorld = vi.fn();
 
@@ -431,6 +432,7 @@ describe("runStartPauseTransition", () => {
       {
         worldRef: worldRef as never,
         paramsRef: paramsRef as never,
+        lastTimeRef: lastTimeRef as never,
         setWorld,
         setBaselineDiagnostics,
       },
@@ -443,6 +445,7 @@ describe("runStartPauseTransition", () => {
     expect(worldRef.current).toBe(next);
     expect(computeDiagnostics).toHaveBeenCalledWith(worldRef.current.bodies, paramsRef.current);
     expect(setBaselineDiagnostics).toHaveBeenCalledWith(baseline);
+    expect(lastTimeRef.current).toBeNull();
   });
 
   it("does not set baseline diagnostics when transition baseline is null", () => {
@@ -450,6 +453,7 @@ describe("runStartPauseTransition", () => {
     const setBaselineDiagnostics = vi.fn();
     const worldRef = { current: makeWorld({ isRunning: true }) };
     const paramsRef = { current: makeParams() };
+    const lastTimeRef = { current: 5678 };
 
     const setWorld = vi.fn();
 
@@ -457,6 +461,7 @@ describe("runStartPauseTransition", () => {
       {
         worldRef: worldRef as never,
         paramsRef: paramsRef as never,
+        lastTimeRef: lastTimeRef as never,
         setWorld,
         setBaselineDiagnostics,
       },
@@ -464,6 +469,7 @@ describe("runStartPauseTransition", () => {
     );
 
     expect(setBaselineDiagnostics).not.toHaveBeenCalled();
+    expect(lastTimeRef.current).toBeNull();
   });
 });
 

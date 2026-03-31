@@ -98,6 +98,7 @@ export const useSimulationSession = ({
   const startPauseDeps = {
     worldRef,
     paramsRef,
+    lastTimeRef,
     setWorld,
     setBaselineDiagnostics,
   };

@@ -90,6 +90,7 @@ export const buildStartPauseTransition = (
 export type StartPauseTransitionDeps = {
   worldRef: RefObject<WorldState>;
   paramsRef: RefObject<SimParams>;
+  lastTimeRef: RefObject<number | null>;
   setWorld: Dispatch<SetStateAction<WorldState>>;
   setBaselineDiagnostics: Dispatch<SetStateAction<DiagnosticsSnapshot>>;
 };
@@ -106,6 +107,7 @@ export const runStartPauseTransition = (
   if (transition.baselineDiagnostics) {
     deps.setBaselineDiagnostics(transition.baselineDiagnostics);
   }
+  deps.lastTimeRef.current = null;
   deps.worldRef.current = transition.nextWorld;
   deps.setWorld(transition.nextWorld);
 };

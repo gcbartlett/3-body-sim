@@ -253,6 +253,63 @@ describe("applySimulationFrameResult", () => {
     expect(setWorld).not.toHaveBeenCalled();
     expect(lastWorldPublishTimeRef.current).toBe(100);
   });
+
+  it("ignores stale frame results when worldRef changed during the frame", () => {
+    const currentWorld = makeWorld({ isRunning: true, elapsedTime: 1 });
+    const transitionWorld = makeWorld({ isRunning: false, elapsedTime: 1 });
+    const nextWorld = makeWorld({ isRunning: true, elapsedTime: 2 });
+    const historyRef = {
+      current: createSimulationHistory(50) satisfies SimulationHistory,
+    };
+    const accumulatorRef = { current: 0.2 };
+    const trailsRef = { current: { a: [{ x: 1, y: 2, life: 0.9 }] } };
+    const simStepCounterRef = { current: 8 };
+    const cameraRef = { current: makeCamera() };
+    const forceFastZoomInFramesRef = { current: 6 };
+    const hoverLastUpdateTimeRef = { current: 100 };
+    const worldRef = { current: transitionWorld };
+    const lastWorldPublishTimeRef = { current: 100 };
+    const setWorld = vi.fn();
+
+    applySimulationFrameResult({
+      frameTime: 120,
+      currentWorld,
+      frameResult: {
+        nextWorld,
+        nextAccumulator: 0.7,
+        nextTrails: {},
+        nextSimStepCounter: 12,
+        stepsAdvanced: 3,
+        nextCamera: makeCamera({ worldUnitsPerPixel: 0.02 }),
+        nextForceFastZoomInFrames: 2,
+        nextHoverLastUpdateTime: 200,
+        worldChanged: true,
+      },
+      refs: {
+        accumulatorRef: accumulatorRef as never,
+        trailsRef: trailsRef as never,
+        simStepCounterRef: simStepCounterRef as never,
+        cameraRef: cameraRef as never,
+        forceFastZoomInFramesRef: forceFastZoomInFramesRef as never,
+        hoverLastUpdateTimeRef: hoverLastUpdateTimeRef as never,
+        worldRef: worldRef as never,
+        lastWorldPublishTimeRef: lastWorldPublishTimeRef as never,
+        historyRef: historyRef as never,
+      },
+      setWorld,
+    });
+
+    expect(getHistorySnapshots(historyRef.current)).toEqual([]);
+    expect(accumulatorRef.current).toBe(0.2);
+    expect(trailsRef.current).toEqual({ a: [{ x: 1, y: 2, life: 0.9 }] });
+    expect(simStepCounterRef.current).toBe(8);
+    expect(cameraRef.current).toEqual(makeCamera());
+    expect(forceFastZoomInFramesRef.current).toBe(6);
+    expect(hoverLastUpdateTimeRef.current).toBe(100);
+    expect(worldRef.current).toBe(transitionWorld);
+    expect(setWorld).not.toHaveBeenCalled();
+    expect(lastWorldPublishTimeRef.current).toBe(100);
+  });
 });
 
 describe("shouldScheduleNextTick", () => {
