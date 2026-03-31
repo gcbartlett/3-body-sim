@@ -1,3 +1,4 @@
+// noinspection ES6PreferShortImport
 import type { TrailMap } from "../render/canvasRenderer";
 import { evaluateEjection } from "./ejection";
 import { velocityVerletStep } from "./integrators";

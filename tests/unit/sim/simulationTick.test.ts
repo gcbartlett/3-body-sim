@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BodyState, SimParams, WorldState } from "~/src/sim/types";
+// noinspection ES6PreferShortImport
 import type { TrailMap } from "~/src/render/canvasRenderer";
 
 vi.mock("~/src/sim/integrators", () => ({

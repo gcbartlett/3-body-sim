@@ -1,4 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
+// noinspection ES6PreferShortImport
 import type { TrailMap } from "../render/canvasRenderer";
 import type { SimulationHistory } from "./simulationHistory";
 import { applyDissolutionProgress, diagnosticsSnapshot } from "./simulationPolicies";

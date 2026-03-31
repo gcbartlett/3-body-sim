@@ -1,3 +1,4 @@
+// noinspection ES6PreferShortImport
 import type { TrailMap } from "../render/canvasRenderer";
 import { totalEnergy, totalMomentum } from "./physics";
 import { pairBindingStateForBodies } from "./diagnosticsSelectors";

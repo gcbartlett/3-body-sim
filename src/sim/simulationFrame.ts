@@ -1,3 +1,4 @@
+// noinspection ES6PreferShortImport
 import { drawFrame, fadeAndPruneTrails, type TrailMap } from "../render/canvasRenderer";
 import { computeAutoCamera } from "./cameraPolicy";
 import { centerOfMass } from "./physics";

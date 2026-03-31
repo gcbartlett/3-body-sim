@@ -1,4 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
+// noinspection ES6PreferShortImport
 import { fadeAndPruneTrails, type TrailMap } from "../render/canvasRenderer";
 import { evaluateEjection } from "./ejection";
 import { velocityVerletStep } from "./integrators";
