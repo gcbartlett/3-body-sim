@@ -12,6 +12,10 @@ import {
   shouldToggleOriginMarkerFromHotkey,
   shouldTogglePauseFromHotkey,
 } from "~/src/ui/useSimulationHotkeys";
+import {
+  HOLD_REPEAT_DELAY_MS,
+  repeatBurstForHoldDuration,
+} from "~/src/ui/stepAcceleration";
 
 describe("useSimulationHotkeys predicates", () => {
   it("treats Space and letter toggles as non-repeating hotkeys", () => {
@@ -131,12 +135,20 @@ describe("stepBackBurstForHold", () => {
   it("escalates burst size as hold duration increases", () => {
     expect(stepBackBurstForHold({ repeat: false, holdDurationMs: 0 })).toBe(1);
     expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 100 })).toBe(0);
-    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 500 })).toBe(0);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 500 })).toBe(1);
     expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 1000 })).toBe(1);
     expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 1600 })).toBe(2);
     expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 2600 })).toBe(4);
     expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 3600 })).toBe(8);
     expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 4800 })).toBe(16);
     expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 5800 })).toBe(32);
+  });
+});
+
+describe("repeatBurstForHoldDuration", () => {
+  it("uses HOLD_REPEAT_DELAY_MS as the no-repeat boundary", () => {
+    expect(repeatBurstForHoldDuration(HOLD_REPEAT_DELAY_MS - 1)).toBe(0);
+    expect(repeatBurstForHoldDuration(HOLD_REPEAT_DELAY_MS)).toBe(1);
+    expect(repeatBurstForHoldDuration(HOLD_REPEAT_DELAY_MS + 1)).toBe(1);
   });
 });

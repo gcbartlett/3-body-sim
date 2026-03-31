@@ -6,6 +6,7 @@ import {
   burstCountForPointerHold,
   shouldKeepClickSuppressionAfterStop,
 } from "~/src/ui/stage/StageControls";
+import { HOLD_REPEAT_DELAY_MS } from "~/src/ui/stepAcceleration";
 
 describe("StageControls", () => {
   it("renders Back button disabled when step-back is unavailable", () => {
@@ -81,13 +82,19 @@ describe("StageControls", () => {
 
   it("uses the same burst thresholds for pointer hold acceleration", () => {
     expect(burstCountForPointerHold(100)).toBe(0);
-    expect(burstCountForPointerHold(500)).toBe(0);
+    expect(burstCountForPointerHold(500)).toBe(1);
     expect(burstCountForPointerHold(1000)).toBe(1);
     expect(burstCountForPointerHold(1600)).toBe(2);
     expect(burstCountForPointerHold(2600)).toBe(4);
     expect(burstCountForPointerHold(3600)).toBe(8);
     expect(burstCountForPointerHold(4800)).toBe(16);
     expect(burstCountForPointerHold(5800)).toBe(32);
+  });
+
+  it("uses HOLD_REPEAT_DELAY_MS as the no-repeat boundary for pointer hold", () => {
+    expect(burstCountForPointerHold(HOLD_REPEAT_DELAY_MS - 1)).toBe(0);
+    expect(burstCountForPointerHold(HOLD_REPEAT_DELAY_MS)).toBe(1);
+    expect(burstCountForPointerHold(HOLD_REPEAT_DELAY_MS + 1)).toBe(1);
   });
 
   it("keeps click suppression only for pointer-up stop events", () => {
