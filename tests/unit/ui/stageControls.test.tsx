@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   StageControls,
+  blurStageControlButtonOnPointerUp,
   burstCountForPointerHold,
   shouldKeepClickSuppressionAfterStop,
 } from "~/src/ui/stage/StageControls";
@@ -94,5 +95,15 @@ describe("StageControls", () => {
     expect(shouldKeepClickSuppressionAfterStop("pointer-leave")).toBe(false);
     expect(shouldKeepClickSuppressionAfterStop("pointer-cancel")).toBe(false);
     expect(shouldKeepClickSuppressionAfterStop("cleanup")).toBe(false);
+  });
+
+  it("blurs stage control buttons on pointer up to keep global hotkeys active", () => {
+    const blur = vi.fn();
+
+    blurStageControlButtonOnPointerUp({
+      currentTarget: { blur } as unknown as HTMLButtonElement,
+    });
+
+    expect(blur).toHaveBeenCalledTimes(1);
   });
 });

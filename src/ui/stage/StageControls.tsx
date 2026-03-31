@@ -38,6 +38,12 @@ export const burstCountForPointerHold = (holdDurationMs: number): number =>
 export const shouldKeepClickSuppressionAfterStop = (reason: HoldStopReason): boolean =>
   reason === "pointer-up";
 
+export const blurStageControlButtonOnPointerUp = (
+  event: Pick<PointerEvent<HTMLButtonElement>, "currentTarget">,
+): void => {
+  event.currentTarget.blur();
+};
+
 const formatEstimatedMemory = (bytes: number): string => {
   if (bytes < 1024) {
     return `${bytes} B`;
@@ -245,7 +251,10 @@ const StageControlButtons = memo(function StageControlButtonsComponent({
       <button
         onClick={handleStepBackClick}
         onPointerDown={handlePointerDownBack}
-        onPointerUp={() => stopHold("pointer-up")}
+        onPointerUp={(event) => {
+          stopHold("pointer-up");
+          blurStageControlButtonOnPointerUp(event);
+        }}
         onPointerLeave={() => stopHold("pointer-leave")}
         onPointerCancel={() => stopHold("pointer-cancel")}
         disabled={!canStepBack}
@@ -256,14 +265,21 @@ const StageControlButtons = memo(function StageControlButtonsComponent({
         </span>
         <span className="stage-control-label">BACK</span>
       </button>
-      <button onClick={onStartPause} title={runButtonTooltip}>
+      <button
+        onClick={onStartPause}
+        onPointerUp={blurStageControlButtonOnPointerUp}
+        title={runButtonTooltip}
+      >
         <span className="stage-control-icon">{runIcon}</span>
         <span className="stage-control-label">{runLabel}</span>
       </button>
       <button
         onClick={handleStepClick}
         onPointerDown={handlePointerDownStep}
-        onPointerUp={() => stopHold("pointer-up")}
+        onPointerUp={(event) => {
+          stopHold("pointer-up");
+          blurStageControlButtonOnPointerUp(event);
+        }}
         onPointerLeave={() => stopHold("pointer-leave")}
         onPointerCancel={() => stopHold("pointer-cancel")}
         title={STEP_BUTTON_TOOLTIP}
@@ -273,7 +289,11 @@ const StageControlButtons = memo(function StageControlButtonsComponent({
         </span>
         <span className="stage-control-label">STEP</span>
       </button>
-      <button onClick={onReset} title="Reset to current initial conditions and clear trails.">
+      <button
+        onClick={onReset}
+        onPointerUp={blurStageControlButtonOnPointerUp}
+        title="Reset to current initial conditions and clear trails."
+      >
         <span className="stage-control-icon">
           <ResetIcon />
         </span>
