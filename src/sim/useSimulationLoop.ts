@@ -27,6 +27,7 @@ type UseSimulationLoopArgs = {
     isRunning: boolean;
     lockMode: LockMode;
     manualPanZoom: boolean;
+    topOverlayInsetPx: number;
     showOriginMarker: boolean;
     showGrid: boolean;
     showCenterOfMass: boolean;
@@ -156,6 +157,7 @@ export const useSimulationLoop = ({
     isRunning,
     lockMode,
     manualPanZoom,
+    topOverlayInsetPx,
     showOriginMarker,
     showGrid,
     showCenterOfMass,
@@ -231,6 +233,7 @@ export const useSimulationLoop = ({
         runtime: {
           lockMode,
           manualPanZoom,
+          topOverlayInsetPx,
           showOriginMarker,
           showGrid,
           showCenterOfMass,
@@ -300,6 +303,7 @@ export const useSimulationLoop = ({
     showCenterOfMass,
     showGrid,
     showOriginMarker,
+    topOverlayInsetPx,
     isRunning,
     viewport,
     setWorld,

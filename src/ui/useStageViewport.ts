@@ -10,7 +10,7 @@ type ViewportSize = {
 type UseStageViewportArgs = {
   containerRef: RefObject<HTMLDivElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
-  diagnosticsInsetPx: number;
+  bottomInsetPx?: number;
 };
 
 const MIN_VIEWPORT_WIDTH_PX = 320;
@@ -19,7 +19,7 @@ const MIN_VIEWPORT_HEIGHT_PX = 120;
 export const useStageViewport = ({
   containerRef,
   canvasRef,
-  diagnosticsInsetPx,
+  bottomInsetPx = 0,
 }: UseStageViewportArgs): ViewportSize => {
   const [viewport, setViewport] = useState<ViewportSize>({ width: 900, height: 700 });
 
@@ -33,7 +33,7 @@ export const useStageViewport = ({
       perfMonitor.incrementCounter("layout.stageViewport.rectUpdates");
       const usableHeight = Math.max(
         MIN_VIEWPORT_HEIGHT_PX,
-        Math.floor(rect.height - diagnosticsInsetPx),
+        Math.floor(rect.height - Math.max(0, bottomInsetPx)),
       );
       const nextViewport = {
         width: Math.max(MIN_VIEWPORT_WIDTH_PX, Math.floor(rect.width)),
@@ -55,8 +55,8 @@ export const useStageViewport = ({
     });
     observer.observe(element);
     return () => observer.disconnect();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- containerRef is a stable RefObject input; reactivity is driven by diagnosticsInsetPx.
-  }, [diagnosticsInsetPx]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- containerRef is a stable RefObject input; reactivity is driven by inset values.
+  }, [bottomInsetPx]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

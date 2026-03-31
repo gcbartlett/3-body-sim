@@ -9,7 +9,8 @@ This document contains the detailed project structure map.
 - Session transitions (reset, preset apply, random profile generation) rebuild a consistent stopped world state and baseline diagnostics.
 - History depth is user-configurable and intended for precise frame-by-frame rewind workflows.
 - Camera behavior supports unlocked tracking, center-of-mass lock, and origin lock, with manual pan/zoom override.
-- Auto-camera reframing uses the same damping policy across lock modes and fast-reframe-triggering transitions (reset/load/lock/manual exit).
+- Auto-camera reframing uses the same damping policy across lock modes and fast-reframe-triggering transitions (reset/load/lock/manual exit), while accounting for top overlay occlusion when framing bodies.
+- Stage viewport sizing reserves measured bottom diagnostics inset, while top overlay inset informs camera framing bias.
 - Diagnostics are optimized for two use cases: low overhead while running and frame-accurate inspection while paused.
 - Trail rendering is optimized for visual continuity/readability and runtime cost while preserving history fidelity for rewind.
 
@@ -249,6 +250,7 @@ tests/                                 # Automated test suites
       vector.test.ts                   # Unit tests for vector utility functions
       worldState.test.ts               # Unit tests for stopped-world construction helpers
     ui/                                # Unit tests for UI modules
+      canvasDiagnostics.test.ts        # Unit tests for diagnostics layout inset helpers
       sponsorPage.test.ts              # Unit tests for sponsor window-opening behavior
       stageControls.test.tsx           # Unit tests for stage controls hold acceleration/disabled back state
       uiPrefsStorage.test.ts           # Unit tests for UI preference persistence helpers

@@ -69,6 +69,7 @@ const PUBLISH_HZ_DIAGNOSTICS_CLOSED = 10;
 const RUNNING_DIAGNOSTICS_PUBLISH_HZ = 10;
 const RUNNING_DIAGNOSTICS_PUBLISH_INTERVAL_MS = 1000 / RUNNING_DIAGNOSTICS_PUBLISH_HZ;
 const APP_VERSION = __APP_VERSION__;
+const TOP_OVERLAY_LAYOUT_PADDING_PX = 8;
 
 type PublishedDiagnostics = {
   world: WorldState;
@@ -104,6 +105,7 @@ function App() {
     setPanelExpanded,
   } = useAppUiPreferences();
   const [diagnosticsInsetPx, setDiagnosticsInsetPx] = useState<number>(0);
+  const [topOverlayInsetPx, setTopOverlayInsetPx] = useState<number>(0);
   const [canvasDiagnosticsOpen, setCanvasDiagnosticsOpen] = useState<boolean>(
     loadCanvasDiagnosticsOpenState,
   );
@@ -121,6 +123,7 @@ function App() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const topOverlayContainerRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number | null>(null);
   const accumulatorRef = useRef(0);
@@ -147,7 +150,11 @@ function App() {
     setManualPanZoom,
     onManualModeDisabled: scheduleFastReframe,
   });
-  const viewport = useStageViewport({ containerRef, canvasRef, diagnosticsInsetPx });
+  const viewport = useStageViewport({
+    containerRef,
+    canvasRef,
+    bottomInsetPx: diagnosticsInsetPx,
+  });
   const {
     hoverBody,
     hoverBodyIdRef,
@@ -363,6 +370,10 @@ function App() {
       return changed ? clampedHeight : prev;
     });
   });
+  const onTopOverlayInsetChange = useStableCallback((nextHeight: number) => {
+    const clampedHeight = Math.max(0, nextHeight);
+    setTopOverlayInsetPx((prev) => (prev === clampedHeight ? prev : clampedHeight));
+  });
   const onProfileRender: ProfilerOnRenderCallback = (id, phase, actualDuration, baseDuration) => {
     perfMonitor.recordReactRender(id, actualDuration, baseDuration);
     perfMonitor.incrementCounter(`react.render.${id}.${phase}`);
@@ -431,6 +442,7 @@ function App() {
       isRunning: world.isRunning,
       lockMode,
       manualPanZoom,
+      topOverlayInsetPx,
       showOriginMarker,
       showGrid,
       showCenterOfMass,
@@ -477,6 +489,22 @@ function App() {
       requestRender();
     }
   }, [world, requestRender]);
+
+  useEffect(() => {
+    const element = topOverlayContainerRef.current;
+    if (!element) {
+      onTopOverlayInsetChange(0);
+      return;
+    }
+
+    const emit = () => {
+      onTopOverlayInsetChange(element.getBoundingClientRect().height + TOP_OVERLAY_LAYOUT_PADDING_PX);
+    };
+    emit();
+    const observer = new ResizeObserver(() => emit());
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [onTopOverlayInsetChange]);
 
   const {
     onBodyChange,
@@ -636,19 +664,23 @@ function App() {
         />
       </Profiler>
       <main className="stage-wrap" ref={containerRef}>
-        <Profiler id="StageHud" onRender={onProfileRender}>
-          <StageHud {...stageHudProps} />
-        </Profiler>
-        <Profiler id="StageControls" onRender={onProfileRender}>
-          <StageControls {...stageControlsProps} />
-        </Profiler>
+        <div ref={topOverlayContainerRef} className="stage-top-overlays">
+          <Profiler id="StageHud" onRender={onProfileRender}>
+            <StageHud {...stageHudProps} />
+          </Profiler>
+          <Profiler id="StageControls" onRender={onProfileRender}>
+            <StageControls {...stageControlsProps} />
+          </Profiler>
+        </div>
         <Profiler id="CanvasDiagnostics" onRender={onProfileRender}>
           <CanvasDiagnostics {...diagnosticsProps} />
         </Profiler>
         <canvas
           ref={canvasRef}
           className={`stage${manualPanZoom ? " stage-manual" : ""}`}
-          style={{ height: `calc(100% - ${Math.max(0, diagnosticsInsetPx)}px)` }}
+          style={{
+            height: `calc(100% - ${Math.max(0, diagnosticsInsetPx)}px)`,
+          }}
           onPointerDown={onCanvasPointerDown}
           onPointerMove={onCanvasPointerMove}
           onPointerUp={onCanvasPointerUpOrCancel}

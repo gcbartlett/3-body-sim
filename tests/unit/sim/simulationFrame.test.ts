@@ -82,6 +82,7 @@ describe("runSimulationFrame", () => {
       runtime: {
         lockMode: "none",
         manualPanZoom: false,
+        topOverlayInsetPx: 24,
         showOriginMarker: true,
         showGrid: true,
         showCenterOfMass: true,
@@ -105,7 +106,9 @@ describe("runSimulationFrame", () => {
     expect(advanceRunningWorldStep).toHaveBeenCalledWith(
       expect.objectContaining({ dtReal: 0.5, accumulator: 0.1 }),
     );
-    expect(computeAutoCamera).toHaveBeenCalledTimes(1);
+    expect(computeAutoCamera).toHaveBeenCalledWith(
+      expect.objectContaining({ topInsetPx: 24 }),
+    );
     expect(fadeAndPruneTrails).toHaveBeenCalledWith({}, 0.02);
     expect(drawFrame).toHaveBeenCalledTimes(1);
     expect(onHoverRefresh).toHaveBeenCalledWith("body-1", 5000);
@@ -126,6 +129,7 @@ describe("runSimulationFrame", () => {
       runtime: {
         lockMode: "com",
         manualPanZoom: true,
+        topOverlayInsetPx: 0,
         showOriginMarker: false,
         showGrid: false,
         showCenterOfMass: false,
@@ -163,6 +167,7 @@ describe("runSimulationFrame", () => {
       runtime: {
         lockMode: "none",
         manualPanZoom: false,
+        topOverlayInsetPx: 0,
         showOriginMarker: false,
         showGrid: false,
         showCenterOfMass: false,
@@ -197,6 +202,7 @@ describe("runSimulationFrame", () => {
       runtime: {
         lockMode: "none",
         manualPanZoom: false,
+        topOverlayInsetPx: 0,
         showOriginMarker: false,
         showGrid: false,
         showCenterOfMass: false,
@@ -240,6 +246,7 @@ describe("runSimulationFrame", () => {
       runtime: {
         lockMode: "origin",
         manualPanZoom: true,
+        topOverlayInsetPx: 0,
         showOriginMarker: false,
         showGrid: false,
         showCenterOfMass: false,
@@ -297,6 +304,7 @@ describe("runSimulationFrame", () => {
       runtime: {
         lockMode: "none",
         manualPanZoom: true,
+        topOverlayInsetPx: 0,
         showOriginMarker: true,
         showGrid: false,
         showCenterOfMass: true,

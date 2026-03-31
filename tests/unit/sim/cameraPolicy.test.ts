@@ -29,6 +29,7 @@ describe("computeAutoCamera", () => {
       camera,
       bodies,
       viewport,
+      topInsetPx: 0,
       lockMode: "none",
       forceFastZoomInFrames: 0,
     });
@@ -36,6 +37,7 @@ describe("computeAutoCamera", () => {
       camera,
       bodies,
       viewport,
+      topInsetPx: 0,
       lockMode: "origin",
       forceFastZoomInFrames: 0,
     });
@@ -43,6 +45,7 @@ describe("computeAutoCamera", () => {
       camera,
       bodies,
       viewport,
+      topInsetPx: 0,
       lockMode: "com",
       forceFastZoomInFrames: 0,
     });
@@ -65,6 +68,7 @@ describe("computeAutoCamera", () => {
         { id: "c", mass: 1, x: 0, y: 0 },
       ]),
       viewport: { width: 100, height: 100 },
+      topInsetPx: 0,
       lockMode: "origin",
       forceFastZoomInFrames: 0,
     });
@@ -83,6 +87,7 @@ describe("computeAutoCamera", () => {
         { id: "c", mass: 1, x: 0, y: 0 },
       ]),
       viewport: { width: 100, height: 100 },
+      topInsetPx: 0,
       lockMode: "origin",
       forceFastZoomInFrames: 0,
     });
@@ -99,6 +104,7 @@ describe("computeAutoCamera", () => {
         { id: "c", mass: 1, x: 0, y: 0 },
       ]),
       viewport: { width: 100, height: 100 },
+      topInsetPx: 0,
       lockMode: "origin",
       forceFastZoomInFrames: 2,
     });
@@ -112,6 +118,7 @@ describe("computeAutoCamera", () => {
       camera: { center: { x: 10, y: -10 }, worldUnitsPerPixel: 1 },
       bodies: [],
       viewport: { width: 100, height: 100 },
+      topInsetPx: 0,
       lockMode: "origin" satisfies LockMode,
       forceFastZoomInFrames: 0,
     });
@@ -120,5 +127,51 @@ describe("computeAutoCamera", () => {
     expect(result.camera.center.y).toBeCloseTo(-9, 12);
     expect(result.camera.worldUnitsPerPixel).toBeCloseTo(0.9975025, 12);
     expect(Number.isFinite(result.camera.worldUnitsPerPixel)).toBe(true);
+  });
+
+  it("biases camera center toward visible region below top inset", () => {
+    const result = computeAutoCamera({
+      camera: { center: { x: 0, y: 0 }, worldUnitsPerPixel: 1 },
+      bodies: makeBodies([
+        { id: "a", mass: 1, x: -10, y: -10 },
+        { id: "b", mass: 1, x: 10, y: 10 },
+        { id: "c", mass: 1, x: 0, y: 0 },
+      ]),
+      viewport: { width: 100, height: 100 },
+      topInsetPx: 20,
+      lockMode: "origin",
+      forceFastZoomInFrames: 0,
+    });
+
+    expect(result.camera.center.y).toBeLessThan(0);
+  });
+
+  it("requires more zoom-out when top inset reduces visible height", () => {
+    const noInset = computeAutoCamera({
+      camera: { center: { x: 0, y: 0 }, worldUnitsPerPixel: 1 },
+      bodies: makeBodies([
+        { id: "a", mass: 1, x: 0, y: -40 },
+        { id: "b", mass: 1, x: 0, y: 40 },
+        { id: "c", mass: 1, x: 0, y: 0 },
+      ]),
+      viewport: { width: 100, height: 100 },
+      topInsetPx: 0,
+      lockMode: "origin",
+      forceFastZoomInFrames: 0,
+    });
+    const withInset = computeAutoCamera({
+      camera: { center: { x: 0, y: 0 }, worldUnitsPerPixel: 1 },
+      bodies: makeBodies([
+        { id: "a", mass: 1, x: 0, y: -40 },
+        { id: "b", mass: 1, x: 0, y: 40 },
+        { id: "c", mass: 1, x: 0, y: 0 },
+      ]),
+      viewport: { width: 100, height: 100 },
+      topInsetPx: 30,
+      lockMode: "origin",
+      forceFastZoomInFrames: 0,
+    });
+
+    expect(withInset.camera.worldUnitsPerPixel).toBeGreaterThan(noInset.camera.worldUnitsPerPixel);
   });
 });

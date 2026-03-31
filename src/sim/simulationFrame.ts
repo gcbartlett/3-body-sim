@@ -23,6 +23,7 @@ type SimulationFrameArgs = {
   runtime: {
     lockMode: LockMode;
     manualPanZoom: boolean;
+    topOverlayInsetPx: number;
     showOriginMarker: boolean;
     showGrid: boolean;
     showCenterOfMass: boolean;
@@ -88,6 +89,7 @@ export const runSimulationFrame = ({
         camera: frameState.camera,
         bodies: worldAfterStep.bodies,
         viewport,
+        topInsetPx: runtime.topOverlayInsetPx,
         lockMode: runtime.lockMode,
         forceFastZoomInFrames: frameState.forceFastZoomInFrames,
       });

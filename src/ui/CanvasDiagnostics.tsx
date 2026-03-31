@@ -25,6 +25,11 @@ type Props = {
   onOpenChange?: (isOpen: boolean) => void;
 };
 
+const DIAGNOSTICS_LAYOUT_BOTTOM_PADDING_PX = 10;
+
+export const diagnosticsVisibleHeightForLayout = (elementHeight: number): number =>
+  Math.max(0, elementHeight + DIAGNOSTICS_LAYOUT_BOTTOM_PADDING_PX);
+
 const CanvasDiagnosticsComponent = ({
   pairEnergies,
   displayPairState,
@@ -61,7 +66,7 @@ const CanvasDiagnosticsComponent = ({
 
     const emit = () => {
       const measureStart = performance.now();
-      const h = isOpen ? element.getBoundingClientRect().height + 10 : 0;
+      const h = diagnosticsVisibleHeightForLayout(element.getBoundingClientRect().height);
       perfMonitor.recordDuration("layout.canvasDiagnostics.measure", performance.now() - measureStart);
       onVisibleHeightChange(h);
       perfMonitor.incrementCounter("layout.canvasDiagnostics.emit");

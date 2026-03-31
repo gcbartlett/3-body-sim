@@ -37,46 +37,46 @@ export const StageHud = ({
     accelerationDirection === "backward" ? `-${Math.abs(speed).toFixed(2)}x` : `+${Math.abs(speed).toFixed(2)}x`;
 
   return (
-    <>
-    <div className="canvas-status" title="Simulation status and active camera mode.">
-      <span>{statusLabel}</span>
-      {ejectedStatusRows.length > 0 ? (
-        <span>
-          {" • Ejected: "}
-          {ejectedStatusRows.map((body, index) => (
-            <span key={body.id}>
-              <span className="status-eject-body" style={{ color: body.color }}>
-                {body.label}
-              </span>
-              {index < ejectedStatusRows.length - 1 ? ", " : ""}
-            </span>
-          ))}
-        </span>
-      ) : null}
-    </div>
-    <div className="top-right-tools">
-      <div
-        className="hud"
-        title={
-          `Elapsed simulation time and current simulation rate (dt=${dt.toFixed(4)}).\n` +
-          "Hotkeys: Space start/pause/resume, Right Arrow step, '+' faster, '-' slower,\n" +
-          "L cycle lock mode, G toggle grid, C toggle COM, O toggle origin."
-        }
-      >
-        <div>t = {elapsedTime.toFixed(3)}</div>
-        <div>
-          rate = {showPaused ? "paused" : signedRate}{" "}
-          {!showPaused && accelerationBurst > 1 ? (
-            <span className="hud-accent">x{accelerationBurst}</span>
-          ) : null}
+    <div className="stage-hud-cluster">
+      <div className="top-right-tools">
+        <div
+          className="hud"
+          title={
+            `Elapsed simulation time and current simulation rate (dt=${dt.toFixed(4)}).\n` +
+            "Hotkeys: Space start/pause/resume, Right Arrow step, '+' faster, '-' slower,\n" +
+            "L cycle lock mode, G toggle grid, C toggle COM, O toggle origin."
+          }
+        >
+          <div>t = {elapsedTime.toFixed(3)}</div>
+          <div>
+            rate = {showPaused ? "paused" : signedRate}{" "}
+            {!showPaused && accelerationBurst > 1 ? (
+              <span className="hud-accent">x{accelerationBurst}</span>
+            ) : null}
+          </div>
         </div>
+        <PanelToggleButton
+          panelExpanded={panelExpanded}
+          onTogglePanelExpanded={onTogglePanelExpanded}
+        />
       </div>
-      <PanelToggleButton
-        panelExpanded={panelExpanded}
-        onTogglePanelExpanded={onTogglePanelExpanded}
-      />
+      <div className="canvas-status" title="Simulation status and active camera mode.">
+        <span>{statusLabel}</span>
+        {ejectedStatusRows.length > 0 ? (
+          <span>
+            {" • Ejected: "}
+            {ejectedStatusRows.map((body, index) => (
+              <span key={body.id}>
+                <span className="status-eject-body" style={{ color: body.color }}>
+                  {body.label}
+                </span>
+                {index < ejectedStatusRows.length - 1 ? ", " : ""}
+              </span>
+            ))}
+          </span>
+        ) : null}
+      </div>
     </div>
-    </>
   );
 };
 
