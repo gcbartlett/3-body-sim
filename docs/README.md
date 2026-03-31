@@ -7,7 +7,7 @@
 Interactive 2D Newtonian three-body simulator built with React + TypeScript + Vite.  
 The app renders three gravitating bodies on a canvas with trails, diagnostics, presets, and runtime controls for camera and integration speed.
 
-![Three-Body Simulator screenshot](./3BodySim.png)
+![Three-Body Simulator screenshot](3BodySim.png)
 
 ## Features
 
