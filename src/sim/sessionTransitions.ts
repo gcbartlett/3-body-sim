@@ -97,14 +97,16 @@ export const runStartPauseTransition = (
   deps: StartPauseTransitionDeps,
   computeDiagnostics: DiagnosticsComputer,
 ): void => {
-  deps.setWorld((prev) => {
-    const transition = buildStartPauseTransition(prev, deps.paramsRef.current, computeDiagnostics);
-    if (transition.baselineDiagnostics) {
-      deps.setBaselineDiagnostics(transition.baselineDiagnostics);
-    }
-    deps.worldRef.current = transition.nextWorld;
-    return transition.nextWorld;
-  });
+  const transition = buildStartPauseTransition(
+    deps.worldRef.current,
+    deps.paramsRef.current,
+    computeDiagnostics,
+  );
+  if (transition.baselineDiagnostics) {
+    deps.setBaselineDiagnostics(transition.baselineDiagnostics);
+  }
+  deps.worldRef.current = transition.nextWorld;
+  deps.setWorld(transition.nextWorld);
 };
 
 export const buildSingleStepTransition = (

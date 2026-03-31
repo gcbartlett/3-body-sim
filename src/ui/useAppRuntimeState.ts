@@ -7,13 +7,20 @@ type UseAppRuntimeStateArgs = {
   params: SimParams;
   manualPanZoom: boolean;
   setManualPanZoom: Dispatch<SetStateAction<boolean>>;
+  onManualModeDisabled?: () => void;
 };
+
+export const shouldNotifyManualModeDisabled = (
+  wasEnabled: boolean,
+  nextEnabled: boolean,
+): boolean => wasEnabled && !nextEnabled;
 
 export const useAppRuntimeState = ({
   world,
   params,
   manualPanZoom,
   setManualPanZoom,
+  onManualModeDisabled,
 }: UseAppRuntimeStateArgs) => {
   const worldRef = useRef(world);
   const paramsRef = useRef(params);
@@ -32,9 +39,13 @@ export const useAppRuntimeState = ({
   }, [manualPanZoom]);
 
   const setManualMode = useCallback((enabled: boolean) => {
+    const wasEnabled = manualPanZoomRef.current;
     manualPanZoomRef.current = enabled;
     setManualPanZoom(enabled);
-  }, [setManualPanZoom]);
+    if (shouldNotifyManualModeDisabled(wasEnabled, enabled)) {
+      onManualModeDisabled?.();
+    }
+  }, [onManualModeDisabled, setManualPanZoom]);
 
   return {
     worldRef,

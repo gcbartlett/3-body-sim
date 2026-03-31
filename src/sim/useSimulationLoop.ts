@@ -130,6 +130,16 @@ export const applySimulationFrameResult = ({
   }
 };
 
+export const shouldScheduleNextTick = ({
+  isRunning,
+  manualPanZoom,
+  forceFastZoomInFrames,
+}: {
+  isRunning: boolean;
+  manualPanZoom: boolean;
+  forceFastZoomInFrames: number;
+}): boolean => isRunning || (!manualPanZoom && forceFastZoomInFrames > 0);
+
 type UseSimulationLoopResult = {
   requestRender: () => void;
 };
@@ -257,7 +267,12 @@ export const useSimulationLoop = ({
       perfMonitor.recordDuration("raf.tick.total", performance.now() - frameStart);
       perfMonitor.incrementCounter("raf.tick.calls");
 
-      if (worldRef.current.isRunning) {
+      const shouldContinueWhilePaused = shouldScheduleNextTick({
+        isRunning: worldRef.current.isRunning,
+        manualPanZoom,
+        forceFastZoomInFrames: forceFastZoomInFramesRef.current,
+      });
+      if (shouldContinueWhilePaused) {
         scheduleFrame();
       } else {
         perfMonitor.incrementCounter("raf.tick.idleStops");

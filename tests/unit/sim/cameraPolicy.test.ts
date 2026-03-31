@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { updateCamera } from "~/src/sim/camera";
 import { computeAutoCamera } from "~/src/sim/cameraPolicy";
 import { centerOfMass } from "~/src/sim/physics";
 import type { BodyState, LockMode } from "~/src/sim/types";
@@ -16,7 +15,7 @@ const makeBodies = (
   }));
 
 describe("computeAutoCamera", () => {
-  it('selects center from lock mode: "com", "origin", or tracked center for "none"', () => {
+  it('uses tracked center for "none" and damped center transitions for "com"/"origin"', () => {
     const camera = { center: { x: 5, y: -4 }, worldUnitsPerPixel: 2 };
     const viewport = { width: 100, height: 100 };
     const bodies = makeBodies([
@@ -24,7 +23,6 @@ describe("computeAutoCamera", () => {
       { id: "b", mass: 3, x: 14, y: 6 },
       { id: "c", mass: 2, x: 2, y: -8 },
     ]);
-    const trackedCenter = updateCamera(camera, bodies, viewport).center;
     const com = centerOfMass(bodies);
 
     const noneResult = computeAutoCamera({
@@ -49,9 +47,13 @@ describe("computeAutoCamera", () => {
       forceFastZoomInFrames: 0,
     });
 
-    expect(noneResult.camera.center).toEqual(trackedCenter);
-    expect(originResult.camera.center).toEqual({ x: 0, y: 0 });
-    expect(comResult.camera.center).toEqual(com);
+    expect(noneResult.camera.center.x).toBeCloseTo(4.7, 12);
+    expect(noneResult.camera.center.y).toBeCloseTo(-3.7, 12);
+    expect(originResult.camera.center.x).toBeCloseTo(4.5, 12);
+    expect(originResult.camera.center.y).toBeCloseTo(-3.6, 12);
+    expect(comResult.camera.center.x).toBeCloseTo(5.1, 12);
+    expect(comResult.camera.center.y).toBeCloseTo(-3.566666666667, 12);
+    expect(comResult.camera.center).not.toEqual(com);
   });
 
   it("uses fast zoom-out damping and increases scale when required scale is larger", () => {
@@ -114,7 +116,8 @@ describe("computeAutoCamera", () => {
       forceFastZoomInFrames: 0,
     });
 
-    expect(result.camera.center).toEqual({ x: 0, y: 0 });
+    expect(result.camera.center.x).toBeCloseTo(9, 12);
+    expect(result.camera.center.y).toBeCloseTo(-9, 12);
     expect(result.camera.worldUnitsPerPixel).toBeCloseTo(0.9975025, 12);
     expect(Number.isFinite(result.camera.worldUnitsPerPixel)).toBe(true);
   });

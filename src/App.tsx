@@ -137,11 +137,15 @@ function App() {
   const nextDiagnosticsPublishAtRef = useRef(0);
   const pendingDiagnosticsRef = useRef<PublishedDiagnostics | null>(null);
   const previousDiagnosticsOpenRef = useRef(canvasDiagnosticsOpen);
+  const scheduleFastReframe = () => {
+    forceFastZoomInFramesRef.current = FAST_REFRAME_FRAMES;
+  };
   const { worldRef, paramsRef, manualPanZoomRef, setManualMode } = useAppRuntimeState({
     world,
     params,
     manualPanZoom,
     setManualPanZoom,
+    onManualModeDisabled: scheduleFastReframe,
   });
   const viewport = useStageViewport({ containerRef, canvasRef, diagnosticsInsetPx });
   const {
@@ -157,11 +161,6 @@ function App() {
     cameraRef,
     viewport,
   });
-
-  const scheduleFastReframe = () => {
-    cameraRef.current = { ...initialCamera };
-    forceFastZoomInFramesRef.current = FAST_REFRAME_FRAMES;
-  };
 
   const publishHistoryMetrics = useStableCallback((
     metrics: SimulationHistoryMetrics,
@@ -406,6 +405,7 @@ function App() {
 
   const onLockModeChange = (mode: LockMode) => {
     setManualMode(false);
+    scheduleFastReframe();
     setLockMode(mode);
   };
 
@@ -476,7 +476,7 @@ function App() {
     if (!world.isRunning) {
       requestRender();
     }
-  }, [world.isRunning, requestRender]);
+  }, [world, requestRender]);
 
   const {
     onBodyChange,

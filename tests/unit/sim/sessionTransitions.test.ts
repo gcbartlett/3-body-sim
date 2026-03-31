@@ -418,17 +418,14 @@ describe("buildStartPauseTransition", () => {
 });
 
 describe("runStartPauseTransition", () => {
-  it("uses a functional setWorld updater, returns next world, and syncs refs/diagnostics when present", () => {
+  it("uses worldRef as transition source and syncs refs/diagnostics when present", () => {
     const baseline = { energy: 7, momentum: { x: 2, y: -1 } };
     const computeDiagnostics = vi.fn(() => baseline);
     const setBaselineDiagnostics = vi.fn();
-    const worldRef = { current: makeWorld({ isRunning: true }) };
+    const worldRef = { current: makeWorld({ isRunning: false, elapsedTime: 0 }) };
     const paramsRef = { current: makeParams({ dt: 0.25 }) };
 
-    let updater: ((prev: WorldState) => WorldState) | null = null;
-    const setWorld = vi.fn((next: ((prev: WorldState) => WorldState) | WorldState) => {
-      if (typeof next === "function") updater = next;
-    });
+    const setWorld = vi.fn();
 
     runStartPauseTransition(
       {
@@ -441,14 +438,10 @@ describe("runStartPauseTransition", () => {
     );
 
     expect(setWorld).toHaveBeenCalledTimes(1);
-    expect(typeof setWorld.mock.calls[0][0]).toBe("function");
-
-    const prev = makeWorld({ isRunning: false, elapsedTime: 0 });
-    const next = updater!(prev);
-
+    const next = setWorld.mock.calls[0][0] as WorldState;
     expect(next.isRunning).toBe(true);
     expect(worldRef.current).toBe(next);
-    expect(computeDiagnostics).toHaveBeenCalledWith(prev.bodies, paramsRef.current);
+    expect(computeDiagnostics).toHaveBeenCalledWith(worldRef.current.bodies, paramsRef.current);
     expect(setBaselineDiagnostics).toHaveBeenCalledWith(baseline);
   });
 
@@ -458,10 +451,7 @@ describe("runStartPauseTransition", () => {
     const worldRef = { current: makeWorld({ isRunning: true }) };
     const paramsRef = { current: makeParams() };
 
-    let updater: ((prev: WorldState) => WorldState) | null = null;
-    const setWorld = vi.fn((next: ((prev: WorldState) => WorldState) | WorldState) => {
-      if (typeof next === "function") updater = next;
-    });
+    const setWorld = vi.fn();
 
     runStartPauseTransition(
       {
@@ -472,8 +462,6 @@ describe("runStartPauseTransition", () => {
       },
       computeDiagnostics,
     );
-
-    updater!(makeWorld({ isRunning: false, elapsedTime: 2 }));
 
     expect(setBaselineDiagnostics).not.toHaveBeenCalled();
   });

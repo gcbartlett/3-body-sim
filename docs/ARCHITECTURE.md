@@ -4,31 +4,107 @@ This document contains the detailed project structure map.
 
 ## Simulation Notes
 
-- Physics is Newtonian point-mass gravity with softening `epsilon` to avoid singular acceleration at close approach.
-- Integrator is Velocity Verlet (`src/sim/integrators.ts`).
-- Ejection logic requires sustained strong-escape conditions before flagging a body as ejected.
-- Dissolution is detected when no pair remains bound long enough, then the simulation pauses.
-- Rewind is snapshot-backed: each simulation step can be restored from history with a configurable buffer depth.
-- History metrics (`count`, `estimatedBytes`) are maintained incrementally in `simulationHistory` so UI metric sync does not rescan the full snapshot array each update.
-- Incremental history metrics remain exact across push/pop/trim flows, including reporting `0` bytes when no snapshots are retained.
-- History snapshots are still captured every step for precise frame-by-frame rewind, while React-published history metrics use an adaptive cadence in `App`: 15 Hz when diagnostics are open and 10 Hz when closed.
-- Snapshot storage uses a ring-buffer strategy in `simulationHistory` to avoid per-step `Array.shift()` churn when history is at capacity.
-- Step forward/back supports hold acceleration from both keyboard hotkeys and pointer press-and-hold.
-- History depth configuration lives in the Control Panel simulation-parameters section; the stage controls show live buffer fill and memory estimate.
-- The simulation loop is invalidation-driven while paused: RAF runs continuously only when `world.isRunning`, and paused redraws are requested on demand via `requestRender`.
-- While running, simulation/draw still execute each RAF tick, while React `world` publishes use an adaptive cadence in `useSimulationLoop`: 15 Hz when diagnostics are open and 10 Hz when closed (with immediate publish on run-state transitions such as auto-pause).
-- Diagnostics panel data publishing is two-mode in `App`: while running and open, diagnostics recompute/publish at 10 Hz; while paused (including step/step-back/reset results), diagnostics publish immediately for frame-accurate inspection.
-- Diagnostics render cost is reduced with memoization boundaries on `CanvasDiagnostics` and diagnostics columns, plus memoized diagnostics view-model derivation in `useAppViewModels` keyed to diagnostics publish inputs.
-- Trail rendering now deduplicates near-coincident live draw samples and connects samples with line segments in `trailLayer`; this is a render-only optimization and does not alter snapshot history fidelity for step-back.
+- The simulation models point-mass Newtonian gravity with a softened force law for numerical stability at close approaches.
+- World progression is deterministic per step and supports run, pause, single-step forward, and snapshot-based step-back.
+- Session transitions (reset, preset apply, random profile generation) rebuild a consistent stopped world state and baseline diagnostics.
+- History depth is user-configurable and intended for precise frame-by-frame rewind workflows.
+- Camera behavior supports unlocked tracking, center-of-mass lock, and origin lock, with manual pan/zoom override.
+- Auto-camera reframing uses the same damping policy across lock modes and fast-reframe-triggering transitions (reset/load/lock/manual exit).
+- Diagnostics are optimized for two use cases: low overhead while running and frame-accurate inspection while paused.
+- Trail rendering is optimized for visual continuity and runtime cost while preserving history fidelity for rewind.
 
-## Performance Instrumentation
+## Performance Monitoring
 
-- Optional runtime performance logging is implemented in `src/perf/perfMonitor.ts`.
-- Enable with URL `?perf=1` or `localStorage` key `threeBodyPerf=1`.
-- Metrics include per-window durations/counters/gauges for RAF, simulation, rendering, history, hover, layout observers, and React Profiler segments.
-- React Profiler hooks are wired at `AppRoot` and key stage/control subtrees for commit timing visibility.
-- Canvas diagnostics content is lazily rendered only while the diagnostics panel is open.
-- Diagnostics open/closed state is surfaced back to `App`; while closed, heavy diagnostics view-model arrays are skipped in `useAppViewModels` to reduce per-frame React-side work.
+Performance monitoring is optional and prints summarized metrics to the browser console in periodic windows.
+
+### How to enable
+
+- URL flag: add `?perf=1` (disable with `?perf=0`).
+- Local storage flag: `localStorage.setItem("threeBodyPerf", "1")` (disable with `"0"`).
+- Query flag takes precedence over local storage when both are present.
+
+### What gets reported
+
+- Duration segments (timing distributions): `count`, `avgMs`, `p95Ms`, `p99Ms`, `maxMs`.
+- Counters (event throughput): total `count` and derived `perSecond`.
+- Gauges (latest sampled value): current numeric state at flush time.
+- React render profiling: per-component render durations and commit counts.
+- JS heap gauges (when browser APIs are available): used heap, heap limit, and used/limit ratio.
+
+### Current metric families
+
+- RAF and frame lifecycle
+- Simulation stepping and camera updates
+- Canvas render phases (including trails/history paths)
+- React publish cadence and throttling
+- Diagnostics and history publication behavior
+- Pointer/hover/layout observer activity
+- React component render commits and timings
+
+### Metric catalog
+
+| Metric name | Type | Description / what it is useful for tracking |
+| --- | --- | --- |
+| `diagnostics.publish.calls` | Counter | Number of diagnostics publishes; use to verify active diagnostics publish cadence. |
+| `diagnostics.publish.immediate` | Counter | Immediate (non-throttled) diagnostics publishes; useful for paused/forced publish validation. |
+| `diagnostics.publish.throttled` | Counter | Deferred diagnostics publishes; useful for confirming throttling pressure while running. |
+| `history.captureAndPush` | Duration | Time to capture and push history snapshot in-loop; tracks rewind-history overhead in frame budget. |
+| `history.captureSnapshot` | Duration | Snapshot capture cost; useful for assessing per-step snapshot serialization overhead. |
+| `history.cloneTrailMap` | Duration | Trail-map clone cost during snapshot creation; useful for trail-history overhead. |
+| `history.cloneTrailMap.points` | Gauge | Number of trail points cloned; useful for correlating clone cost with trail size. |
+| `history.metrics.compute` | Duration | Time to compute history metrics object; tracks history-metrics calculation overhead. |
+| `history.metrics.publish.calls` | Counter | History metrics publishes that changed state; useful for effective UI update rate. |
+| `history.metrics.publish.skipped` | Counter | History metrics publishes skipped due to no state change; useful for duplicate-update suppression. |
+| `history.metrics.publish.throttled` | Counter | History metrics publishes deferred by cadence control; useful for throttling behavior. |
+| `history.onHistoryChanged.calls` | Counter | Number of history-changed notifications emitted; useful for event fan-out visibility. |
+| `history.pushSnapshot.calls` | Counter | Number of snapshot pushes attempted; tracks rewind buffer write frequency. |
+| `history.pushSnapshot.shifted` | Counter | Number of history pushes that evicted oldest snapshot; useful for capacity pressure. |
+| `history.snapshot.count` | Gauge | Current snapshot count in history buffer; useful for rewind depth occupancy. |
+| `hover.computeAccelerations` | Duration | Time to compute per-body accelerations for hover diagnostics; tracks hover detail cost. |
+| `hover.computeAccelerations.calls` | Counter | Number of acceleration computations; useful for hover diagnostics activity level. |
+| `hover.refresh` | Duration | Duration of periodic hover refresh in frame loop; tracks recurring tooltip refresh cost. |
+| `hover.refresh.calls` | Counter | Number of periodic hover refreshes in frame loop; useful for refresh cadence checks. |
+| `hover.refreshById.success` | Counter | Successful hover refresh-by-id updates; useful for tooltip refresh reliability. |
+| `hover.refreshById.total` | Duration | End-to-end refresh-by-id handling time; tracks hover refresh callback latency. |
+| `hover.update.success` | Counter | Successful hover updates from pointer interactions; useful for hover hit/flow validation. |
+| `hover.update.total` | Duration | End-to-end hover update processing time; tracks pointer-hover processing overhead. |
+| `js.heap.limit` | Gauge | JavaScript heap limit (if available); useful as context for memory headroom. |
+| `js.heap.used` | Gauge | JavaScript heap usage (if available); useful for memory growth/churn monitoring. |
+| `js.heap.usedRatio` | Gauge | Heap usage ratio (`used/limit`); useful for relative memory pressure tracking. |
+| `layout.canvasDiagnostics.emit` | Counter | Number of diagnostics panel height emissions; useful for layout communication frequency. |
+| `layout.canvasDiagnostics.measure` | Duration | Time to measure diagnostics panel height; tracks diagnostics layout read cost. |
+| `layout.canvasDiagnostics.resizeObserver.callback` | Counter | ResizeObserver callbacks for diagnostics panel; useful for resize activity visibility. |
+| `layout.diagnosticsInset.changed` | Counter | Diagnostics inset updates that changed state; useful for real layout-shift count. |
+| `layout.diagnosticsInset.unchanged` | Counter | Diagnostics inset updates that were no-ops; useful for redundant update detection. |
+| `layout.diagnosticsInset.value` | Gauge | Current diagnostics inset height; useful for stage usable-area context. |
+| `layout.stageViewport.changed` | Counter | Stage viewport dimension updates that changed state; useful for real viewport change count. |
+| `layout.stageViewport.rectUpdates` | Counter | Raw viewport rect reads/updates processed; useful for resize processing frequency. |
+| `layout.stageViewport.resizeObserver.callback` | Counter | ResizeObserver callbacks for stage viewport; useful for container resize activity. |
+| `layout.stageViewport.unchanged` | Counter | Viewport updates that were no-ops; useful for redundant layout event noise. |
+| `pointer.move.events` | Counter | Pointer move events seen by canvas controls; useful for input intensity and sampling rate. |
+| `pointer.move.rectReads` | Counter | Bounding-rect reads during pointer move handling; useful for DOM read pressure. |
+| `pointer.wheel.events` | Counter | Wheel events processed; useful for zoom interaction volume. |
+| `raf.requestRender.calls` | Counter | Explicit paused/invalidation render requests; useful for redraw trigger volume while idle. |
+| `raf.skip.noCanvas` | Counter | RAF ticks skipped due to missing canvas element; useful for lifecycle/setup diagnostics. |
+| `raf.skip.noContext` | Counter | RAF ticks skipped due to missing 2D context; useful for canvas context availability issues. |
+| `raf.tick.calls` | Counter | Total RAF ticks processed; useful for effective frame loop activity rate. |
+| `raf.tick.idleStops` | Counter | Number of times RAF loop stopped in idle mode; useful for paused loop stop behavior. |
+| `raf.tick.total` | Duration | End-to-end RAF tick duration; primary per-frame CPU budget metric. |
+| `react.render.{id}.actual` | Duration | React Profiler actual render duration for component/profile id; useful for real render work. |
+| `react.render.{id}.base` | Duration | React Profiler base duration for component/profile id; useful for memoization/reference cost baseline. |
+| `react.render.{id}.commits` | Counter | React commit count for component/profile id; useful for render frequency by subtree. |
+| `react.render.{id}.{phase}` | Counter | React phase count (`mount`/`update`) by profile id; useful for mount/update mix analysis. |
+| `react.worldPublish.calls` | Counter | React world publishes performed; useful for state publish cadence verification. |
+| `react.worldPublish.throttled` | Counter | World publishes skipped/deferred by cadence; useful for throttling effectiveness. |
+| `render.drawFrame` | Duration | Canvas draw orchestration time per frame; tracks rendering share of frame cost. |
+| `render.trail.points.deduped` | Gauge | Number of trail points removed by dedupe in current window; useful for trail optimization effect. |
+| `render.trail.points.dedupePct` | Gauge | Percent of renderable trail points deduped; useful for tuning dedupe threshold/zoom behavior. |
+| `render.trail.points.nonConsecutiveNearOverlapEstimate` | Gauge | Approximate non-consecutive near-overlap count in trails; useful for spotting overlap-heavy paths. |
+| `render.trail.points.renderable` | Gauge | Renderable trail point count before dedupe; useful for trail rendering workload size. |
+| `sim.camera` | Duration | Camera policy/update computation time; useful for camera overhead tracking. |
+| `sim.step` | Duration | Simulation stepping computation time; primary physics/update cost metric. |
+| `sim.stepsAdvanced` | Gauge | Number of simulation steps advanced in frame; useful for backlog and rate behavior. |
+| `sim.trails.fadePrune` | Duration | Time to fade/prune trail data; useful for trail maintenance overhead tracking. |
 
 ## Persistence
 
@@ -39,6 +115,22 @@ The app stores UI and user data in browser `localStorage`, including:
 - Panel expanded/collapsed state
 - Control section open states
 - Diagnostics panel open state
+
+### Persistence data catalog
+
+| Storage key | Value shape | Description / what it is useful for |
+| --- | --- | --- |
+| `three-body-sim.params.v1` | JSON object (`SimParams`) | Persisted simulation parameters (`G`, `dt`, `speed`, `softening`, `trailFade`) so sessions reopen with the same runtime tuning. |
+| `three-body-sim.user-presets.v1` | JSON array (`PresetProfile[]`) | User-defined preset library (id/name/description + bodies + params); preserves custom scenarios between visits. |
+| `three-body-sim.ui.panel-expanded.v1` | `"1"` or `"0"` | Control panel expanded/collapsed preference; keeps preferred workspace layout. |
+| `three-body-sim.ui.lock-mode.v1` | `"none"` / `"com"` / `"origin"` | Camera lock-mode preference; restores expected camera behavior on load. |
+| `three-body-sim.ui.show-origin-marker.v1` | `"1"` or `"0"` | Origin marker visibility preference; keeps overlay display consistent across sessions. |
+| `three-body-sim.ui.show-grid.v1` | `"1"` or `"0"` | Grid visibility preference; preserves stage visual context preference. |
+| `three-body-sim.ui.show-center-of-mass.v1` | `"1"` or `"0"` | Center-of-mass marker visibility preference; preserves diagnostics overlay preference. |
+| `three-body-sim.ui.sections.v1` | JSON object (`SectionOpenState`) | Control-panel section open/closed state (`presetsOpen`, `simParamsOpen`, `bodyConfigOpen`) to preserve editing workflow state. |
+| `three-body-sim.ui.canvas-diagnostics.v1` | `"1"` or `"0"` | Canvas diagnostics panel open/closed state; restores diagnostics visibility preference. |
+| `three-body-sim.ui.app-liked.v1` | `"1"` or `"0"` | App-like/thumb state (if used by UI flow); preserves user sentiment/action state. |
+| `threeBodyPerf` | `"1"` or `"0"` | Perf-monitor enable flag used by runtime diagnostics logging; useful for persistent local profiling without query params. |
 
 ## Project Structure
 
@@ -160,6 +252,7 @@ tests/                                 # Automated test suites
       sponsorPage.test.ts              # Unit tests for sponsor window-opening behavior
       stageControls.test.tsx           # Unit tests for stage controls hold acceleration/disabled back state
       uiPrefsStorage.test.ts           # Unit tests for UI preference persistence helpers
+      useAppRuntimeState.test.ts       # Unit tests for manual-mode transition callback semantics
       useAppViewModels.test.ts         # Unit tests for app-level stage/diagnostic view-model assembly
       diagnosticsPublishPolicy.test.ts # Unit tests for diagnostics publish cadence decisions
       useSimulationHotkeys.test.ts     # Unit tests for hotkey dispatch and hold acceleration behavior

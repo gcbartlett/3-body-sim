@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { applySimulationFrameResult } from "~/src/sim/useSimulationLoop";
+import { applySimulationFrameResult, shouldScheduleNextTick } from "~/src/sim/useSimulationLoop";
 import type { Camera } from "~/src/sim/camera";
 import { createSimulationHistory, getHistorySnapshots, type SimulationHistory } from "~/src/sim/simulationHistory";
 import type { WorldState } from "~/src/sim/types";
@@ -252,5 +252,54 @@ describe("applySimulationFrameResult", () => {
     expect(worldRef.current).toBe(nextWorld);
     expect(setWorld).not.toHaveBeenCalled();
     expect(lastWorldPublishTimeRef.current).toBe(100);
+  });
+});
+
+describe("shouldScheduleNextTick", () => {
+  it("continues while running regardless of paused reframe state", () => {
+    expect(
+      shouldScheduleNextTick({
+        isRunning: true,
+        manualPanZoom: false,
+        forceFastZoomInFrames: 0,
+      }),
+    ).toBe(true);
+    expect(
+      shouldScheduleNextTick({
+        isRunning: true,
+        manualPanZoom: true,
+        forceFastZoomInFrames: 0,
+      }),
+    ).toBe(true);
+  });
+
+  it("continues while paused during fast reframe when manual mode is off", () => {
+    expect(
+      shouldScheduleNextTick({
+        isRunning: false,
+        manualPanZoom: false,
+        forceFastZoomInFrames: 5,
+      }),
+    ).toBe(true);
+  });
+
+  it("stops while paused when no fast reframe frames remain", () => {
+    expect(
+      shouldScheduleNextTick({
+        isRunning: false,
+        manualPanZoom: false,
+        forceFastZoomInFrames: 0,
+      }),
+    ).toBe(false);
+  });
+
+  it("stops while paused in manual mode even if fast reframe budget exists", () => {
+    expect(
+      shouldScheduleNextTick({
+        isRunning: false,
+        manualPanZoom: true,
+        forceFastZoomInFrames: 10,
+      }),
+    ).toBe(false);
   });
 });
