@@ -130,12 +130,13 @@ describe("dispatchSimulationHotkeyAction", () => {
 describe("stepBackBurstForHold", () => {
   it("escalates burst size as hold duration increases", () => {
     expect(stepBackBurstForHold({ repeat: false, holdDurationMs: 0 })).toBe(1);
-    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 100 })).toBe(1);
-    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 500 })).toBe(1);
-    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 1200 })).toBe(2);
-    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 2000 })).toBe(4);
-    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 3000 })).toBe(8);
-    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 4200 })).toBe(16);
-    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 5200 })).toBe(32);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 100 })).toBe(0);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 500 })).toBe(0);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 1000 })).toBe(1);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 1600 })).toBe(2);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 2600 })).toBe(4);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 3600 })).toBe(8);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 4800 })).toBe(16);
+    expect(stepBackBurstForHold({ repeat: true, holdDurationMs: 5800 })).toBe(32);
   });
 });

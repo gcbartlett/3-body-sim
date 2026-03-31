@@ -79,13 +79,14 @@ describe("StageControls", () => {
   });
 
   it("uses the same burst thresholds for pointer hold acceleration", () => {
-    expect(burstCountForPointerHold(100)).toBe(1);
-    expect(burstCountForPointerHold(500)).toBe(1);
-    expect(burstCountForPointerHold(1200)).toBe(2);
-    expect(burstCountForPointerHold(2000)).toBe(4);
-    expect(burstCountForPointerHold(3000)).toBe(8);
-    expect(burstCountForPointerHold(4200)).toBe(16);
-    expect(burstCountForPointerHold(5200)).toBe(32);
+    expect(burstCountForPointerHold(100)).toBe(0);
+    expect(burstCountForPointerHold(500)).toBe(0);
+    expect(burstCountForPointerHold(1000)).toBe(1);
+    expect(burstCountForPointerHold(1600)).toBe(2);
+    expect(burstCountForPointerHold(2600)).toBe(4);
+    expect(burstCountForPointerHold(3600)).toBe(8);
+    expect(burstCountForPointerHold(4800)).toBe(16);
+    expect(burstCountForPointerHold(5800)).toBe(32);
   });
 
   it("keeps click suppression only for pointer-up stop events", () => {

@@ -52,8 +52,8 @@ This helps monitor behavior and identify regressions after releases.
 ### Runtime and demo options
 
 This app runs entirely in the browser with no server/backend component, so local development (`npm run dev`) is the primary way to run it.
-For a live demo, you can also use the Vercel deployment at `https://3-body-sim.vercel.app/`, subject to project usage limits.
-Vercel automatically rebuilds and redeploys when the GitHub repository (`https://github.com/gcbartlett/3-body-sim`) is updated, so the live demo stays on the latest version.
+For a live demo, you can also use the Vercel deployment at https://3-body-sim.vercel.app/, subject to project usage limits.
+Vercel automatically rebuilds and redeploys when the GitHub repository (https://github.com/gcbartlett/3-body-sim) is updated, so the live demo stays on the latest version.
 
 ### Prerequisites
 

@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, type PointerEvent } from "react";
 import {
   HOLD_ACCELERATION_TICK_MS,
   IDLE_STEP_ACCELERATION,
-  burstCountForHoldDuration,
+  repeatBurstForHoldDuration,
   type StepAccelerationDirection,
   type StepAccelerationState,
 } from "../stepAcceleration";
@@ -33,7 +33,7 @@ const STEP_BUTTON_TOOLTIP =
   "Move simulation forward by one frame.\n" + "Hold to accelerate.\n" + "Hotkey: Right Arrow.";
 
 export const burstCountForPointerHold = (holdDurationMs: number): number =>
-  burstCountForHoldDuration(holdDurationMs);
+  repeatBurstForHoldDuration(holdDurationMs);
 
 export const shouldKeepClickSuppressionAfterStop = (reason: HoldStopReason): boolean =>
   reason === "pointer-up";
@@ -193,11 +193,15 @@ const StageControlButtons = memo(function StageControlButtonsComponent({
         return;
       }
       const holdDurationMs = Math.max(0, performance.now() - holdStartedAtRef.current);
-      runBurstAction(activeAction, burstCountForPointerHold(holdDurationMs));
+      const burst = burstCountForPointerHold(holdDurationMs);
+      if (burst === 0) {
+        return;
+      }
+      runBurstAction(activeAction, burst);
       onStepAccelerationChange?.({
         source: "pointer",
         direction,
-        burst: burstCountForPointerHold(holdDurationMs),
+        burst,
         active: true,
       });
     }, HOLD_ACCELERATION_TICK_MS);

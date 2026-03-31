@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useRef } from "react";
 import {
   HOLD_ACCELERATION_TICK_MS,
   IDLE_STEP_ACCELERATION,
-  burstCountForHoldDuration,
+  repeatBurstForHoldDuration,
   type StepAccelerationDirection,
   type StepAccelerationState,
 } from "./stepAcceleration";
@@ -77,7 +77,7 @@ export const stepBackBurstForHold = ({ repeat, holdDurationMs }: StepBackBurstIn
   if (!repeat) {
     return 1;
   }
-  return burstCountForHoldDuration(holdDurationMs);
+  return repeatBurstForHoldDuration(holdDurationMs);
 };
 
 type DispatchSimulationHotkeyOptions = {
@@ -213,7 +213,10 @@ export const useSimulationHotkeys = ({
         return;
       }
       const holdDurationMs = Math.max(0, performance.now() - holdStartedAtRef.current);
-      const burst = burstCountForHoldDuration(holdDurationMs);
+      const burst = repeatBurstForHoldDuration(holdDurationMs);
+      if (burst === 0) {
+        return;
+      }
       runBurstStep(direction, burst);
       emitAcceleration({
         source: "keyboard",

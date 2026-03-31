@@ -15,6 +15,7 @@ export const IDLE_STEP_ACCELERATION: StepAccelerationState = {
 };
 
 export const HOLD_ACCELERATION_TICK_MS = 120;
+export const HOLD_REPEAT_DELAY_MS = 1000;
 
 export const burstCountForHoldDuration = (holdDurationMs: number): number => {
   if (holdDurationMs < 600) {
@@ -33,4 +34,12 @@ export const burstCountForHoldDuration = (holdDurationMs: number): number => {
     return 16;
   }
   return 32;
+};
+
+export const repeatBurstForHoldDuration = (holdDurationMs: number): number => {
+  const acceleratedHoldDurationMs = holdDurationMs - HOLD_REPEAT_DELAY_MS;
+  if (acceleratedHoldDurationMs < 0) {
+    return 0;
+  }
+  return burstCountForHoldDuration(acceleratedHoldDurationMs);
 };
