@@ -83,6 +83,8 @@ npm install
 Unit tests live under `tests/unit/`, mirroring feature areas from `src/` when practical.
 Tests may import app modules via the `~` alias (for example `~/src/sim/physics`), which resolves from the repository root.
 
+Playwright E2E rollout planning and recommended initial scenarios are documented in `docs/PLAYWRIGHT_TEST_PLAN.md`.
+
 ## Controls
 
 ### Simulation
