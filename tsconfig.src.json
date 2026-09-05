@@ -11,8 +11,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
 
-    // Resolution and file-model options shared by extending configs.
-    "baseUrl": ".",
+    // File-model options shared by extending configs.
     "resolveJsonModule": true,
     "isolatedModules": true,
 
