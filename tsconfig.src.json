@@ -12,7 +12,6 @@
     "moduleResolution": "Bundler",
 
     // Resolution and file-model options shared by extending configs.
-    "baseUrl": ".",
     "resolveJsonModule": true,
     "isolatedModules": true,
 
