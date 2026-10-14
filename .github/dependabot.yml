@@ -9,3 +9,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+# Ignore TypeScript 7 until typescript-eslint officially supports it; remove this rule once compatibility is confirmed.
+ignore:
+  - dependency-name: "typescript"
+    versions: [">=7.0.0"]
